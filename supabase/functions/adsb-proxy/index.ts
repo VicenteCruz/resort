@@ -19,23 +19,35 @@ Deno.serve(async (req) => {
     });
   }
 
-  try {
-    const upstream = await fetch(`https://api.adsb.lol/v2/callsign/${encodeURIComponent(callsign)}`, {
-      headers: { 'User-Agent': 'yucatan-companion-radar/1.0' }
-    });
-    const body = await upstream.text();
-    return new Response(body, {
-      status: upstream.status,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=15'
+  const sources = [
+    `https://opendata.adsb.fi/api/v2/callsign/${encodeURIComponent(callsign)}`,
+    `https://api.adsb.lol/v2/callsign/${encodeURIComponent(callsign)}`,
+    `https://api.airplanes.live/v2/callsign/${encodeURIComponent(callsign)}`
+  ];
+
+  for (const target of sources) {
+    try {
+      const upstream = await fetch(target, {
+        headers: { 'User-Agent': 'yucatan-companion-radar/1.0' }
+      });
+      if (upstream.ok) {
+        const body = await upstream.text();
+        return new Response(body, {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=15'
+          }
+        });
       }
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 502,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    } catch (_) {
+      // Try next ADS-B source
+    }
   }
+
+  return new Response(JSON.stringify({ ac: [], msg: 'All ADS-B sources busy' }), {
+    status: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
 });
