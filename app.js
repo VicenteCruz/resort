@@ -146,6 +146,27 @@
     if (!Array.isArray(merged.expenses)) merged.expenses = [];
     if (!Array.isArray(merged.cocktails)) merged.cocktails = [];
 
+    // Migrate legacy single-review cocktails to 1-card-per-cocktail with reviews[]
+    merged.cocktails = merged.cocktails.map((c) => {
+      if (Array.isArray(c.reviews)) return c;
+      const rev = {
+        id: `rev-${c.id || Date.now()}`,
+        userId: String(c.by || 'legacy').toLowerCase(),
+        by: c.by || 'Viajante',
+        rating: Number(c.rating || 4),
+        aspects: c.aspects || { flavor: 4, fresh: 4, strength: 4, look: 4 },
+        note: c.note || '',
+        createdAt: c.createdAt || new Date().toISOString()
+      };
+      return {
+        id: c.id || `ck-${Date.now()}`,
+        name: c.name || 'Cocktail',
+        bar: c.bar || '',
+        photoUrl: c.photoUrl || '',
+        reviews: [rev]
+      };
+    });
+
     return merged;
   }
 
@@ -1484,8 +1505,8 @@
   function openRateVenueModal(venueId) {
     const v = state.venues.find((x) => x.id === venueId);
     if (!v) return;
-    const defaultBy = sbUser?.email ? sbUser.email.split('@')[0] : '';
-    const r = v.ratings || { food: 5, vibe: 5, service: 5, quality: 5, comment: '', by: defaultBy };
+    const me = getCurrentReviewer();
+    const r = v.ratings || { food: 5, vibe: 5, service: 5, quality: 5, comment: '', by: me.by };
     const opts = (val) =>
       [5, 4, 3, 2, 1]
         .map((n) => `<option value="${n}" ${Number(val) === n ? 'selected' : ''}>${'★'.repeat(n)}${'☆'.repeat(5 - n)} (${n})</option>`)
@@ -1499,15 +1520,9 @@
           <div><label class="field-label">Serviço</label><select id="rv-serv" class="select">${opts(r.service)}</select></div>
           <div><label class="field-label">Qualidade / Pratos</label><select id="rv-qual" class="select">${opts(r.quality)}</select></div>
         </div>
-        <div class="form-grid form-grid-2">
-          <div>
-            <label class="field-label">Avaliado por</label>
-            <input id="rv-by" class="input" value="${escapeHtml(r.by || defaultBy)}" placeholder="O seu nome..." />
-          </div>
-          <div>
-            <label class="field-label">Comentário / Prato Favorito</label>
-            <input id="rv-note" class="input" value="${escapeHtml(r.comment || '')}" placeholder="Ex: Melhor prato da viagem..." />
-          </div>
+        <div>
+          <label class="field-label">Comentário / Prato Favorito</label>
+          <input id="rv-note" class="input" value="${escapeHtml(r.comment || '')}" placeholder="Ex: Melhor prato da viagem..." />
         </div>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
           <button type="submit" class="btn btn-primary">Guardar Avaliação</button>
@@ -1522,7 +1537,7 @@
         vibe: Number(document.getElementById('rv-vibe').value),
         service: Number(document.getElementById('rv-serv').value),
         quality: Number(document.getElementById('rv-qual').value),
-        by: document.getElementById('rv-by').value.trim() || defaultBy || 'Viajantes',
+        by: me.by,
         comment: document.getElementById('rv-note').value.trim()
       };
       v.visited = true;
@@ -2743,24 +2758,43 @@
   });
 
   /* ========================================================================
-     Cocktails Rating (Privado) — Ranking Postcards + FAB Modal
+     Cocktails Rating (Privado) — 1 Card per Cocktail, Multiple Reviews, Auto User
      ======================================================================== */
+  function getCurrentReviewer() {
+    if (sbUser) {
+      const metaName = sbUser.user_metadata?.full_name || sbUser.user_metadata?.name;
+      const emailPrefix = sbUser.email ? sbUser.email.split('@')[0].replace(/[._-]+/g, ' ') : '';
+      const displayName = metaName || (emailPrefix ? emailPrefix.split(' ').map(capitalize).join(' ') : 'Utilizador');
+      return { userId: sbUser.id || sbUser.email || displayName.toLowerCase(), by: displayName };
+    }
+    return { userId: 'local', by: 'Viajante' };
+  }
+
+  function getReviewAvg(r) {
+    if (r?.aspects) {
+      return (Number(r.aspects.flavor || 4) + Number(r.aspects.fresh || 4) + Number(r.aspects.strength || 4) + Number(r.aspects.look || 4)) / 4;
+    }
+    return Number(r?.rating || 4);
+  }
+
+  function getCocktailAvg(c) {
+    const revs = Array.isArray(c.reviews) ? c.reviews : [];
+    if (!revs.length) return Number(c.rating || 0);
+    return revs.reduce((sum, r) => sum + getReviewAvg(r), 0) / revs.length;
+  }
+
   function renderCocktails() {
     const grid = document.getElementById('cocktails-list-grid');
     const badge = document.getElementById('cocktails-count-badge');
     if (!grid) return;
 
-    const list = Array.isArray(state.cocktails) ? state.cocktails : [];
-    if (badge) badge.textContent = `${list.length} avaliado${list.length === 1 ? '' : 's'}`;
+    const list = (Array.isArray(state.cocktails) ? state.cocktails : []).filter((c) => Array.isArray(c.reviews) && c.reviews.length > 0);
+    const totalReviews = list.reduce((s, c) => s + c.reviews.length, 0);
+    if (badge) {
+      badge.textContent = `${list.length} cocktail${list.length === 1 ? '' : 's'} · ${totalReviews} review${totalReviews === 1 ? '' : 's'}`;
+    }
 
-    const getAvg = (c) => {
-      if (c.aspects) {
-        return (c.aspects.flavor + c.aspects.fresh + c.aspects.strength + c.aspects.look) / 4;
-      }
-      return Number(c.rating || 5);
-    };
-
-    const sorted = [...list].sort((a, b) => getAvg(b) - getAvg(a));
+    const sorted = [...list].sort((a, b) => getCocktailAvg(b) - getCocktailAvg(a));
 
     if (!sorted.length) {
       grid.innerHTML = `<div class="surface" style="grid-column: 1 / -1; text-align: center; padding: 36px 20px;">
@@ -2770,15 +2804,41 @@
       return;
     }
 
+    const me = getCurrentReviewer();
     const medals = ['🥇 #1', '🥈 #2', '🥉 #3'];
     const medalClasses = ['is-gold', 'is-silver', 'is-bronze'];
 
     grid.innerHTML = sorted
       .map((c, idx) => {
-        const avg = getAvg(c).toFixed(1);
-        const a = c.aspects;
+        const avg = getCocktailAvg(c).toFixed(1);
         const rankText = medals[idx] || `#${idx + 1}`;
         const rankCls = medalClasses[idx] || '';
+        const myReview = c.reviews.find((r) => r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase());
+
+        const reviewsHtml = c.reviews
+          .map((r) => {
+            const rAvg = getReviewAvg(r).toFixed(1);
+            const a = r.aspects;
+            return `
+              <div class="ck-review-row">
+                <div class="ck-review-row-top">
+                  <span class="ck-review-author">${escapeHtml(r.by)}</span>
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span class="ck-review-score">★ ${rAvg}</span>
+                    <button type="button" class="icon-btn" style="padding:2px 5px;font-size:0.75rem;" data-del-ck-rev="${escapeHtml(c.id)}::${escapeHtml(r.id)}" title="Apagar esta review">✕</button>
+                  </div>
+                </div>
+                ${a ? `
+                  <div class="ck-review-mini-metrics">
+                    <span>Sabor ${a.flavor}★</span>
+                    <span>Frescura ${a.fresh}★</span>
+                    <span>Álcool ${a.strength}★</span>
+                    <span>Visual ${a.look}★</span>
+                  </div>` : ''}
+                ${r.note ? `<p class="ck-postcard-quote">"${escapeHtml(r.note)}"</p>` : ''}
+              </div>`;
+          })
+          .join('');
 
         return `
           <article class="cocktail-postcard">
@@ -2797,19 +2857,13 @@
                   </div>
                   <span class="tag tag-cenote mono">★ ${avg}</span>
                 </div>
-                ${a ? `
-                  <div class="ck-postcard-metrics" style="margin-top:8px;">
-                    <span>Sabor <strong>${a.flavor}★</strong></span>
-                    <span>Frescura <strong>${a.fresh}★</strong></span>
-                    <span>Álcool <strong>${a.strength}★</strong></span>
-                    <span>Visual <strong>${a.look}★</strong></span>
-                  </div>
-                ` : ''}
-                ${c.note ? `<p class="ck-postcard-quote" style="margin-top:8px;">"${escapeHtml(c.note)}"</p>` : ''}
+                <div class="ck-reviews-list">${reviewsHtml}</div>
               </div>
               <div class="ck-postcard-footer">
-                <span>Avaliado por <strong>${escapeHtml(c.by || 'Viajantes')}</strong></span>
-                <button type="button" class="icon-btn" data-del-ck="${escapeHtml(c.id)}" title="Remover">✕</button>
+                <span>${c.reviews.length} ${c.reviews.length === 1 ? 'review' : 'reviews'}</span>
+                <button type="button" class="btn btn-sm" data-review-ck="${escapeHtml(c.id)}">
+                  ${myReview ? '✎ Editar a minha' : '+ Adicionar Review'}
+                </button>
               </div>
             </div>
           </article>
@@ -2817,34 +2871,49 @@
       })
       .join('');
 
-    grid.querySelectorAll('[data-del-ck]').forEach((b) =>
+    grid.querySelectorAll('[data-review-ck]').forEach((b) =>
+      b.addEventListener('click', () => openCocktailReviewModal(b.getAttribute('data-review-ck')))
+    );
+
+    grid.querySelectorAll('[data-del-ck-rev]').forEach((b) =>
       b.addEventListener('click', () => {
-        const id = b.getAttribute('data-del-ck');
-        const ck = (state.cocktails || []).find((x) => x.id === id);
-        if (!ck) return;
+        const [ckId, revId] = b.getAttribute('data-del-ck-rev').split('::');
+        const ck = (state.cocktails || []).find((x) => x.id === ckId);
+        const rev = ck?.reviews?.find((r) => r.id === revId);
+        if (!ck || !rev) return;
+        const isLast = ck.reviews.length === 1;
         const previewHtml = `
           ${ck.photoUrl ? `<img src="${escapeHtml(ck.photoUrl)}" alt="" style="width:54px;height:54px;object-fit:cover;border-radius:8px;flex-shrink:0;" />` : `<span style="font-size:1.8rem;">🍹</span>`}
           <div>
             <div style="font-weight:700;font-size:0.95rem;">${escapeHtml(ck.name)}</div>
-            <div style="font-size:0.8rem;color:var(--ink-secondary);">${escapeHtml(ck.bar || '')}</div>
+            <div style="font-size:0.8rem;color:var(--ink-secondary);">Review de <strong>${escapeHtml(rev.by)}</strong> (★ ${getReviewAvg(rev).toFixed(1)})</div>
           </div>`;
         openConfirmModal({
-          title: 'Apagar Avaliação de Cocktail?',
-          message: `Tem a certeza que quer apagar a review de "${ck.name}" do ranking?`,
+          title: 'Apagar Review?',
+          message: isLast
+            ? `Esta é a única review de "${ck.name}". Ao apagá-la, o cocktail também será removido do ranking.`
+            : `Tem a certeza que quer apagar a review de ${rev.by} em "${ck.name}"?`,
           previewHtml,
-          confirmLabel: 'Apagar Avaliação',
+          confirmLabel: 'Apagar Review',
           onConfirm: () => {
-            state.cocktails = (state.cocktails || []).filter((x) => x.id !== id);
+            ck.reviews = ck.reviews.filter((r) => r.id !== revId);
+            if (!ck.reviews.length) {
+              state.cocktails = state.cocktails.filter((x) => x.id !== ckId);
+            }
             saveState();
             renderCocktails();
-            showToast('Avaliação removida');
+            showToast('Review removida');
           }
         });
       })
     );
   }
 
-  function openAddCocktailModal() {
+  function openCocktailReviewModal(existingCocktailId = null) {
+    const existing = existingCocktailId ? (state.cocktails || []).find((c) => c.id === existingCocktailId) : null;
+    const me = getCurrentReviewer();
+    const myPrev = existing ? existing.reviews.find((r) => r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase()) : null;
+
     const bars = state.venues.filter((v) => v.category === 'bars');
     const others = state.venues.filter((v) => v.category !== 'bars');
     const barOpts = [
@@ -2852,99 +2921,121 @@
       ...others.map((v) => `<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)}</option>`),
       '<option value="Outro Bar / Local">Outro Bar / Local</option>'
     ].join('');
-    const starOpts = `
-      <option value="5">★★★★★ (5)</option>
-      <option value="4" selected>★★★★☆ (4)</option>
-      <option value="3">★★★☆☆ (3)</option>
-      <option value="2">★★☆☆☆ (2)</option>
-      <option value="1">★☆☆☆☆ (1)</option>`;
-    const defaultBy = sbUser?.email ? sbUser.email.split('@')[0] : '';
 
-    openModal('Adicionar Cocktail ao Ranking', `
+    const starOpts = (selVal) =>
+      [5, 4, 3, 2, 1]
+        .map((n) => `<option value="${n}" ${Number(selVal) === n ? 'selected' : ''}>${'★'.repeat(n)}${'☆'.repeat(5 - n)} (${n})</option>`)
+        .join('');
+
+    const prevA = myPrev?.aspects || { flavor: 4, fresh: 4, strength: 4, look: 4 };
+    const showPhotoField = !existing || !existing.photoUrl;
+    const modalTitle = existing
+      ? (myPrev ? `Editar Review — ${existing.name}` : `Avaliar ${existing.name}`)
+      : 'Adicionar Cocktail ao Ranking';
+
+    openModal(modalTitle, `
       <form id="form-add-cocktail" class="form-grid">
+        ${!existing ? `
+          <div class="form-grid form-grid-2">
+            <div>
+              <label class="field-label" for="ck-name">Nome do Cocktail</label>
+              <input type="text" id="ck-name" class="input" placeholder="Ex: Mango Margarita, Mojito..." required />
+            </div>
+            <div>
+              <label class="field-label" for="ck-bar">Local / Bar</label>
+              <select id="ck-bar" class="select">${barOpts}</select>
+            </div>
+          </div>
+        ` : `
+          <p style="font-size:0.84rem;color:var(--ink-secondary);">
+            <strong>${escapeHtml(existing.name)}</strong> · ${escapeHtml(existing.bar)}
+            ${existing.photoUrl ? ' · Foto já guardada no cartão.' : ''}
+          </p>
+        `}
         <div class="form-grid form-grid-2">
-          <div>
-            <label class="field-label" for="ck-name">Nome do Cocktail</label>
-            <input type="text" id="ck-name" class="input" placeholder="Ex: Mango Margarita, Mojito..." required />
-          </div>
-          <div>
-            <label class="field-label" for="ck-bar">Local / Bar</label>
-            <select id="ck-bar" class="select">${barOpts}</select>
-          </div>
+          <div><label class="field-label" for="ck-flavor">Sabor &amp; Equilíbrio</label><select id="ck-flavor" class="select">${starOpts(prevA.flavor)}</select></div>
+          <div><label class="field-label" for="ck-fresh">Frescura / Temperatura</label><select id="ck-fresh" class="select">${starOpts(prevA.fresh)}</select></div>
+          <div><label class="field-label" for="ck-strength">Força / Álcool</label><select id="ck-strength" class="select">${starOpts(prevA.strength)}</select></div>
+          <div><label class="field-label" for="ck-look">Apresentação</label><select id="ck-look" class="select">${starOpts(prevA.look)}</select></div>
         </div>
-        <div class="form-grid form-grid-2">
-          <div><label class="field-label" for="ck-flavor">Sabor &amp; Equilíbrio</label><select id="ck-flavor" class="select">${starOpts}</select></div>
-          <div><label class="field-label" for="ck-fresh">Frescura / Temperatura</label><select id="ck-fresh" class="select">${starOpts}</select></div>
-          <div><label class="field-label" for="ck-strength">Força / Álcool</label><select id="ck-strength" class="select">${starOpts}</select></div>
-          <div><label class="field-label" for="ck-look">Apresentação</label><select id="ck-look" class="select">${starOpts}</select></div>
-        </div>
-        <div class="form-grid form-grid-2">
-          <div>
-            <label class="field-label" for="ck-by">Avaliado por</label>
-            <input type="text" id="ck-by" class="input" value="${escapeHtml(defaultBy)}" placeholder="O seu nome..." />
-          </div>
+        ${showPhotoField ? `
           <div>
             <label class="field-label" for="ck-photo">Foto do Cocktail (opcional)</label>
             <input type="file" id="ck-photo" accept="image/*" class="input" />
           </div>
-        </div>
+        ` : ''}
         <div>
           <label class="field-label" for="ck-note">Notas / Review</label>
-          <input type="text" id="ck-note" class="input" placeholder="Ex: Pedir sem sal, bem fresco, muito doce..." />
+          <input type="text" id="ck-note" class="input" value="${escapeHtml(myPrev?.note || '')}" placeholder="Ex: Pedir sem sal, bem fresco, muito doce..." />
         </div>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
-          <button type="submit" class="btn btn-primary" id="btn-submit-cocktail">+ Guardar Avaliação</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-cocktail">${myPrev ? 'Guardar Alterações' : '+ Guardar Review'}</button>
         </div>
       </form>
     `);
 
     document.getElementById('form-add-cocktail').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const name = document.getElementById('ck-name').value.trim();
-      const bar = document.getElementById('ck-bar').value;
       const flavor = Number(document.getElementById('ck-flavor').value) || 4;
       const fresh = Number(document.getElementById('ck-fresh').value) || 4;
       const strength = Number(document.getElementById('ck-strength').value) || 4;
       const look = Number(document.getElementById('ck-look').value) || 4;
-      const byInput = document.getElementById('ck-by')?.value.trim();
       const note = document.getElementById('ck-note').value.trim();
       const photoInput = document.getElementById('ck-photo');
       const photoFile = photoInput?.files?.[0];
-      if (!name) return;
+      const avg = (flavor + fresh + strength + look) / 4;
 
-      let photoUrl = '';
-      if (photoFile && sbClient && sbUser) {
+      let target = existing;
+      if (!target) {
+        const name = document.getElementById('ck-name').value.trim();
+        const bar = document.getElementById('ck-bar').value;
+        if (!name) return;
+        // Avoid duplicates: if a cocktail with the same name already exists, add review to it!
+        const normName = name.toLowerCase();
+        target = (state.cocktails || []).find((c) => String(c.name || '').trim().toLowerCase() === normName);
+        if (!target) {
+          target = { id: `ck-${Date.now()}`, name, bar, photoUrl: '', reviews: [] };
+          if (!Array.isArray(state.cocktails)) state.cocktails = [];
+          state.cocktails.push(target);
+        }
+      }
+
+      if (photoFile && !target.photoUrl && sbClient && sbUser) {
         showToast('A carregar foto do cocktail...');
         const ext = (photoFile.name.split('.').pop() || 'jpg').toLowerCase();
         const path = `cocktails/${Date.now()}.${ext}`;
         const { error: upErr } = await sbClient.storage.from('trip-photos').upload(path, photoFile, { upsert: false });
         if (!upErr) {
           const { data: pub } = sbClient.storage.from('trip-photos').getPublicUrl(path);
-          photoUrl = pub?.publicUrl || '';
+          target.photoUrl = pub?.publicUrl || '';
         }
       }
 
-      const avg = (flavor + fresh + strength + look) / 4;
-      if (!Array.isArray(state.cocktails)) state.cocktails = [];
-      state.cocktails.push({
-        id: `ck-${Date.now()}`,
-        name,
-        bar,
+      const revPayload = {
+        id: myPrev?.id || `rev-${Date.now()}`,
+        userId: me.userId,
+        by: me.by,
         rating: avg,
         aspects: { flavor, fresh, strength, look },
-        photoUrl,
         note,
-        by: byInput || defaultBy || 'Viajantes',
         createdAt: new Date().toISOString()
-      });
+      };
+
+      const existingRevIdx = target.reviews.findIndex((r) => r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase());
+      if (existingRevIdx >= 0) {
+        target.reviews[existingRevIdx] = revPayload;
+      } else {
+        target.reviews.push(revPayload);
+      }
+
       saveState();
       renderCocktails();
       closeModal();
-      showToast(`Cocktail avaliado (${avg.toFixed(1)}★)!`);
+      showToast(`${target.name} avaliado (${avg.toFixed(1)}★)!`);
     });
   }
 
-  document.getElementById('btn-fab-add-cocktail')?.addEventListener('click', openAddCocktailModal);
+  document.getElementById('btn-fab-add-cocktail')?.addEventListener('click', () => openCocktailReviewModal(null));
 
   /* ========================================================================
      Supabase Cloud Sync (Private trip_state + Public public_trip) & Photos

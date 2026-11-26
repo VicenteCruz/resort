@@ -815,11 +815,51 @@ html.is-public .toast { bottom: 110px; font-size: 1rem; }
   font-size: 0.73rem;
   color: var(--ink-secondary);
 }
+.ck-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ck-review-row {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-canvas);
+  border: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ck-review-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ck-review-author {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+.ck-review-score {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--cenote-700);
+}
+.ck-review-mini-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.71rem;
+  color: var(--ink-muted);
+}
 .ck-postcard-quote {
-  font-size: 0.84rem;
+  font-size: 0.83rem;
   color: var(--ink-secondary);
   font-style: italic;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 .ck-postcard-footer {
   display: flex;
