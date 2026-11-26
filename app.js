@@ -3905,7 +3905,16 @@
     showToast(`Nome atualizado para "${newName}"!`);
   });
 
+  const CK_PROFILE = [
+    { key: 'fresh', label: 'Frescura', lo: 'Pouco fresco', hi: 'Muito fresco', icon: '🧊' },
+    { key: 'alcohol', label: 'Álcool', lo: 'Suave', hi: 'Forte', icon: '🥃' },
+    { key: 'fruity', label: 'Frutado', lo: 'Pouco frutado', hi: 'Muito frutado', icon: '🍓' },
+    { key: 'sweet', label: 'Açucarado', lo: 'Seco', hi: 'Doce', icon: '🍬' }
+  ];
+  const ckFilters = {};
+
   function getReviewAvg(r) {
+    if (r?.profile) return Number(r.rating || 0);
     if (r?.aspects) {
       return (Number(r.aspects.flavor || 4) + Number(r.aspects.fresh || 4) + Number(r.aspects.strength || 4) + Number(r.aspects.look || 4)) / 4;
     }
@@ -3919,23 +3928,13 @@
   }
 
   function getCocktailAspectAverages(c) {
-    const revs = Array.isArray(c.reviews) ? c.reviews : [];
+    const revs = (Array.isArray(c.reviews) ? c.reviews : []).filter((r) => r.profile);
     if (!revs.length) return null;
-    const totals = { flavor: 0, fresh: 0, strength: 0, look: 0 };
-    revs.forEach((r) => {
-      const fb = Number(r.rating || 4);
-      totals.flavor += Number(r.aspects?.flavor ?? fb);
-      totals.fresh += Number(r.aspects?.fresh ?? fb);
-      totals.strength += Number(r.aspects?.strength ?? fb);
-      totals.look += Number(r.aspects?.look ?? fb);
-    });
-    const n = revs.length;
-    return [
-      { label: 'Sabor', value: totals.flavor / n },
-      { label: 'Frescura', value: totals.fresh / n },
-      { label: 'Álcool', value: totals.strength / n },
-      { label: 'Visual', value: totals.look / n }
-    ];
+    return CK_PROFILE.map((p) => ({
+      key: p.key,
+      label: p.label,
+      value: revs.reduce((t, r) => t + Number(r.profile[p.key] || 0), 0) / revs.length
+    }));
   }
 
   function ckNorm(s) {
@@ -3943,6 +3942,21 @@
   }
   document.getElementById('ck-search')?.addEventListener('input', () => renderCocktails());
   const expandedCocktailIds = new Set();
+  (function initCkFilters() {
+    const panel = document.getElementById('ck-filter-panel');
+    if (!panel) return;
+    panel.querySelectorAll('select[data-ck-filter]').forEach((sel) => {
+      sel.addEventListener('change', () => {
+        ckFilters[sel.getAttribute('data-ck-filter')] = sel.value;
+        renderCocktails();
+      });
+    });
+    document.getElementById('ck-filter-clear')?.addEventListener('click', () => {
+      panel.querySelectorAll('select[data-ck-filter]').forEach((sel) => { sel.value = ''; });
+      Object.keys(ckFilters).forEach((k) => delete ckFilters[k]);
+      renderCocktails();
+    });
+  })();
 
   function renderCocktails() {
     const grid = document.getElementById('cocktails-list-grid');
@@ -3962,6 +3976,17 @@
     const q = ckNorm(document.getElementById('ck-search')?.value || '');
     const sorted = [...list]
       .filter((c) => !q || ckNorm(c.name).includes(q))
+      .filter((c) => {
+        const act = CK_PROFILE.filter((p) => ckFilters[p.key]);
+        if (!act.length) return true;
+        const av = getCocktailAspectAverages(c);
+        if (!av) return false;
+        return act.every((p) => {
+          const v = av.find((x) => x.key === p.key).value;
+          const f = ckFilters[p.key];
+          return f === 'low' ? v < 1.8 : f === 'mid' ? v >= 1.8 && v <= 3.2 : v > 3.2;
+        });
+      })
       .sort((a, b) => getCocktailAvg(b) - getCocktailAvg(a));
 
     if (!sorted.length) {
@@ -4014,7 +4039,10 @@
                   </div>
                 </div>
                 ${r.note ? `<p class="tasting-quote">“${escapeHtml(r.note)}”</p>` : ''}
-                ${a ? `
+                ${r.profile ? `
+                  <div class="tasting-subscores">
+                    ${CK_PROFILE.map((p) => `<span class="tasting-subpill">${p.label} <strong>${Number(r.profile[p.key] || 0)}/5</strong></span>`).join('')}
+                  </div>` : a ? `
                   <div class="tasting-subscores">
                     <span class="tasting-subpill">Sabor <strong>${a.flavor}★</strong></span>
                     <span class="tasting-subpill">Frescura <strong>${a.fresh}★</strong></span>
@@ -4210,7 +4238,8 @@
       .map((name) => `<option value="${escapeHtml(name)}" ${name === selectedBar ? 'selected' : ''}>${escapeHtml(name)}</option>`)
       .join('');
 
-    const prevA = editingRev?.aspects || { flavor: 5, fresh: 5, strength: 4, look: 4 };
+    const prevRating = editingRev ? Number(getReviewAvg(editingRev).toFixed(1)) : 4;
+    const prevProfile = { fresh: 2, alcohol: 2, fruity: 2, sweet: 2, ...(editingRev?.profile || {}) };
     const criteria = [
       { key: 'flavor', inputId: 'ck-flavor', label: '🍋 Sabor & Equilíbrio' },
       { key: 'fresh', inputId: 'ck-fresh', label: '🧊 Frescura & Temperatura' },
@@ -4248,7 +4277,17 @@
           </div>
         `}
 
-        ${renderStarPickerMarkup(criteria, prevA)}
+        <div>
+          <label class="field-label" for="ck-rating">⭐ Nota geral: <strong id="ck-rating-out">${prevRating}</strong>/5</label>
+          <input type="range" id="ck-rating" min="0" max="5" step="0.5" value="${prevRating}" style="width:100%;" />
+        </div>
+        <div class="field-label" style="margin-top:6px;">Perfil de sabor <span style="font-weight:400;color:var(--ink-muted);">(não é bom/mau — só como é)</span></div>
+        ${CK_PROFILE.map((p) => `
+          <div>
+            <label class="field-label" for="ck-p-${p.key}">${p.icon} ${p.label}: <strong id="ck-p-${p.key}-out">${prevProfile[p.key]}</strong>/5</label>
+            <input type="range" id="ck-p-${p.key}" min="0" max="5" step="1" value="${prevProfile[p.key]}" style="width:100%;" />
+            <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--ink-muted);"><span>${p.lo}</span><span>${p.hi}</span></div>
+          </div>`).join('')}
 
         <div>
           <label class="field-label" for="ck-note">Notas de Prova / Dica (opcional)</label>
@@ -4266,7 +4305,10 @@
       </form>
     `);
 
-    bindStarPickerEvents(criteria);
+    ['ck-rating', ...CK_PROFILE.map((p) => `ck-p-${p.key}`)].forEach((id) => {
+      const el = document.getElementById(id);
+      el?.addEventListener('input', () => { document.getElementById(`${id}-out`).textContent = el.value; });
+    });
 
     const nameInput = document.getElementById('ck-name');
     if (nameInput) {
@@ -4294,14 +4336,12 @@
     document.getElementById('form-add-cocktail').addEventListener('submit', async (e) => {
       e.preventDefault();
       const bar = document.getElementById('ck-bar').value;
-      const flavor = Number(document.getElementById('ck-flavor').value) || 4;
-      const fresh = Number(document.getElementById('ck-fresh').value) || 4;
-      const strength = Number(document.getElementById('ck-strength').value) || 4;
-      const look = Number(document.getElementById('ck-look').value) || 4;
+      const avg = Number(document.getElementById('ck-rating').value) || 0;
+      const profile = {};
+      CK_PROFILE.forEach((p) => { profile[p.key] = Number(document.getElementById(`ck-p-${p.key}`).value) || 0; });
       const note = document.getElementById('ck-note').value.trim();
       const photoInput = document.getElementById('ck-photo');
       const photoFile = photoInput?.files?.[0];
-      const avg = (flavor + fresh + strength + look) / 4;
 
       let target = existing;
       if (!target) {
@@ -4334,7 +4374,7 @@
         by: editingRev?.by || me.by,
         bar,
         rating: avg,
-        aspects: { flavor, fresh, strength, look },
+        profile,
         note,
         createdAt: editingRev?.createdAt || new Date().toISOString()
       };
