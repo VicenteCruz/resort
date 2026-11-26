@@ -533,7 +533,8 @@
   function openRateVenueModal(venueId) {
     const v = state.venues.find((x) => x.id === venueId);
     if (!v) return;
-    const r = v.ratings || { food: 5, vibe: 5, service: 5, quality: 5, comment: '' };
+    const defaultBy = sbUser?.email ? sbUser.email.split('@')[0] : '';
+    const r = v.ratings || { food: 5, vibe: 5, service: 5, quality: 5, comment: '', by: defaultBy };
     const opts = (val) =>
       [5, 4, 3, 2, 1]
         .map((n) => `<option value="${n}" ${Number(val) === n ? 'selected' : ''}>${'★'.repeat(n)}${'☆'.repeat(5 - n)} (${n})</option>`)
@@ -547,9 +548,15 @@
           <div><label class="field-label">Serviço</label><select id="rv-serv" class="select">${opts(r.service)}</select></div>
           <div><label class="field-label">Qualidade / Pratos</label><select id="rv-qual" class="select">${opts(r.quality)}</select></div>
         </div>
-        <div>
-          <label class="field-label">Comentário / Prato Favorito</label>
-          <input id="rv-note" class="input" value="${escapeHtml(r.comment || '')}" placeholder="Ex: Melhor bife da viagem, sobremesa incrível..." />
+        <div class="form-grid form-grid-2">
+          <div>
+            <label class="field-label">Avaliado por</label>
+            <input id="rv-by" class="input" value="${escapeHtml(r.by || defaultBy)}" placeholder="O seu nome..." />
+          </div>
+          <div>
+            <label class="field-label">Comentário / Prato Favorito</label>
+            <input id="rv-note" class="input" value="${escapeHtml(r.comment || '')}" placeholder="Ex: Melhor bife da viagem..." />
+          </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
           <button type="submit" class="btn btn-primary">Guardar Avaliação</button>
@@ -564,6 +571,7 @@
         vibe: Number(document.getElementById('rv-vibe').value),
         service: Number(document.getElementById('rv-serv').value),
         quality: Number(document.getElementById('rv-qual').value),
+        by: document.getElementById('rv-by').value.trim() || defaultBy || 'Casal',
         comment: document.getElementById('rv-note').value.trim()
       };
       v.visited = true;
@@ -627,6 +635,7 @@
                     <span>Qualidade <strong>${r.quality}★</strong></span>
                   </div>
                   ${r.comment ? `<div style="margin-top:4px;font-style:italic;">"${escapeHtml(r.comment)}"</div>` : ''}
+                  ${r.by ? `<div style="margin-top:4px;font-size:0.72rem;color:var(--ink-muted);">Avaliado por <strong>${escapeHtml(r.by)}</strong></div>` : ''}
                 </div>
               ` : ''}
             </div>
@@ -956,7 +965,7 @@
               ${c.note ? `<p class="venue-desc" style="margin-top:8px;">"${escapeHtml(c.note)}"</p>` : ''}
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--line-soft);font-size:0.76rem;color:var(--ink-muted);">
-              <span>${escapeHtml(c.by || '')}</span>
+              <span>Avaliado por <strong>${escapeHtml(c.by || 'Casal')}</strong></span>
               <button type="button" class="icon-btn" data-del-ck="${escapeHtml(c.id)}" title="Remover">✕</button>
             </div>
           </article>
@@ -981,6 +990,7 @@
     const fresh = Number(document.getElementById('ck-fresh').value) || 4;
     const strength = Number(document.getElementById('ck-strength').value) || 4;
     const look = Number(document.getElementById('ck-look').value) || 4;
+    const byInput = document.getElementById('ck-by')?.value.trim();
     const note = document.getElementById('ck-note').value.trim();
     if (!name) return;
 
@@ -993,7 +1003,7 @@
       rating: avg,
       aspects: { flavor, fresh, strength, look },
       note,
-      by: sbUser?.email ? sbUser.email.split('@')[0] : 'Casal',
+      by: byInput || (sbUser?.email ? sbUser.email.split('@')[0] : 'Casal'),
       createdAt: new Date().toISOString()
     });
     document.getElementById('ck-name').value = '';
