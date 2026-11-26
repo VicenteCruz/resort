@@ -2719,12 +2719,11 @@
   });
 
   /* ========================================================================
-     Cocktails Rating (Privado)
+     Cocktails Rating (Privado) — Ranking Postcards + FAB Modal
      ======================================================================== */
   function renderCocktails() {
     const grid = document.getElementById('cocktails-list-grid');
     const badge = document.getElementById('cocktails-count-badge');
-    const rankBox = document.getElementById('cocktails-ranking-box');
     if (!grid) return;
 
     const list = Array.isArray(state.cocktails) ? state.cocktails : [];
@@ -2739,75 +2738,55 @@
 
     const sorted = [...list].sort((a, b) => getAvg(b) - getAvg(a));
 
-    if (rankBox) {
-      if (sorted.length) {
-        const medals = ['🥇', '🥈', '🥉', '4º', '5º'];
-        rankBox.innerHTML = `
-          <div class="surface">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-              <h3 style="font-size:1.1rem;">🏆 Top Melhores Cocktails</h3>
-              <span class="tag tag-cenote">Top ${Math.min(5, sorted.length)}</span>
-            </div>
-            <div class="open-now-list">
-              ${sorted
-                .slice(0, 5)
-                .map(
-                  (c, i) => `
-                  <div class="open-venue-row">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                      ${c.photoUrl ? `<img src="${escapeHtml(c.photoUrl)}" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:8px;" />` : ''}
-                      <div>
-                        <strong>${medals[i]} ${escapeHtml(c.name)}</strong>
-                        <span style="font-size:0.78rem;color:var(--ink-secondary);margin-left:6px;">${escapeHtml(c.bar)}</span>
-                      </div>
-                    </div>
-                    <span class="tag tag-cenote mono">★ ${getAvg(c).toFixed(1)} / 5</span>
-                  </div>`
-                )
-                .join('')}
-            </div>
-          </div>
-        `;
-      } else {
-        rankBox.innerHTML = '';
-      }
-    }
-
     if (!sorted.length) {
-      grid.innerHTML = `<div class="surface"><p style="font-size:0.86rem;color:var(--ink-secondary);">Ainda nenhum cocktail avaliado. Registe o primeiro acima!</p></div>`;
+      grid.innerHTML = `<div class="surface" style="grid-column: 1 / -1; text-align: center; padding: 36px 20px;">
+        <div style="font-size: 2.2rem; margin-bottom: 8px;">🍹</div>
+        <p style="font-size: 0.94rem; color: var(--ink-secondary);">Ainda nenhum cocktail no ranking.<br/>Carregue no botão <strong>+ Adicionar Cocktail</strong> no canto inferior direito para começar!</p>
+      </div>`;
       return;
     }
+
+    const medals = ['🥇 #1', '🥈 #2', '🥉 #3'];
+    const medalClasses = ['is-gold', 'is-silver', 'is-bronze'];
 
     grid.innerHTML = sorted
       .map((c, idx) => {
         const avg = getAvg(c).toFixed(1);
         const a = c.aspects;
+        const rankText = medals[idx] || `#${idx + 1}`;
+        const rankCls = medalClasses[idx] || '';
+
         return `
-          <article class="venue-card">
-            <div>
-              ${c.photoUrl ? `<img src="${escapeHtml(c.photoUrl)}" alt="${escapeHtml(c.name)}" style="width:100%;height:190px;object-fit:cover;border-radius:10px;margin-bottom:10px;" loading="lazy" />` : ''}
-              <div class="venue-top">
-                <div>
-                  <h3 class="venue-name">#${idx + 1} ${escapeHtml(c.name)}</h3>
-                  <div class="venue-cuisine">${escapeHtml(c.bar)}</div>
+          <article class="cocktail-postcard">
+            <div class="ck-postcard-media">
+              ${c.photoUrl
+                ? `<img src="${escapeHtml(c.photoUrl)}" alt="${escapeHtml(c.name)}" loading="lazy" />`
+                : `<span class="ck-postcard-placeholder" aria-hidden="true">🍹</span>`}
+              <span class="ck-rank-badge ${rankCls}">${rankText}</span>
+            </div>
+            <div class="ck-postcard-body">
+              <div>
+                <div class="ck-postcard-head">
+                  <div style="min-width:0;">
+                    <h3 class="ck-postcard-title">${escapeHtml(c.name)}</h3>
+                    <div class="ck-postcard-bar">${escapeHtml(c.bar)}</div>
+                  </div>
+                  <span class="tag tag-cenote mono">★ ${avg}</span>
                 </div>
-                <span class="tag tag-cenote mono">★ ${avg} / 5</span>
-              </div>
-              ${a ? `
-                <div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--bg-canvas);font-size:0.76rem;color:var(--ink-secondary);">
-                  <div class="mono" style="display:flex;flex-wrap:wrap;gap:6px 10px;">
+                ${a ? `
+                  <div class="ck-postcard-metrics" style="margin-top:8px;">
                     <span>Sabor <strong>${a.flavor}★</strong></span>
                     <span>Frescura <strong>${a.fresh}★</strong></span>
                     <span>Álcool <strong>${a.strength}★</strong></span>
                     <span>Visual <strong>${a.look}★</strong></span>
                   </div>
-                </div>
-              ` : ''}
-              ${c.note ? `<p class="venue-desc" style="margin-top:8px;">"${escapeHtml(c.note)}"</p>` : ''}
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--line-soft);font-size:0.76rem;color:var(--ink-muted);">
-              <span>Avaliado por <strong>${escapeHtml(c.by || 'Viajantes')}</strong></span>
-              <button type="button" class="icon-btn" data-del-ck="${escapeHtml(c.id)}" title="Remover">✕</button>
+                ` : ''}
+                ${c.note ? `<p class="ck-postcard-quote" style="margin-top:8px;">"${escapeHtml(c.note)}"</p>` : ''}
+              </div>
+              <div class="ck-postcard-footer">
+                <span>Avaliado por <strong>${escapeHtml(c.by || 'Viajantes')}</strong></span>
+                <button type="button" class="icon-btn" data-del-ck="${escapeHtml(c.id)}" title="Remover">✕</button>
+              </div>
             </div>
           </article>
         `;
@@ -2823,52 +2802,107 @@
     );
   }
 
-  document.getElementById('form-add-cocktail')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = document.getElementById('ck-name').value.trim();
-    const bar = document.getElementById('ck-bar').value;
-    const flavor = Number(document.getElementById('ck-flavor').value) || 4;
-    const fresh = Number(document.getElementById('ck-fresh').value) || 4;
-    const strength = Number(document.getElementById('ck-strength').value) || 4;
-    const look = Number(document.getElementById('ck-look').value) || 4;
-    const byInput = document.getElementById('ck-by')?.value.trim();
-    const note = document.getElementById('ck-note').value.trim();
-    const photoInput = document.getElementById('ck-photo');
-    const photoFile = photoInput?.files?.[0];
-    if (!name) return;
+  function openAddCocktailModal() {
+    const bars = state.venues.filter((v) => v.category === 'bars');
+    const others = state.venues.filter((v) => v.category !== 'bars');
+    const barOpts = [
+      ...bars.map((v) => `<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)}</option>`),
+      ...others.map((v) => `<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)}</option>`),
+      '<option value="Outro Bar / Local">Outro Bar / Local</option>'
+    ].join('');
+    const starOpts = `
+      <option value="5">★★★★★ (5)</option>
+      <option value="4" selected>★★★★☆ (4)</option>
+      <option value="3">★★★☆☆ (3)</option>
+      <option value="2">★★☆☆☆ (2)</option>
+      <option value="1">★☆☆☆☆ (1)</option>`;
+    const defaultBy = sbUser?.email ? sbUser.email.split('@')[0] : '';
 
-    let photoUrl = '';
-    if (photoFile && sbClient && sbUser) {
-      showToast('A carregar foto do cocktail...');
-      const ext = (photoFile.name.split('.').pop() || 'jpg').toLowerCase();
-      const path = `cocktails/${Date.now()}.${ext}`;
-      const { error: upErr } = await sbClient.storage.from('trip-photos').upload(path, photoFile, { upsert: false });
-      if (!upErr) {
-        const { data: pub } = sbClient.storage.from('trip-photos').getPublicUrl(path);
-        photoUrl = pub?.publicUrl || '';
+    openModal('Adicionar Cocktail ao Ranking', `
+      <form id="form-add-cocktail" class="form-grid">
+        <div class="form-grid form-grid-2">
+          <div>
+            <label class="field-label" for="ck-name">Nome do Cocktail</label>
+            <input type="text" id="ck-name" class="input" placeholder="Ex: Mango Margarita, Mojito..." required />
+          </div>
+          <div>
+            <label class="field-label" for="ck-bar">Local / Bar</label>
+            <select id="ck-bar" class="select">${barOpts}</select>
+          </div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label" for="ck-flavor">Sabor &amp; Equilíbrio</label><select id="ck-flavor" class="select">${starOpts}</select></div>
+          <div><label class="field-label" for="ck-fresh">Frescura / Temperatura</label><select id="ck-fresh" class="select">${starOpts}</select></div>
+          <div><label class="field-label" for="ck-strength">Força / Álcool</label><select id="ck-strength" class="select">${starOpts}</select></div>
+          <div><label class="field-label" for="ck-look">Apresentação</label><select id="ck-look" class="select">${starOpts}</select></div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div>
+            <label class="field-label" for="ck-by">Avaliado por</label>
+            <input type="text" id="ck-by" class="input" value="${escapeHtml(defaultBy)}" placeholder="O seu nome..." />
+          </div>
+          <div>
+            <label class="field-label" for="ck-photo">Foto do Cocktail (opcional)</label>
+            <input type="file" id="ck-photo" accept="image/*" class="input" />
+          </div>
+        </div>
+        <div>
+          <label class="field-label" for="ck-note">Notas / Review</label>
+          <input type="text" id="ck-note" class="input" placeholder="Ex: Pedir sem sal, bem fresco, muito doce..." />
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
+          <button type="submit" class="btn btn-primary" id="btn-submit-cocktail">+ Guardar Avaliação</button>
+        </div>
+      </form>
+    `);
+
+    document.getElementById('form-add-cocktail').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('ck-name').value.trim();
+      const bar = document.getElementById('ck-bar').value;
+      const flavor = Number(document.getElementById('ck-flavor').value) || 4;
+      const fresh = Number(document.getElementById('ck-fresh').value) || 4;
+      const strength = Number(document.getElementById('ck-strength').value) || 4;
+      const look = Number(document.getElementById('ck-look').value) || 4;
+      const byInput = document.getElementById('ck-by')?.value.trim();
+      const note = document.getElementById('ck-note').value.trim();
+      const photoInput = document.getElementById('ck-photo');
+      const photoFile = photoInput?.files?.[0];
+      if (!name) return;
+
+      let photoUrl = '';
+      if (photoFile && sbClient && sbUser) {
+        showToast('A carregar foto do cocktail...');
+        const ext = (photoFile.name.split('.').pop() || 'jpg').toLowerCase();
+        const path = `cocktails/${Date.now()}.${ext}`;
+        const { error: upErr } = await sbClient.storage.from('trip-photos').upload(path, photoFile, { upsert: false });
+        if (!upErr) {
+          const { data: pub } = sbClient.storage.from('trip-photos').getPublicUrl(path);
+          photoUrl = pub?.publicUrl || '';
+        }
       }
-    }
 
-    const avg = (flavor + fresh + strength + look) / 4;
-    if (!Array.isArray(state.cocktails)) state.cocktails = [];
-    state.cocktails.push({
-      id: `ck-${Date.now()}`,
-      name,
-      bar,
-      rating: avg,
-      aspects: { flavor, fresh, strength, look },
-      photoUrl,
-      note,
-      by: byInput || (sbUser?.email ? sbUser.email.split('@')[0] : 'Viajantes'),
-      createdAt: new Date().toISOString()
+      const avg = (flavor + fresh + strength + look) / 4;
+      if (!Array.isArray(state.cocktails)) state.cocktails = [];
+      state.cocktails.push({
+        id: `ck-${Date.now()}`,
+        name,
+        bar,
+        rating: avg,
+        aspects: { flavor, fresh, strength, look },
+        photoUrl,
+        note,
+        by: byInput || defaultBy || 'Viajantes',
+        createdAt: new Date().toISOString()
+      });
+      saveState();
+      renderCocktails();
+      closeModal();
+      showToast(`Cocktail avaliado (${avg.toFixed(1)}★)!`);
     });
-    document.getElementById('ck-name').value = '';
-    document.getElementById('ck-note').value = '';
-    if (photoInput) photoInput.value = '';
-    saveState();
-    renderCocktails();
-    showToast(`Cocktail avaliado (${avg.toFixed(1)}★)!`);
-  });
+  }
+
+  document.getElementById('btn-fab-add-cocktail')?.addEventListener('click', openAddCocktailModal);
 
   /* ========================================================================
      Supabase Cloud Sync (Private trip_state + Public public_trip) & Photos

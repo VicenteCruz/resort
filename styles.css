@@ -709,6 +709,162 @@ html.is-public .dock-btn svg { width: 28px; height: 28px; }
 html.is-public .dock-btn.is-active { background: var(--cenote-700); color: var(--ink-on-dark); }
 html.is-public .toast { bottom: 110px; font-size: 1rem; }
 
+/* ==========================================================================
+   Cocktails: Ranking Postcards (image left, review right) & Floating Add FAB
+   ========================================================================== */
+.cocktail-postcards-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  padding-bottom: 72px;
+}
+@media (min-width: 960px) {
+  .cocktail-postcards-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.cocktail-postcard {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  background: var(--bg-surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  min-height: 176px;
+}
+@media (min-width: 560px) {
+  .cocktail-postcard {
+    grid-template-columns: 180px 1fr;
+    min-height: 196px;
+  }
+}
+
+.ck-postcard-media {
+  position: relative;
+  background: linear-gradient(145deg, var(--cenote-100), var(--bg-subtle));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.ck-postcard-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ck-postcard-placeholder {
+  font-size: 2.6rem;
+  opacity: 0.7;
+  user-select: none;
+}
+.ck-rank-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: hsla(192, 34%, 13%, 0.84);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.ck-rank-badge.is-gold { background: hsl(40, 82%, 40%); }
+.ck-rank-badge.is-silver { background: hsl(205, 16%, 44%); }
+.ck-rank-badge.is-bronze { background: hsl(22, 62%, 40%); }
+
+.ck-postcard-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+.ck-postcard-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ck-postcard-title {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+.ck-postcard-bar {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--cenote-700);
+  margin-top: 2px;
+}
+.ck-postcard-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-canvas);
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  color: var(--ink-secondary);
+}
+.ck-postcard-quote {
+  font-size: 0.84rem;
+  color: var(--ink-secondary);
+  font-style: italic;
+  line-height: 1.45;
+}
+.ck-postcard-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+}
+
+.fab-add-btn {
+  position: fixed;
+  right: 18px;
+  bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--cenote-700);
+  color: var(--ink-on-dark);
+  padding: 13px 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 8px 24px -4px hsla(185, 68%, 16%, 0.45);
+  transition: transform 160ms var(--ease-out), background 160ms var(--ease-out);
+}
+.fab-add-btn:hover {
+  background: var(--cenote-600);
+  transform: translateY(-2px);
+}
+.fab-plus {
+  font-size: 1.25rem;
+  line-height: 1;
+  font-weight: 700;
+}
+@media (min-width: 900px) {
+  .fab-add-btn {
+    right: 28px;
+    bottom: 28px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .view-panel { animation: none; }
   .btn:hover { transform: none; }

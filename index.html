@@ -381,78 +381,18 @@
     <section class="view-panel" id="view-cocktails" aria-labelledby="cocktails-heading">
       <div class="section-header">
         <div>
-          <h2 class="section-title" id="cocktails-heading">Ranking de Cocktails &amp; Bebidas</h2>
-          <p class="section-subtitle">Avaliem os cocktails que forem provando durante a viagem</p>
+          <h2 class="section-title" id="cocktails-heading">Ranking de Cocktails</h2>
+          <p class="section-subtitle">Os vossos cocktails favoritos ordenados pela pontuação</p>
         </div>
         <span class="tag tag-cenote" id="cocktails-count-badge">0 avaliados</span>
       </div>
 
-      <div id="cocktails-ranking-box" style="margin-bottom: 18px;"></div>
+      <div class="cocktail-postcards-list" id="cocktails-list-grid"></div>
 
-      <div class="surface" style="margin-bottom: 18px;">
-        <h3 style="font-size: 1.08rem; margin-bottom: 10px;">Registar Novo Cocktail</h3>
-        <form id="form-add-cocktail" class="form-grid">
-          <div class="form-grid form-grid-2">
-            <div>
-              <label class="field-label" for="ck-name">Nome do Cocktail</label>
-              <input type="text" id="ck-name" class="input" placeholder="Ex: Mango Margarita, Mojito, Aperol Spritz..." required />
-            </div>
-            <div>
-              <label class="field-label" for="ck-bar">Local / Bar</label>
-              <select id="ck-bar" class="select"></select>
-            </div>
-          </div>
-
-          <div class="form-grid form-grid-2">
-            <div>
-              <label class="field-label" for="ck-flavor">Sabor &amp; Equilíbrio (1–5★)</label>
-              <select id="ck-flavor" class="select">
-                <option value="5">★★★★★ (5)</option><option value="4" selected>★★★★☆ (4)</option><option value="3">★★★☆☆ (3)</option><option value="2">★★☆☆☆ (2)</option><option value="1">★☆☆☆☆ (1)</option>
-              </select>
-            </div>
-            <div>
-              <label class="field-label" for="ck-fresh">Frescura / Temperatura (1–5★)</label>
-              <select id="ck-fresh" class="select">
-                <option value="5">★★★★★ (5)</option><option value="4" selected>★★★★☆ (4)</option><option value="3">★★★☆☆ (3)</option><option value="2">★★☆☆☆ (2)</option><option value="1">★☆☆☆☆ (1)</option>
-              </select>
-            </div>
-            <div>
-              <label class="field-label" for="ck-strength">Força / Álcool (1–5★)</label>
-              <select id="ck-strength" class="select">
-                <option value="5">★★★★★ (5)</option><option value="4" selected>★★★★☆ (4)</option><option value="3">★★★☆☆ (3)</option><option value="2">★★☆☆☆ (2)</option><option value="1">★☆☆☆☆ (1)</option>
-              </select>
-            </div>
-            <div>
-              <label class="field-label" for="ck-look">Apresentação (1–5★)</label>
-              <select id="ck-look" class="select">
-                <option value="5">★★★★★ (5)</option><option value="4" selected>★★★★☆ (4)</option><option value="3">★★★☆☆ (3)</option><option value="2">★★☆☆☆ (2)</option><option value="1">★☆☆☆☆ (1)</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-grid form-grid-2">
-            <div>
-              <label class="field-label" for="ck-by">Avaliado por</label>
-              <input type="text" id="ck-by" class="input" placeholder="O seu nome..." />
-            </div>
-            <div>
-              <label class="field-label" for="ck-photo">Foto do Cocktail (opcional)</label>
-              <input type="file" id="ck-photo" accept="image/*" class="input" />
-            </div>
-          </div>
-
-          <div>
-            <label class="field-label" for="ck-note">Notas / Comentário</label>
-            <input type="text" id="ck-note" class="input" placeholder="Ex: Pedir sem sal, bem fresco, muito doce..." />
-          </div>
-
-          <div style="display: flex; justify-content: flex-end;">
-            <button type="submit" class="btn btn-primary" id="btn-submit-cocktail">+ Guardar Avaliação</button>
-          </div>
-        </form>
-      </div>
-
-      <div class="grid-3" id="cocktails-list-grid"></div>
+      <button type="button" class="fab-add-btn" id="btn-fab-add-cocktail" aria-label="Adicionar novo cocktail">
+        <span class="fab-plus" aria-hidden="true">+</span>
+        <span>Adicionar Cocktail</span>
+      </button>
     </section>
 
     <!-- SECÇÃO 8 (PRIVADA): CONFIGURAÇÃO -->
