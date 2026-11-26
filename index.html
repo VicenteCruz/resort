@@ -16,7 +16,9 @@
     href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
     rel="stylesheet"
   />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="./styles.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
   <header class="topbar" role="banner">
@@ -186,6 +188,14 @@
           <button type="button" class="direction-btn" data-flight-dir="inbound" id="btn-dir-inbound">Regresso · 8 Dez</button>
         </div>
       </div>
+      <div class="surface" style="padding: 12px; margin-bottom: 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <strong style="font-size:0.9rem;">Mapa da Rota &amp; Posição do Avião (ADS-B ao Vivo)</strong>
+          <span class="tag tag-cenote" id="map-live-status">Rota LIS ↔ YYZ ↔ CUN</span>
+        </div>
+        <div id="flight-live-map" style="width: 100%; height: 320px; border-radius: 12px; z-index: 1;"></div>
+      </div>
+
       <div id="flights-container" class="flight-timeline"></div>
     </section>
 
@@ -264,6 +274,7 @@
 
       <div class="chip-group" id="venue-category-chips" role="tablist">
         <button type="button" class="chip is-active" data-venue-cat="all">Todos</button>
+        <button type="button" class="chip" data-venue-cat="ranking">★ Top Ranking</button>
         <button type="button" class="chip" data-venue-cat="open">Abertos Agora</button>
         <button type="button" class="chip" data-venue-cat="pyp">No Vosso Hotel (Platinum)</button>
         <button type="button" class="chip" data-venue-cat="sister">Hotéis Vizinhos (Incluídos)</button>
@@ -421,19 +432,34 @@
 
           <div class="form-grid form-grid-2">
             <div>
-              <label class="field-label" for="ck-rating">Avaliação (1 a 5 Estrelas)</label>
-              <select id="ck-rating" class="select">
-                <option value="5">★★★★★ (5/5 — Espetacular!)</option>
-                <option value="4">★★★★☆ (4/5 — Muito Bom)</option>
-                <option value="3">★★★☆☆ (3/5 — Bom)</option>
-                <option value="2">★★☆☆☆ (2/5 — Razoável)</option>
-                <option value="1">★☆☆☆☆ (1/5 — Não repetir)</option>
+              <label class="field-label" for="ck-flavor">Sabor &amp; Equilíbrio (1–5★)</label>
+              <select id="ck-flavor" class="select">
+                <option value="5">★★★★★ (5)</option><option value="4" selected>★★★★☆ (4)</option><option value="3">★★★☆☆ (3)</option><option value="2">★★☆☆☆ (2)</option><option value="1">★☆☆☆☆ (1)</option>
               </select>
             </div>
             <div>
-              <label class="field-label" for="ck-note">Notas / Comentário</label>
-              <input type="text" id="ck-note" class="input" placeholder="Ex: Pedir sem sal, bem fresco..." />
+              <label class="field-label" for="ck-fresh">Frescura / Temperatura (1–5★)</label>
+              <select id="ck-fresh" class="select">
+                <option value="5">★★★★★ (5)</option><option value="4" selected>★★★★☆ (4)</option><option value="3">★★★☆☆ (3)</option><option value="2">★★☆☆☆ (2)</option><option value="1">★☆☆☆☆ (1)</option>
+              </select>
             </div>
+            <div>
+              <label class="field-label" for="ck-strength">Força / Álcool (1–5★)</label>
+              <select id="ck-strength" class="select">
+                <option value="5">★★★★★ (5)</option><option value="4" selected>★★★★☆ (4)</option><option value="3">★★★☆☆ (3)</option><option value="2">★★☆☆☆ (2)</option><option value="1">★☆☆☆☆ (1)</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" for="ck-look">Apresentação (1–5★)</label>
+              <select id="ck-look" class="select">
+                <option value="5">★★★★★ (5)</option><option value="4" selected>★★★★☆ (4)</option><option value="3">★★★☆☆ (3)</option><option value="2">★★☆☆☆ (2)</option><option value="1">★☆☆☆☆ (1)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="field-label" for="ck-note">Notas / Comentário</label>
+            <input type="text" id="ck-note" class="input" placeholder="Ex: Pedir sem sal, bem fresco, muito doce..." />
           </div>
 
           <div style="display: flex; justify-content: flex-end;">

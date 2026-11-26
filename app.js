@@ -364,6 +364,84 @@
     document.getElementById('btn-refresh-all-flights')?.addEventListener('click', () => fetchAdsbLive());
     el.querySelectorAll('[data-refresh-leg]').forEach((b) => b.addEventListener('click', () => fetchAdsbLive(b.getAttribute('data-refresh-leg'))));
     el.querySelectorAll('[data-edit-leg]').forEach((b) => b.addEventListener('click', () => openLegModal(b.getAttribute('data-edit-leg'))));
+    updateFlightMap();
+  }
+
+  let flightMap = null;
+  let planeLayer = null;
+
+  function updateFlightMap() {
+    const mapEl = document.getElementById('flight-live-map');
+    if (!mapEl || typeof window.L === 'undefined') return;
+
+    const airports = {
+      LIS: [38.7742, -9.1342],
+      YYZ: [43.6777, -79.6248],
+      CUN: [21.0365, -86.8771]
+    };
+
+    if (!flightMap) {
+      flightMap = window.L.map(mapEl, { scrollWheelZoom: false }).setView([36, -45], 3);
+      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        maxZoom: 18
+      }).addTo(flightMap);
+
+      window.L.polyline([airports.LIS, airports.YYZ, airports.CUN], {
+        color: '#166970',
+        weight: 2.5,
+        dashArray: '6, 8',
+        opacity: 0.75
+      }).addTo(flightMap);
+
+      Object.entries(airports).forEach(([code, coords]) => {
+        window.L.circleMarker(coords, {
+          radius: 6,
+          fillColor: '#166970',
+          color: '#ffffff',
+          weight: 2,
+          fillOpacity: 1
+        })
+          .bindTooltip(code, { permanent: true, direction: 'top', offset: [0, -6] })
+          .addTo(flightMap);
+      });
+
+      planeLayer = window.L.layerGroup().addTo(flightMap);
+    }
+
+    setTimeout(() => flightMap && flightMap.invalidateSize(), 120);
+    planeLayer.clearLayers();
+
+    const dirLegs = state.flights[activeFlightDir].legs;
+    let activePlanes = 0;
+
+    dirLegs.forEach((leg) => {
+      const lv = leg.liveStatus;
+      if (lv && lv.active && lv.lat && lv.lon) {
+        activePlanes++;
+        const deg = lv.track || 0;
+        const icon = window.L.divIcon({
+          className: 'plane-marker',
+          html: `<div style="transform:rotate(${deg}deg);font-size:24px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">✈</div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        });
+        window.L.marker([Number(lv.lat), Number(lv.lon)], { icon })
+          .bindPopup(
+            `<strong>${escapeHtml(leg.flightNumber)} (${escapeHtml(getIcaoCallsign(leg.flightNumber))})</strong><br/>` +
+            `${lv.reg ? `${escapeHtml(lv.reg)} · ` : ''}${lv.onGround ? 'No solo' : `${lv.altFt || '--'} ft · ${lv.speedKmh || '--'} km/h`}`
+          )
+          .addTo(planeLayer);
+        flightMap.setView([Number(lv.lat), Number(lv.lon)], 6);
+      }
+    });
+
+    const statusEl = document.getElementById('map-live-status');
+    if (statusEl) {
+      statusEl.textContent = activePlanes > 0
+        ? `✈ ${activePlanes} avião ao vivo no mapa`
+        : 'Rota LIS ↔ YYZ ↔ CUN (sem sinal ADS-B agora)';
+    }
   }
 
   function renderLayover(l) {
@@ -446,11 +524,62 @@
     }
   }
 
+  function getVenueAvg(v) {
+    const r = v.ratings;
+    if (!r) return 0;
+    return (Number(r.food || 0) + Number(r.vibe || 0) + Number(r.service || 0) + Number(r.quality || 0)) / 4;
+  }
+
+  function openRateVenueModal(venueId) {
+    const v = state.venues.find((x) => x.id === venueId);
+    if (!v) return;
+    const r = v.ratings || { food: 5, vibe: 5, service: 5, quality: 5, comment: '' };
+    const opts = (val) =>
+      [5, 4, 3, 2, 1]
+        .map((n) => `<option value="${n}" ${Number(val) === n ? 'selected' : ''}>${'★'.repeat(n)}${'☆'.repeat(5 - n)} (${n})</option>`)
+        .join('');
+
+    openModal(`Avaliar ${v.name}`, `
+      <form id="f-rate-venue" class="form-grid">
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label">Comida</label><select id="rv-food" class="select">${opts(r.food)}</select></div>
+          <div><label class="field-label">Ambiente</label><select id="rv-vibe" class="select">${opts(r.vibe)}</select></div>
+          <div><label class="field-label">Serviço</label><select id="rv-serv" class="select">${opts(r.service)}</select></div>
+          <div><label class="field-label">Qualidade / Pratos</label><select id="rv-qual" class="select">${opts(r.quality)}</select></div>
+        </div>
+        <div>
+          <label class="field-label">Comentário / Prato Favorito</label>
+          <input id="rv-note" class="input" value="${escapeHtml(r.comment || '')}" placeholder="Ex: Melhor bife da viagem, sobremesa incrível..." />
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
+          <button type="submit" class="btn btn-primary">Guardar Avaliação</button>
+        </div>
+      </form>
+    `);
+
+    document.getElementById('f-rate-venue').addEventListener('submit', (e) => {
+      e.preventDefault();
+      v.ratings = {
+        food: Number(document.getElementById('rv-food').value),
+        vibe: Number(document.getElementById('rv-vibe').value),
+        service: Number(document.getElementById('rv-serv').value),
+        quality: Number(document.getElementById('rv-qual').value),
+        comment: document.getElementById('rv-note').value.trim()
+      };
+      v.visited = true;
+      saveState();
+      renderResortVenues();
+      closeModal();
+      showToast(`${v.name} avaliado (${getVenueAvg(v).toFixed(1)}★)!`);
+    });
+  }
+
   function renderResortVenues() {
     const sim = document.getElementById('resort-time-sim').value;
     const nowMins = getCancunMinutesNow(sim);
-    const list = state.venues.filter((v) => {
+    let list = state.venues.filter((v) => {
       if (activeVenueCategory === 'all') return true;
+      if (activeVenueCategory === 'ranking') return Boolean(v.ratings);
       if (activeVenueCategory === 'open') {
         const s = evaluateVenueStatus(v, nowMins).state;
         return s === 'open' || s === 'soon';
@@ -458,22 +587,48 @@
       return v.category === activeVenueCategory;
     });
 
+    // Always sort rated venues higher when in ranking mode
+    if (activeVenueCategory === 'ranking') {
+      list = [...list].sort((a, b) => getVenueAvg(b) - getVenueAvg(a));
+    }
+
     const grid = document.getElementById('venue-cards-grid');
+    if (!list.length) {
+      grid.innerHTML = `<div class="surface"><p style="font-size:0.88rem;color:var(--ink-secondary);">Ainda nenhum restaurante avaliado. Clique em "★ Avaliar" em qualquer restaurante para criar o vosso Top Ranking!</p></div>`;
+      return;
+    }
+
     grid.innerHTML = list
-      .map((v) => {
+      .map((v, idx) => {
         const st = evaluateVenueStatus(v, nowMins);
         const cls = st.state === 'open' ? 'tag-open' : st.state === 'soon' ? 'tag-soon' : 'tag-closed';
+        const avg = getVenueAvg(v);
+        const r = v.ratings;
+
         return `
           <article class="venue-card">
             <div>
               <div class="venue-top">
                 <div>
-                  <h3 class="venue-name">${escapeHtml(v.name)}</h3>
+                  <h3 class="venue-name">${activeVenueCategory === 'ranking' ? `#${idx + 1} ` : ''}${escapeHtml(v.name)}</h3>
                   <div class="venue-cuisine">${escapeHtml(v.cuisine)}</div>
                 </div>
-                <span class="tag ${cls}">${escapeHtml(st.label)}</span>
+                ${avg > 0
+                  ? `<span class="tag tag-cenote mono">★ ${avg.toFixed(1)} / 5</span>`
+                  : `<span class="tag ${cls}">${escapeHtml(st.label)}</span>`}
               </div>
               <p class="venue-desc">${escapeHtml(v.description)}</p>
+              ${r ? `
+                <div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--bg-canvas);font-size:0.76rem;color:var(--ink-secondary);">
+                  <div class="mono" style="display:flex;flex-wrap:wrap;gap:6px 10px;">
+                    <span>Comida <strong>${r.food}★</strong></span>
+                    <span>Ambiente <strong>${r.vibe}★</strong></span>
+                    <span>Serviço <strong>${r.service}★</strong></span>
+                    <span>Qualidade <strong>${r.quality}★</strong></span>
+                  </div>
+                  ${r.comment ? `<div style="margin-top:4px;font-style:italic;">"${escapeHtml(r.comment)}"</div>` : ''}
+                </div>
+              ` : ''}
             </div>
             <div>
               <div class="venue-meta-list">
@@ -481,20 +636,17 @@
                 <div><strong>Dress Code:</strong> ${escapeHtml(v.dressCode)}</div>
                 <div><strong>Acesso:</strong> ${v.included ? 'Incluído' : 'Pago à parte'} · ${v.reservationRequired ? 'Requer Reserva' : 'Sem Reserva'}</div>
               </div>
-              <div style="display:flex;gap:6px;margin-top:12px;">
-                <button type="button" class="btn btn-sm ${v.visited ? 'btn-primary' : ''}" data-visit="${escapeHtml(v.id)}">${v.visited ? '✓ Visitado' : 'Marcar Visitado'}</button>
-                <button type="button" class="btn btn-sm" data-sched="${escapeHtml(v.id)}">+ Agendar Dia</button>
+              <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;">
+                <button type="button" class="btn btn-primary btn-sm" data-rate-v="${escapeHtml(v.id)}">${r ? '★ Editar Nota' : '★ Avaliar'}</button>
+                <button type="button" class="btn btn-sm" data-sched="${escapeHtml(v.id)}">+ Agendar</button>
               </div>
             </div>
           </article>`;
       })
       .join('');
 
-    grid.querySelectorAll('[data-visit]').forEach((b) =>
-      b.addEventListener('click', () => {
-        const v = state.venues.find((x) => x.id === b.getAttribute('data-visit'));
-        if (v) { v.visited = !v.visited; saveState(); renderResortVenues(); }
-      })
+    grid.querySelectorAll('[data-rate-v]').forEach((b) =>
+      b.addEventListener('click', () => openRateVenueModal(b.getAttribute('data-rate-v')))
     );
     grid.querySelectorAll('[data-sched]').forEach((b) =>
       b.addEventListener('click', () => openSchedModal(b.getAttribute('data-sched')))
@@ -769,21 +921,39 @@
       return;
     }
 
-    const sorted = [...list].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    const getAvg = (c) => {
+      if (c.aspects) {
+        return (c.aspects.flavor + c.aspects.fresh + c.aspects.strength + c.aspects.look) / 4;
+      }
+      return Number(c.rating || 5);
+    };
+
+    const sorted = [...list].sort((a, b) => getAvg(b) - getAvg(a));
     grid.innerHTML = sorted
-      .map((c) => {
-        const stars = '★'.repeat(c.rating || 5) + '☆'.repeat(5 - (c.rating || 5));
+      .map((c, idx) => {
+        const avg = getAvg(c).toFixed(1);
+        const a = c.aspects;
         return `
           <article class="venue-card">
             <div>
               <div class="venue-top">
                 <div>
-                  <h3 class="venue-name">${escapeHtml(c.name)}</h3>
+                  <h3 class="venue-name">#${idx + 1} ${escapeHtml(c.name)}</h3>
                   <div class="venue-cuisine">${escapeHtml(c.bar)}</div>
                 </div>
-                <span class="tag tag-cenote mono">${stars}</span>
+                <span class="tag tag-cenote mono">★ ${avg} / 5</span>
               </div>
-              ${c.note ? `<p class="venue-desc">${escapeHtml(c.note)}</p>` : ''}
+              ${a ? `
+                <div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--bg-canvas);font-size:0.76rem;color:var(--ink-secondary);">
+                  <div class="mono" style="display:flex;flex-wrap:wrap;gap:6px 10px;">
+                    <span>Sabor <strong>${a.flavor}★</strong></span>
+                    <span>Frescura <strong>${a.fresh}★</strong></span>
+                    <span>Álcool <strong>${a.strength}★</strong></span>
+                    <span>Visual <strong>${a.look}★</strong></span>
+                  </div>
+                </div>
+              ` : ''}
+              ${c.note ? `<p class="venue-desc" style="margin-top:8px;">"${escapeHtml(c.note)}"</p>` : ''}
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--line-soft);font-size:0.76rem;color:var(--ink-muted);">
               <span>${escapeHtml(c.by || '')}</span>
@@ -807,16 +977,21 @@
     e.preventDefault();
     const name = document.getElementById('ck-name').value.trim();
     const bar = document.getElementById('ck-bar').value;
-    const rating = Number(document.getElementById('ck-rating').value) || 5;
+    const flavor = Number(document.getElementById('ck-flavor').value) || 4;
+    const fresh = Number(document.getElementById('ck-fresh').value) || 4;
+    const strength = Number(document.getElementById('ck-strength').value) || 4;
+    const look = Number(document.getElementById('ck-look').value) || 4;
     const note = document.getElementById('ck-note').value.trim();
     if (!name) return;
 
+    const avg = (flavor + fresh + strength + look) / 4;
     if (!Array.isArray(state.cocktails)) state.cocktails = [];
     state.cocktails.push({
       id: `ck-${Date.now()}`,
       name,
       bar,
-      rating,
+      rating: avg,
+      aspects: { flavor, fresh, strength, look },
       note,
       by: sbUser?.email ? sbUser.email.split('@')[0] : 'Casal',
       createdAt: new Date().toISOString()
@@ -825,7 +1000,7 @@
     document.getElementById('ck-note').value = '';
     saveState();
     renderCocktails();
-    showToast('Cocktail avaliado!');
+    showToast(`Cocktail avaliado (${avg.toFixed(1)}★)!`);
   });
 
   /* ========================================================================
