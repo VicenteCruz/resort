@@ -1565,6 +1565,10 @@
         renderPlanner();
       })
     );
+    const activePill = strip.querySelector('.day-pill.is-active');
+    if (activePill && typeof activePill.scrollIntoView === 'function') {
+      activePill.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    }
 
     const day = state.days[activeDayIndex];
     document.getElementById('planner-day-badge').textContent =
@@ -4537,4 +4541,59 @@
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
   }
+
+  // ---------- Mobile UX: Retractable Header, Planner Swipe & Settings Auto-Save ----------
+  (function setupMobileUxEnhancements() {
+    // 1. Retractable topbar on mobile scroll
+    const topbar = document.querySelector('.topbar');
+    if (topbar) {
+      let lastY = window.scrollY;
+      window.addEventListener('scroll', () => {
+        if (window.innerWidth >= 900) {
+          topbar.classList.remove('is-hidden');
+          return;
+        }
+        const y = window.scrollY;
+        if (y > 80 && y > lastY + 8) topbar.classList.add('is-hidden');
+        else if (y < lastY - 8 || y <= 40) topbar.classList.remove('is-hidden');
+        lastY = y;
+      }, { passive: true });
+    }
+
+    // 2. Swipe left/right on Planner to switch days
+    const plannerLayout = document.querySelector('#view-planner .planner-layout');
+    if (plannerLayout) {
+      let sx = null;
+      let sy = null;
+      plannerLayout.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) { sx = null; return; }
+        sx = e.touches[0].clientX;
+        sy = e.touches[0].clientY;
+      }, { passive: true });
+      plannerLayout.addEventListener('touchend', (e) => {
+        if (sx == null || !state.days.length) return;
+        const dx = e.changedTouches[0].clientX - sx;
+        const dy = e.changedTouches[0].clientY - sy;
+        sx = null;
+        if (Math.abs(dx) > 65 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+          const next = activeDayIndex + (dx < 0 ? 1 : -1);
+          if (next >= 0 && next < state.days.length) {
+            activeDayIndex = next;
+            renderPlanner();
+          }
+        }
+      }, { passive: true });
+    }
+
+    // 3. Auto-save on change in Settings forms
+    ['f-settings-profile', 'f-settings-trip', 'f-settings-public'].forEach((formId) => {
+      const form = document.getElementById(formId);
+      if (!form) return;
+      form.addEventListener('change', (e) => {
+        if (e.target && e.target.matches('input, select, textarea')) {
+          if (typeof form.requestSubmit === 'function') form.requestSubmit();
+        }
+      });
+    });
+  })();
 })();

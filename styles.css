@@ -1215,7 +1215,57 @@ html.is-public .toast { bottom: 110px; font-size: 1rem; }
   }
 }
 
+/* Retractable topbar on mobile scroll */
+@media (max-width: 899px) {
+  .topbar {
+    transition: transform 220ms var(--ease-out);
+    will-change: transform;
+  }
+  .topbar.is-hidden {
+    transform: translateY(-100%);
+  }
+  .btn-sm {
+    min-height: 40px;
+    padding: 7px 13px;
+  }
+  .chip {
+    min-height: 38px;
+  }
+}
+
+/* Planner: show dinner & notes before activities on mobile */
+@media (max-width: 879px) {
+  .planner-layout > div:last-child {
+    order: -1;
+  }
+}
+
+/* Photos: 2-column grid on mobile when a day has 2+ photos */
+@media (max-width: 719px) {
+  .photo-day-list:has(> :nth-child(2)) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .photo-day-list:has(> :nth-child(2)) .photo-open img {
+    aspect-ratio: 1 / 1;
+    max-height: none;
+  }
+  .photo-day-list:has(> :nth-child(2)) .photo-caption {
+    padding: 8px 10px;
+    font-size: 0.82rem;
+  }
+}
+
+/* Compact packing items */
+.pack-item {
+  padding: 10px 12px;
+}
+.pack-item.is-hidden-done {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .view-panel { animation: none; }
   .btn:hover { transform: none; }
+  .topbar { transition: none; }
 }
