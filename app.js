@@ -2037,8 +2037,14 @@
   function renderSettings() {
     const t = state.trip;
 
+    // 0. User profile
+    const me = getCurrentReviewer();
+    const userEmailEl = document.getElementById('st-user-email');
+    if (userEmailEl) userEmailEl.textContent = sbUser?.email || 'Modo Local';
+
     // 1. General trip form
     const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+    setVal('st-user-name', me.by);
     setVal('st-title', t.title);
     setVal('st-destination', t.destination);
     setVal('st-country', t.country);
@@ -3131,14 +3137,58 @@
      Cocktails Rating (Privado) — 1 Card per Cocktail, Multiple Reviews, Auto User
      ======================================================================== */
   function getCurrentReviewer() {
+    let savedLocal = '';
+    try { savedLocal = localStorage.getItem('pyp_user_display_name') || ''; } catch {}
     if (sbUser) {
       const metaName = sbUser.user_metadata?.full_name || sbUser.user_metadata?.name;
       const emailPrefix = sbUser.email ? sbUser.email.split('@')[0].replace(/[._-]+/g, ' ') : '';
-      const displayName = metaName || (emailPrefix ? emailPrefix.split(' ').map(capitalize).join(' ') : 'Utilizador');
+      const displayName = metaName || savedLocal || (emailPrefix ? emailPrefix.split(' ').map(capitalize).join(' ') : 'Utilizador');
       return { userId: sbUser.id || sbUser.email || displayName.toLowerCase(), by: displayName };
     }
-    return { userId: 'local', by: 'Viajante' };
+    return { userId: 'local', by: savedLocal || 'Viajante' };
   }
+
+  document.getElementById('f-settings-profile')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newName = document.getElementById('st-user-name')?.value.trim();
+    if (!newName) return;
+
+    const prevMe = getCurrentReviewer();
+    try { localStorage.setItem('pyp_user_display_name', newName); } catch {}
+
+    if (sbClient && sbUser) {
+      const { data, error } = await sbClient.auth.updateUser({ data: { full_name: newName } });
+      if (error) {
+        showToast(`Erro ao atualizar perfil: ${error.message}`);
+        return;
+      }
+      if (data?.user) sbUser = data.user;
+      else sbUser.user_metadata = { ...(sbUser.user_metadata || {}), full_name: newName };
+    }
+
+    // Update existing reviews belonging to this user so the new name appears everywhere
+    const myId = sbUser?.id || sbUser?.email || prevMe.userId;
+    (state.cocktails || []).forEach((c) => {
+      (c.reviews || []).forEach((r) => {
+        if (r.userId === myId || r.userId === prevMe.userId || r.by.toLowerCase() === prevMe.by.toLowerCase()) {
+          r.userId = myId;
+          r.by = newName;
+        }
+      });
+    });
+    (state.venues || []).forEach((v) => {
+      (v.reviews || []).forEach((r) => {
+        if (r.userId === myId || r.userId === prevMe.userId || r.by.toLowerCase() === prevMe.by.toLowerCase()) {
+          r.userId = myId;
+          r.by = newName;
+        }
+      });
+    });
+
+    saveState();
+    renderAll();
+    showToast(`Nome atualizado para "${newName}"!`);
+  });
 
   function getReviewAvg(r) {
     if (r?.aspects) {
