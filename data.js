@@ -5,7 +5,52 @@
    ========================================================================== */
 
 window.DEFAULT_TRIP_DATA = {
-  version: 2,
+  version: 3,
+  trip: {
+    title: 'Platinum Yucatán Princess',
+    destination: 'Riviera Maya',
+    country: 'México',
+    subtitle: 'Playa del Carmen · Adults-Only 5★ Tudo Incluído',
+    headline: '',
+    travelers: '',
+    startDate: '2026-11-28',
+    endDate: '2026-12-08',
+    homeCity: 'Lisboa',
+    homeCode: 'LIS',
+    homeTz: 'Europe/Lisbon',
+    destCity: 'Cancún',
+    destCode: 'CUN',
+    destTz: 'America/Cancun',
+    currencyCode: 'MXN',
+    currencyName: 'Pesos Mexicanos',
+    extraCurrencyCode: 'CAD',
+    extraCurrencyName: 'Dólares Canadá',
+    publicShowStay: true,
+    publicNote: '',
+    venueScopeNote: 'No vosso hotel só as mesas Teppanyaki do Kotatsu pedem reserva. Nos dois hotéis vizinhos, todos os restaurantes à la carte pedem marcação na WebApp do Wi-Fi do hotel.',
+    tips: [
+      {
+        id: 'tip-1',
+        title: 'Acesso aos Hotéis Vizinhos Incluído',
+        desc: 'Podem usar os restaurantes, bares e piscinas do Grand Riviera Princess e Grand Sunset Princess (porta interna e comboio gratuito). Os à la carte ao lado pedem reserva na WebApp do hotel.'
+      },
+      {
+        id: 'tip-2',
+        title: 'Dress Code ao Jantar (À La Carte)',
+        desc: 'Homens: calças compridas, sapatos fechados e camisa/polo/t-shirt com mangas. Senhoras: casual elegante. No Yucatán Buffet são permitidos calções.'
+      },
+      {
+        id: 'tip-3',
+        title: 'Chegada à Noite & Serviço 24h',
+        desc: 'O Yucatán Buffet serve snacks das 22:30 às 07:00, o Plaza Bar funciona 24h e o Room Service 24/7 está incluído sem custos extra.'
+      },
+      {
+        id: 'tip-4',
+        title: 'Escala no Canadá & Tomadas',
+        desc: 'É obrigatório ter o eTA do Canadá para a escala em Toronto (YYZ). No quarto as tomadas são americanas Tipo A/B (110V).'
+      }
+    ]
+  },
   wallet: {
     airCanadaPnr: '',
     resortBookingRef: '',
@@ -13,6 +58,10 @@ window.DEFAULT_TRIP_DATA = {
     transferProvider: 'A definir / Transfer Aeroporto–Hotel',
     canadaEta: 'Pendente',
     mexicoVisitax: 'Pendente',
+    documents: [
+      { id: 'doc-eta', label: 'eTA Canadá', status: 'Pendente' },
+      { id: 'doc-visitax', label: 'Visitax Quintana Roo', status: 'Pendente' }
+    ],
     notes: ''
   },
 
@@ -24,6 +73,7 @@ window.DEFAULT_TRIP_DATA = {
       legs: [
         {
           id: 'ac811',
+          dateIso: '2026-11-28',
           flightNumber: 'AC 811',
           airline: 'Air Canada',
           aircraft: 'Longo Curso Internacional',
@@ -44,6 +94,7 @@ window.DEFAULT_TRIP_DATA = {
         },
         {
           id: 'ac1812',
+          dateIso: '2026-11-28',
           flightNumber: 'AC 1812',
           airline: 'Air Canada',
           aircraft: 'Voo Direto Toronto–Cancún',
@@ -93,6 +144,7 @@ window.DEFAULT_TRIP_DATA = {
       legs: [
         {
           id: 'ac1373',
+          dateIso: '2026-12-08',
           flightNumber: 'AC 1373',
           airline: 'Air Canada',
           aircraft: 'Voo Direto Cancún–Toronto',
@@ -113,6 +165,7 @@ window.DEFAULT_TRIP_DATA = {
         },
         {
           id: 'ac810',
+          dateIso: '2026-12-08',
           flightNumber: 'AC 810',
           airline: 'Air Canada',
           aircraft: 'Longo Curso Noturno',
@@ -371,6 +424,7 @@ window.DEFAULT_TRIP_DATA = {
   ],
 
   rates: {
+    eurToDest: 21.6,
     eurToMxn: 21.6,
     eurToUsd: 1.06,
     eurToCad: 1.48

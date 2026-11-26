@@ -3,62 +3,317 @@
 
   const STORAGE_KEY = 'pyp_stay_pt_v2';
 
-  function loadState() {
+  const COMMON_TIMEZONES = [
+    { tz: 'Europe/Lisbon', label: 'Portugal (Lisboa / Porto)' },
+    { tz: 'Atlantic/Azores', label: 'Açores (Ponta Delgada)' },
+    { tz: 'Europe/London', label: 'Reino Unido (Londres)' },
+    { tz: 'Europe/Madrid', label: 'Europa Central (Madrid / Paris / Roma)' },
+    { tz: 'Europe/Athens', label: 'Europa de Leste (Atenas)' },
+    { tz: 'Atlantic/Cape_Verde', label: 'Cabo Verde (Praia)' },
+    { tz: 'Africa/Casablanca', label: 'Marrocos (Casablanca)' },
+    { tz: 'America/Sao_Paulo', label: 'Brasil (São Paulo / Rio)' },
+    { tz: 'America/Santo_Domingo', label: 'Caraíbas (Punta Cana)' },
+    { tz: 'America/New_York', label: 'EUA Este (Nova Iorque / Miami)' },
+    { tz: 'America/Toronto', label: 'Canadá Este (Toronto / Montreal)' },
+    { tz: 'America/Cancun', label: 'México — Cancún / Riviera Maya' },
+    { tz: 'America/Mexico_City', label: 'México — Cidade do México' },
+    { tz: 'America/Chicago', label: 'EUA Centro (Chicago / Dallas)' },
+    { tz: 'America/Los_Angeles', label: 'EUA Oeste (Los Angeles / SF)' },
+    { tz: 'America/Bogota', label: 'Colômbia / Panamá' },
+    { tz: 'Asia/Dubai', label: 'Dubai (Emirados)' },
+    { tz: 'Asia/Bangkok', label: 'Tailândia (Banguecoque)' },
+    { tz: 'Asia/Singapore', label: 'Singapura / Bali' },
+    { tz: 'Asia/Tokyo', label: 'Japão (Tóquio)' },
+    { tz: 'Australia/Sydney', label: 'Austrália (Sydney)' },
+    { tz: 'UTC', label: 'UTC / GMT' }
+  ];
+
+  const TZ_OFFSETS = {
+    WET: 0, WEST: 1, GMT: 0, UTC: 0, BST: 1, CET: 1, CEST: 2, EET: 2, EEST: 3,
+    AZOT: -1, AZOST: 0, CVT: -1, BRT: -3, AST: -4, EST: -5, EDT: -4,
+    CST: -6, CDT: -5, MST: -7, MDT: -6, PST: -8, PDT: -7,
+    GST: 4, IST: 5.5, ICT: 7, SGT: 8, JST: 9, AEST: 10, AEDT: 11
+  };
+
+  const TZ_ABBR_TO_IANA = {
+    WET: 'Europe/Lisbon', WEST: 'Europe/Lisbon', GMT: 'Europe/London', BST: 'Europe/London',
+    CET: 'Europe/Madrid', CEST: 'Europe/Madrid', EET: 'Europe/Athens', EEST: 'Europe/Athens',
+    EST: 'America/New_York', EDT: 'America/New_York', CST: 'America/Chicago', CDT: 'America/Chicago',
+    MST: 'America/Denver', MDT: 'America/Denver', PST: 'America/Los_Angeles', PDT: 'America/Los_Angeles',
+    BRT: 'America/Sao_Paulo', AST: 'America/Santo_Domingo', CVT: 'Atlantic/Cape_Verde',
+    GST: 'Asia/Dubai', ICT: 'Asia/Bangkok', SGT: 'Asia/Singapore', JST: 'Asia/Tokyo',
+    AEST: 'Australia/Sydney', AEDT: 'Australia/Sydney', UTC: 'UTC'
+  };
+
+  const CITY_NAMES = {
+    LIS: 'Lisboa', OPO: 'Porto', FAO: 'Faro', FNC: 'Funchal', PDL: 'Ponta Delgada',
+    MAD: 'Madrid', BCN: 'Barcelona', LHR: 'Londres', LGW: 'Londres', STN: 'Londres',
+    CDG: 'Paris', ORY: 'Paris', FCO: 'Roma', MXP: 'Milão', VCE: 'Veneza', ATH: 'Atenas',
+    FRA: 'Frankfurt', MUC: 'Munique', AMS: 'Amesterdão', ZRH: 'Zurique', GVA: 'Genebra',
+    DUB: 'Dublin', BRU: 'Bruxelas', VIE: 'Viena', PRG: 'Praga', IST: 'Istambul',
+    YYZ: 'Toronto', YUL: 'Montreal', YVR: 'Vancouver',
+    BOS: 'Boston', JFK: 'Nova Iorque', EWR: 'Nova Iorque', MIA: 'Miami', MCO: 'Orlando',
+    ATL: 'Atlanta', ORD: 'Chicago', DFW: 'Dallas', IAD: 'Washington', LAX: 'Los Angeles', SFO: 'São Francisco',
+    CUN: 'Cancún', MEX: 'Cidade do México', PUJ: 'Punta Cana', PTY: 'Panamá', BOG: 'Bogotá',
+    GRU: 'São Paulo', GIG: 'Rio de Janeiro', REC: 'Recife', SID: 'Ilha do Sal', RAI: 'Praia',
+    RAK: 'Marraquexe', CMN: 'Casablanca', DXB: 'Dubai', DOH: 'Doha',
+    BKK: 'Banguecoque', SIN: 'Singapura', DPS: 'Bali', HND: 'Tóquio', NRT: 'Tóquio', SYD: 'Sydney'
+  };
+
+  const KNOWN_AIRPORTS = {
+    LIS: [38.7742, -9.1342], OPO: [41.2481, -8.6814], FAO: [37.0144, -7.9659],
+    FNC: [32.6979, -16.7745], PDL: [37.7412, -25.6979],
+    MAD: [40.4983, -3.5676], BCN: [41.2974, 2.0833], LHR: [51.4700, -0.4543],
+    LGW: [51.1537, -0.1821], STN: [51.8850, 0.2350],
+    CDG: [49.0097, 2.5479], ORY: [48.7262, 2.3652], FCO: [41.8003, 12.2389],
+    MXP: [45.6301, 8.7255], VCE: [45.5053, 12.3519], ATH: [37.9364, 23.9445],
+    FRA: [50.0379, 8.5622], MUC: [48.3538, 11.7861], AMS: [52.3105, 4.7683],
+    ZRH: [47.4647, 8.5492], GVA: [46.2381, 6.1090], DUB: [53.4213, -6.2701],
+    BRU: [50.9014, 4.4844], VIE: [48.1103, 16.5697], PRG: [50.1008, 14.2600],
+    IST: [41.2753, 28.7519],
+    YYZ: [43.6777, -79.6248], YUL: [45.4706, -73.7408], YVR: [49.1967, -123.1815],
+    BOS: [42.3656, -71.0096], JFK: [40.6413, -73.7781], EWR: [40.6895, -74.1745],
+    MIA: [25.7959, -80.2870], MCO: [28.4312, -81.3081], ATL: [33.6407, -84.4277],
+    ORD: [41.9742, -87.9073], DFW: [32.8998, -97.0403], IAD: [38.9531, -77.4565],
+    LAX: [33.9416, -118.4085], SFO: [37.6213, -122.3790],
+    CUN: [21.0365, -86.8771], MEX: [19.4363, -99.0721], PUJ: [18.5674, -68.3634],
+    PTY: [9.0714, -79.3835], BOG: [4.7016, -74.1469],
+    GRU: [-23.4356, -46.4731], GIG: [-22.8099, -43.2505], REC: [-8.1268, -34.9230],
+    SID: [16.7414, -22.9494], RAI: [14.9455, -23.4847],
+    RAK: [31.6069, -8.0363], CMN: [33.3675, -7.5899],
+    DXB: [25.2532, 55.3657], DOH: [25.2731, 51.6081],
+    BKK: [13.6900, 100.7501], SIN: [1.3644, 103.9915], DPS: [-8.7482, 115.1672],
+    HND: [35.5494, 139.7798], NRT: [35.7720, 140.3929], SYD: [-33.9399, 151.1753]
+  };
+
+  function normalizeState(raw) {
     const base = JSON.parse(JSON.stringify(window.DEFAULT_TRIP_DATA));
+    const saved = raw && typeof raw === 'object' ? raw : {};
+    const merged = {
+      ...base,
+      ...saved,
+      trip: { ...base.trip, ...(saved.trip || {}) },
+      wallet: { ...base.wallet, ...(saved.wallet || {}) },
+      rates: { ...base.rates, ...(saved.rates || {}) },
+      flights: {
+        outbound: {
+          ...base.flights.outbound,
+          ...(saved.flights && saved.flights.outbound ? saved.flights.outbound : {}),
+          legs: (saved.flights && saved.flights.outbound && Array.isArray(saved.flights.outbound.legs))
+            ? saved.flights.outbound.legs
+            : base.flights.outbound.legs,
+          layovers: (saved.flights && saved.flights.outbound && Array.isArray(saved.flights.outbound.layovers))
+            ? saved.flights.outbound.layovers
+            : base.flights.outbound.layovers
+        },
+        inbound: {
+          ...base.flights.inbound,
+          ...(saved.flights && saved.flights.inbound ? saved.flights.inbound : {}),
+          legs: (saved.flights && saved.flights.inbound && Array.isArray(saved.flights.inbound.legs))
+            ? saved.flights.inbound.legs
+            : base.flights.inbound.legs,
+          layovers: (saved.flights && saved.flights.inbound && Array.isArray(saved.flights.inbound.layovers))
+            ? saved.flights.inbound.layovers
+            : base.flights.inbound.layovers
+        }
+      }
+    };
+
+    if (!Array.isArray(merged.trip.tips)) merged.trip.tips = base.trip.tips;
+    if (!Array.isArray(merged.wallet.documents)) {
+      merged.wallet.documents = [
+        { id: 'doc-eta', label: 'eTA Canadá', status: merged.wallet.canadaEta || 'Pendente' },
+        { id: 'doc-visitax', label: 'Visitax Quintana Roo', status: merged.wallet.mexicoVisitax || 'Pendente' }
+      ];
+    }
+    if (typeof merged.rates.eurToDest !== 'number' || Number.isNaN(merged.rates.eurToDest)) {
+      merged.rates.eurToDest = Number(merged.rates.eurToMxn) || 1;
+    }
+
+    // Ensure every flight leg has a dateIso
+    merged.flights.outbound.legs.forEach((l) => {
+      if (!l.dateIso) l.dateIso = merged.trip.startDate || '2026-11-28';
+    });
+    merged.flights.inbound.legs.forEach((l) => {
+      if (!l.dateIso) l.dateIso = merged.trip.endDate || '2026-12-08';
+    });
+
+    if (!Array.isArray(merged.days) || !merged.days.length) {
+      merged.days = buildDaysArray(merged.trip.startDate, merged.trip.endDate, []);
+    }
+    if (!Array.isArray(merged.venues)) merged.venues = [];
+    if (!Array.isArray(merged.packing)) merged.packing = [];
+    if (!Array.isArray(merged.expenses)) merged.expenses = [];
+    if (!Array.isArray(merged.cocktails)) merged.cocktails = [];
+
+    return merged;
+  }
+
+  function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return base;
-      const saved = JSON.parse(raw);
-      return {
-        ...base,
-        ...saved,
-        wallet: { ...base.wallet, ...(saved.wallet || {}) },
-        rates: { ...base.rates, ...(saved.rates || {}) }
-      };
+      if (!raw) return normalizeState(null);
+      return normalizeState(JSON.parse(raw));
     } catch {
-      return base;
+      return normalizeState(null);
     }
   }
 
   let state = loadState();
-  let activeView = 'overview';
+  let activeView = 'flights';
   let activeFlightDir = 'outbound';
   let activeDayIndex = 0;
   let activeVenueCategory = 'all';
-  // Simple, large-type mode for visitors who are not logged in (family following the trip).
+  // Simple, large-type mode for visitors who are not logged in (family/friends following the trip).
   let publicMode = true;
 
   function saveState() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
   }
 
-  // ---------- Flight schedule helpers (used by the simple public view) ----------
-  const TZ_OFFSETS = { WET: 0, WEST: 1, GMT: 0, UTC: 0, BST: 1, CET: 1, CEST: 2, EST: -5, EDT: -4, CST: -6, CDT: -5, MST: -7, MDT: -6, PST: -8, PDT: -7 };
-  const DIR_BASE_DATE = { outbound: '2026-11-28', inbound: '2026-12-08' };
-  const CITY_NAMES = {
-    LIS: 'Lisboa', OPO: 'Porto', FAO: 'Faro', MAD: 'Madrid', BCN: 'Barcelona', LHR: 'Londres', CDG: 'Paris', ORY: 'Paris',
-    FRA: 'Frankfurt', AMS: 'Amesterdão', ZRH: 'Zurique', DUB: 'Dublin', YYZ: 'Toronto', YUL: 'Montreal', YVR: 'Vancouver',
-    BOS: 'Boston', JFK: 'Nova Iorque', EWR: 'Nova Iorque', MIA: 'Miami', MCO: 'Orlando', ATL: 'Atlanta', ORD: 'Chicago',
-    DFW: 'Dallas', IAD: 'Washington', CUN: 'Cancún', MEX: 'Cidade do México', PTY: 'Panamá'
-  };
-  const PT_TZ_CODES = new Set(['WET', 'WEST']);
+  // ---------- Date, Timezone & Trip Helpers ----------
+  function capitalize(s) {
+    const str = String(s || '');
+    return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+  }
+
+  function formatDateShortPt(iso) {
+    if (!iso) return '--';
+    try {
+      const d = new Date(`${iso}T12:00:00Z`);
+      const wd = new Intl.DateTimeFormat('pt-PT', { weekday: 'short', timeZone: 'UTC' }).format(d).replace(/\.$/, '');
+      const dm = new Intl.DateTimeFormat('pt-PT', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(d).replace(/\.$/, '');
+      return `${capitalize(wd)} ${dm.replace(/\s+de\s+/i, ' ')}`;
+    } catch {
+      return iso;
+    }
+  }
+
+  function formatDateMediumPt(iso) {
+    if (!iso) return '--';
+    try {
+      const d = new Date(`${iso}T12:00:00Z`);
+      return new Intl.DateTimeFormat('pt-PT', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+        .format(d)
+        .replace(/\.$/, '')
+        .replace(/\s+de\s+/i, ' ');
+    } catch {
+      return iso;
+    }
+  }
+
+  function formatDateLongPt(iso) {
+    if (!iso) return '--';
+    try {
+      const d = new Date(`${iso}T12:00:00Z`);
+      return capitalize(
+        new Intl.DateTimeFormat('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(d)
+      );
+    } catch {
+      return iso;
+    }
+  }
+
+  function formatDateRangePt(startIso, endIso) {
+    if (!startIso && !endIso) return '';
+    if (!endIso || startIso === endIso) return formatDateMediumPt(startIso);
+    return `${formatDateMediumPt(startIso)} – ${formatDateMediumPt(endIso)}`;
+  }
+
+  function getTripDurationInfo() {
+    const s = Date.parse(`${state.trip.startDate}T12:00:00Z`);
+    const e = Date.parse(`${state.trip.endDate}T12:00:00Z`);
+    if (Number.isNaN(s) || Number.isNaN(e) || e < s) {
+      return { nights: Math.max(1, (state.days.length || 1) - 1), totalDays: Math.max(1, state.days.length || 1) };
+    }
+    const nights = Math.max(0, Math.round((e - s) / 86400000));
+    return { nights, totalDays: nights + 1 };
+  }
+
+  function buildDaysArray(startIso, endIso, existingDays = []) {
+    const s = Date.parse(`${startIso}T12:00:00Z`);
+    const e = Date.parse(`${endIso}T12:00:00Z`);
+    if (Number.isNaN(s) || Number.isNaN(e) || e < s) return existingDays;
+    const total = Math.min(60, Math.round((e - s) / 86400000) + 1);
+    const byDate = new Map((existingDays || []).map((d) => [d.date, d]));
+    const dest = state?.trip?.destination || 'Destino';
+    const result = [];
+    for (let i = 0; i < total; i++) {
+      const iso = new Date(s + i * 86400000).toISOString().slice(0, 10);
+      const prev = byDate.get(iso);
+      const isFirst = i === 0;
+      const isLast = i === total - 1 && total > 1;
+      result.push({
+        dayNumber: i + 1,
+        date: iso,
+        shortDate: formatDateShortPt(iso),
+        theme: prev?.theme || (isFirst ? 'Viagem de Ida & Check-in' : isLast ? 'Check-Out & Regresso' : `Dia ${i + 1} em ${dest}`),
+        dinnerChoice: prev?.dinnerChoice || (isLast ? 'Em viagem' : 'Sem restaurante marcado'),
+        notes: prev?.notes || '',
+        items: Array.isArray(prev?.items) ? prev.items : []
+      });
+    }
+    return result;
+  }
+
+  function getTzOffsetHours(ianaTz, date = new Date()) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: ianaTz,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false
+      }).formatToParts(date);
+      const get = (t) => Number(parts.find((p) => p.type === t)?.value || 0);
+      const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'));
+      return Math.round((asUtc - date.getTime()) / 1800000) / 2;
+    } catch {
+      return 0;
+    }
+  }
+
+  function getTimezoneDiffText(homeTz, destTz) {
+    const hOff = getTzOffsetHours(homeTz);
+    const dOff = getTzOffsetHours(destTz);
+    const diff = dOff - hOff;
+    const homeName = state.trip.homeCity || 'Portugal';
+    if (diff === 0) return `mesma hora que em ${homeName}`;
+    const abs = Math.abs(diff);
+    const absStr = Number.isInteger(abs) ? `${abs}h` : `${Math.floor(abs)}h30`;
+    return diff < 0 ? `menos ${absStr} que em ${homeName}` : `mais ${absStr} que em ${homeName}`;
+  }
 
   function cityName(code, full) {
-    return CITY_NAMES[code] || String(full || code || '').split(/[\s(]/)[0] || code;
+    return CITY_NAMES[code] || String(full || code || '').split(/[\s(]/)[0] || code || '';
   }
 
   function hmToUtcMs(dateStr, hm, tz) {
     const m = String(hm || '').match(/(\d{1,2}):(\d{2})/);
-    if (!m) return null;
-    const off = TZ_OFFSETS[String(tz || '').toUpperCase()] ?? 0;
+    if (!m || !dateStr) return null;
+    const tzKey = String(tz || '').trim();
+    const upper = tzKey.toUpperCase();
+    let off = TZ_OFFSETS[upper];
+    if (off == null && tzKey.includes('/')) {
+      off = getTzOffsetHours(tzKey, new Date(`${dateStr}T12:00:00Z`));
+    }
+    if (off == null) off = 0;
     return Date.parse(`${dateStr}T00:00:00Z`) + ((Number(m[1]) - off) * 60 + Number(m[2])) * 60000;
+  }
+
+  function formatDurationMs(ms) {
+    if (ms == null || ms <= 0) return '--';
+    const totalMins = Math.round(ms / 60000);
+    const h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    return `${h}h ${String(m).padStart(2, '0')}m`;
   }
 
   function getLegTimes(dirKey) {
     const dir = state.flights[dirKey];
-    const base = DIR_BASE_DATE[dirKey];
+    const fallbackDate = dirKey === 'outbound' ? state.trip.startDate : state.trip.endDate;
     let prevArr = null;
-    return dir.legs.map((leg) => {
+    return (dir.legs || []).map((leg) => {
+      const base = leg.dateIso || fallbackDate;
       let dep = hmToUtcMs(base, leg.depTime, leg.depTz);
       if (dep != null && prevArr != null) while (dep < prevArr) dep += 86400000;
       let arr = hmToUtcMs(base, leg.arrTime, leg.arrTz);
@@ -68,13 +323,36 @@
     });
   }
 
-  function fmtPortugal(ms, opts) {
-    return new Intl.DateTimeFormat('pt-PT', { timeZone: 'Europe/Lisbon', ...opts }).format(new Date(ms));
+  function fmtHome(ms, opts) {
+    const tz = state.trip.homeTz || 'Europe/Lisbon';
+    try {
+      return new Intl.DateTimeFormat('pt-PT', { timeZone: tz, ...opts }).format(new Date(ms));
+    } catch {
+      return new Intl.DateTimeFormat('pt-PT', { timeZone: 'Europe/Lisbon', ...opts }).format(new Date(ms));
+    }
   }
-  const ptTime = (ms) => fmtPortugal(ms, { hour: '2-digit', minute: '2-digit', hour12: false });
-  const ptDayLong = (ms) => fmtPortugal(ms, { weekday: 'long', day: 'numeric', month: 'long' });
-  const ptDateKey = (ms) => fmtPortugal(ms, { year: 'numeric', month: '2-digit', day: '2-digit' });
+  const homeTime = (ms) => fmtHome(ms, { hour: '2-digit', minute: '2-digit', hour12: false });
+  const homeDayLong = (ms) => fmtHome(ms, { weekday: 'long', day: 'numeric', month: 'long' });
+  const homeDateKey = (ms) => fmtHome(ms, { year: 'numeric', month: '2-digit', day: '2-digit' });
   const localHm = (hm) => String(hm || '').replace(/\s*\+\d+$/, '').trim();
+
+  function homeTzLabel() {
+    return (state.trip.homeTz || 'Europe/Lisbon') === 'Europe/Lisbon'
+      ? 'hora de Portugal'
+      : `hora de ${state.trip.homeCity || 'casa'}`;
+  }
+
+  function isSameAsHomeTz(tzStr, refDateMs) {
+    if (!tzStr) return false;
+    const upper = String(tzStr).toUpperCase();
+    const homeTz = state.trip.homeTz || 'Europe/Lisbon';
+    if (tzStr === homeTz) return true;
+    const refDate = refDateMs ? new Date(refDateMs) : new Date();
+    const homeOff = getTzOffsetHours(homeTz, refDate);
+    let legOff = TZ_OFFSETS[upper];
+    if (legOff == null && tzStr.includes('/')) legOff = getTzOffsetHours(tzStr, refDate);
+    return legOff != null && legOff === homeOff;
+  }
 
   function humanDuration(ms) {
     const mins = Math.max(0, Math.round(ms / 60000));
@@ -89,14 +367,18 @@
   }
 
   function getTripPhase(now = Date.now()) {
-    const seq = [...getLegTimes('outbound'), ...getLegTimes('inbound')].filter((t) => t.dep != null && t.arr != null);
+    const out = getLegTimes('outbound').filter((t) => t.dep != null && t.arr != null);
+    const inb = getLegTimes('inbound').filter((t) => t.dep != null && t.arr != null);
+    const seq = [...out, ...inb];
     if (!seq.length) return null;
     if (now < seq[0].dep) return { kind: 'before', next: seq[0] };
     for (let i = 0; i < seq.length; i++) {
       const t = seq[i];
       if (now >= t.dep && now < t.arr) return { kind: 'flying', cur: t };
       const n = seq[i + 1];
-      if (n && now >= t.arr && now < n.dep) return { kind: t.dir !== n.dir ? 'staying' : 'layover', last: t, next: n };
+      if (n && now >= t.arr && now < n.dep) {
+        return { kind: t.dir !== n.dir ? 'staying' : 'layover', last: t, next: n };
+      }
     }
     return { kind: 'home', last: seq[seq.length - 1] };
   }
@@ -116,7 +398,7 @@
     el.textContent = msg;
     el.classList.add('is-visible');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('is-visible'), 2400);
+    toastTimer = setTimeout(() => el.classList.remove('is-visible'), 2600);
   }
 
   function formatTzTime(tz) {
@@ -128,12 +410,13 @@
   }
 
   function parseHm(hm) {
-    const [h, m] = hm.split(':').map(Number);
-    return h * 60 + m;
+    const [h, m] = String(hm || '00:00').split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
   }
 
-  function getCancunMinutesNow(overrideHm) {
-    const hm = overrideHm && overrideHm !== 'live' ? overrideHm : formatTzTime('America/Cancun');
+  function getDestMinutesNow(overrideHm) {
+    const tz = state.trip.destTz || 'America/Cancun';
+    const hm = overrideHm && overrideHm !== 'live' ? overrideHm : formatTzTime(tz);
     return parseHm(hm);
   }
 
@@ -158,22 +441,254 @@
     return { state: 'closed', label: 'Fechado' };
   }
 
-  function updateClocksAndCountdown() {
-    const lis = formatTzTime('Europe/Lisbon');
-    const yyz = formatTzTime('America/Toronto');
-    const cun = formatTzTime('America/Cancun');
-    document.getElementById('clock-lis').textContent = lis;
-    document.getElementById('clock-yyz').textContent = yyz;
-    document.getElementById('clock-cun').textContent = cun;
-    const ovCun = document.getElementById('overview-cun-time');
-    if (ovCun) ovCun.textContent = `${cun} EST`;
+  // ---------- Dynamic Global Chrome & Labels ----------
+  function getDynamicClocks() {
+    const clocks = [];
+    const seen = new Set();
+    const addClock = (code, city, tz) => {
+      if (!tz || seen.has(tz)) return;
+      seen.add(tz);
+      clocks.push({ code: code || city.slice(0, 3).toUpperCase(), city, tz });
+    };
 
-    const depMs = Date.parse('2026-11-28T10:55:00Z');
-    const retMs = Date.parse('2026-12-08T20:10:00Z');
+    const outLegs = state.flights.outbound.legs || [];
+    const firstLeg = outLegs[0];
+    const lastLeg = outLegs[outLegs.length - 1];
+
+    addClock(
+      firstLeg?.fromCode || state.trip.homeCode || 'LIS',
+      state.trip.homeCity || 'Lisboa',
+      state.trip.homeTz || 'Europe/Lisbon'
+    );
+
+    // Add intermediate layover timezone if distinct from home & dest
+    if (outLegs.length > 1) {
+      for (let i = 0; i < outLegs.length - 1; i++) {
+        const mid = outLegs[i];
+        const iana = TZ_ABBR_TO_IANA[String(mid.arrTz || '').toUpperCase()];
+        if (iana && iana !== state.trip.homeTz && iana !== state.trip.destTz) {
+          addClock(mid.toCode, cityName(mid.toCode, mid.toCity), iana);
+          break;
+        }
+      }
+    }
+
+    addClock(
+      lastLeg?.toCode || state.trip.destCode || 'DST',
+      state.trip.destCity || state.trip.destination || 'Destino',
+      state.trip.destTz || 'Europe/Lisbon'
+    );
+
+    return clocks;
+  }
+
+  function renderTripChrome() {
+    const t = state.trip;
+    const { nights } = getTripDurationInfo();
+    const dateRange = formatDateRangePt(t.startDate, t.endDate);
+    const placeLabel = [t.destination, t.country].filter(Boolean).join(', ');
+    const nightsText = nights > 0 ? ` (${nights} ${nights === 1 ? 'Noite' : 'Noites'})` : '';
+
+    const displayTitle = publicMode && !t.publicShowStay
+      ? (placeLabel || t.title || 'Viagem')
+      : (t.title || placeLabel || 'Viagem');
+
+    document.title = `${displayTitle} — ${dateRange || 'Acompanhar Viagem'}`;
+
+    const brandTitleEl = document.getElementById('brand-title');
+    const brandSubEl = document.getElementById('brand-subtitle');
+    if (brandTitleEl) brandTitleEl.textContent = displayTitle;
+    if (brandSubEl) {
+      const subParts = [];
+      if (placeLabel && displayTitle !== placeLabel) subParts.push(placeLabel);
+      if (dateRange) subParts.push(`${dateRange}${nightsText}`);
+      brandSubEl.textContent = subParts.join(' · ') || 'Painel da Viagem';
+    }
+
+    // Flights view public header
+    const flPubTitle = document.getElementById('flights-heading-public');
+    const flPubSub = document.getElementById('flights-subtitle-public');
+    const finalDest = t.destination || t.destCity || t.title;
+    if (flPubTitle) {
+      flPubTitle.textContent = finalDest ? `Viagem a ${finalDest}` : 'Acompanhar a Viagem';
+    }
+    if (flPubSub) {
+      flPubSub.textContent = [placeLabel && placeLabel !== finalDest ? placeLabel : '', dateRange ? `${dateRange}${nightsText}` : ''].filter(Boolean).join(' · ');
+    }
+
+    // Direction toggle dates
+    const outFirst = state.flights.outbound.legs[0];
+    const inFirst = state.flights.inbound.legs[0];
+    const outDateEl = document.getElementById('btn-dir-outbound-date');
+    const inDateEl = document.getElementById('btn-dir-inbound-date');
+    if (outDateEl) outDateEl.textContent = formatDateShortPt(outFirst?.dateIso || t.startDate);
+    if (inDateEl) inDateEl.textContent = formatDateShortPt(inFirst?.dateIso || t.endDate);
+
+    // Planner nav & heading
+    const navPlan = document.getElementById('nav-tab-planner-label');
+    if (navPlan) navPlan.textContent = nights > 0 ? `Plano (${nights}N)` : 'Plano';
+    const planHead = document.getElementById('planner-heading');
+    if (planHead) planHead.textContent = `Plano da Viagem${dateRange ? ` (${dateRange})` : ''}`;
+
+    // Resort / Venues dynamic labels
+    const resTag = document.getElementById('resort-banner-tag');
+    const resDesc = document.getElementById('resort-banner-desc');
+    const resSimLive = document.getElementById('resort-time-sim-live');
+    const chipPyp = document.getElementById('venue-chip-pyp');
+    if (resTag) resTag.textContent = t.title || t.destination || 'Locais da Viagem';
+    if (resDesc) {
+      resDesc.textContent = t.venueScopeNote || 'Consulte horários, avalie os melhores restaurantes e agende jantares diretamente no Plano.';
+    }
+    if (resSimLive) resSimLive.textContent = `Hora Real (${t.destCity || t.destination || 'Destino'})`;
+    if (chipPyp) {
+      const shortTitle = (t.title || '').split(' ').slice(0, 2).join(' ');
+      chipPyp.textContent = shortTitle ? `Alojamento (${shortTitle})` : 'Alojamento / Principal';
+    }
+
+    // Photo day select
+    const photoDaySel = document.getElementById('photo-day-select');
+    if (photoDaySel) {
+      const prevVal = photoDaySel.value;
+      photoDaySel.innerHTML = state.days
+        .map((d) => `<option value="${d.dayNumber}">Dia ${d.dayNumber} · ${escapeHtml(d.shortDate)}</option>`)
+        .join('');
+      if (prevVal && state.days.some((d) => String(d.dayNumber) === prevVal)) {
+        photoDaySel.value = prevVal;
+      }
+    }
+
+    // Currency converter labels & presets
+    renderCurrencyChrome();
+    syncDynamicSelects();
+  }
+
+  function renderCurrencyChrome() {
+    const t = state.trip;
+    const destCode = (t.currencyCode || 'EUR').toUpperCase();
+    const destName = t.currencyName || destCode;
+    const isEur = destCode === 'EUR';
+
+    const tkSub = document.getElementById('toolkit-subtitle');
+    if (tkSub) {
+      tkSub.textContent = isEur
+        ? 'Checklist prática e registo opcional de despesas da viagem'
+        : `Checklist prática e cálculo rápido de ${destName} (${destCode}), Euros e Dólares`;
+    }
+
+    const convTitle = document.getElementById('conv-title');
+    if (convTitle) {
+      convTitle.textContent = isEur
+        ? 'Conversor de Moeda (EUR ↔ USD)'
+        : `Conversor de Moeda (${destCode} ↔ EUR ↔ USD)`;
+    }
+
+    const destLbl = document.getElementById('conv-dest-label');
+    if (destLbl) destLbl.textContent = `${destName} (${destCode})`;
+
+    const extraWrap = document.getElementById('conv-extra-wrap');
+    const extraLbl = document.getElementById('conv-extra-label');
+    if (extraWrap) {
+      const showExtra = Boolean(t.extraCurrencyCode) && t.extraCurrencyCode !== destCode;
+      extraWrap.style.display = showExtra ? '' : 'none';
+      if (extraLbl && showExtra) extraLbl.textContent = `${t.extraCurrencyName || t.extraCurrencyCode} (${t.extraCurrencyCode})`;
+    }
+
+    const expDestOpt = document.getElementById('exp-currency-dest');
+    if (expDestOpt) {
+      expDestOpt.value = destCode;
+      expDestOpt.textContent = destCode;
+      expDestOpt.style.display = isEur ? 'none' : '';
+      if (isEur && document.getElementById('exp-currency')?.value === destCode) {
+        document.getElementById('exp-currency').value = 'EUR';
+      }
+    }
+
+    const presetsEl = document.getElementById('currency-presets');
+    if (presetsEl) {
+      const rate = Number(state.rates.eurToDest) || 1;
+      const eurSteps = [5, 10, 20, 50];
+      presetsEl.innerHTML = eurSteps
+        .map((eurVal) => {
+          const destVal = rate >= 10 ? Math.round((eurVal * rate) / 10) * 10 : Number((eurVal * rate).toFixed(1));
+          return `<button type="button" class="btn btn-sm" data-dest-preset="${destVal}">${destVal} ${escapeHtml(destCode)} (~€${eurVal})</button>`;
+        })
+        .join('');
+      presetsEl.querySelectorAll('[data-dest-preset]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const m = b.getAttribute('data-dest-preset');
+          document.getElementById('conv-mxn').value = m;
+          updateCurrency('DEST', m);
+        })
+      );
+    }
+  }
+
+  function syncDynamicSelects() {
+    // 1) Planner dinner select from state.venues
+    const dinnerSel = document.getElementById('planner-dinner-select');
+    if (dinnerSel) {
+      const curVal = dinnerSel.value;
+      const opts = ['<option value="Sem restaurante marcado">Sem restaurante marcado</option>'];
+      state.venues
+        .filter((v) => v.category !== 'bars')
+        .forEach((v) => {
+          const label = v.cuisine ? `${v.name} — ${v.cuisine}` : v.name;
+          opts.push(`<option value="${escapeHtml(v.name)}">${escapeHtml(label)}</option>`);
+        });
+      opts.push('<option value="Em viagem">Em viagem</option>');
+      dinnerSel.innerHTML = opts.join('');
+      if (curVal && Array.from(dinnerSel.options).some((o) => o.value === curVal)) {
+        dinnerSel.value = curVal;
+      }
+    }
+
+    // 2) Cocktails bar select from state.venues
+    const barSel = document.getElementById('ck-bar');
+    if (barSel) {
+      const curVal = barSel.value;
+      const bars = state.venues.filter((v) => v.category === 'bars');
+      const others = state.venues.filter((v) => v.category !== 'bars');
+      const opts = [];
+      bars.forEach((v) => opts.push(`<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)}</option>`));
+      others.forEach((v) => opts.push(`<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)}</option>`));
+      opts.push('<option value="Outro Bar / Local">Outro Bar / Local</option>');
+      barSel.innerHTML = opts.join('');
+      if (curVal && Array.from(barSel.options).some((o) => o.value === curVal)) {
+        barSel.value = curVal;
+      }
+    }
+  }
+
+  function updateClocksAndCountdown() {
+    const clocks = getDynamicClocks();
+    const strip = document.getElementById('tz-strip');
+    if (strip) {
+      strip.innerHTML = clocks
+        .map((c, idx) => {
+          const time = formatTzTime(c.tz);
+          return `${idx > 0 ? '<span class="tz-divider"></span>' : ''}<span class="tz-item" title="Hora de ${escapeHtml(c.city)}"><span class="tz-code">${escapeHtml(c.code)}</span> <span class="tz-time">${escapeHtml(time)}</span></span>`;
+        })
+        .join('');
+    }
+
+    const destTz = state.trip.destTz || 'Europe/Lisbon';
+    const destCity = state.trip.destCity || state.trip.destination || 'Destino';
+    const destTime = formatTzTime(destTz);
+    const ovDestLbl = document.getElementById('overview-dest-tz-label');
+    if (ovDestLbl) {
+      ovDestLbl.innerHTML = `Hora local em ${escapeHtml(destCity)} (<span class="mono" id="overview-dest-time">${escapeHtml(destTime)}</span>)`;
+    }
+
+    const outTimes = getLegTimes('outbound').filter((t) => t.dep != null);
+    const inTimes = getLegTimes('inbound').filter((t) => t.arr != null);
+    const depMs = outTimes.length ? outTimes[0].dep : Date.parse(`${state.trip.startDate}T09:00:00Z`);
+    const retMs = inTimes.length ? inTimes[inTimes.length - 1].arr : Date.parse(`${state.trip.endDate}T23:59:00Z`);
+    const { totalDays } = getTripDurationInfo();
     const now = Date.now();
     const lbl = document.getElementById('countdown-label');
     const val = document.getElementById('countdown-value');
-    if (lbl && val) {
+
+    if (lbl && val && !Number.isNaN(depMs) && !Number.isNaN(retMs)) {
       if (now < depMs) {
         const diff = depMs - now;
         const d = Math.floor(diff / 86400000);
@@ -181,9 +696,9 @@
         lbl.textContent = 'Partida em';
         val.textContent = `${d}d ${h}h`;
       } else if (now <= retMs) {
-        const day = Math.min(10, Math.floor((now - depMs) / 86400000) + 1);
+        const day = Math.min(totalDays, Math.max(1, Math.floor((now - depMs) / 86400000) + 1));
         lbl.textContent = 'Estadia';
-        val.textContent = `Dia ${day} de 10`;
+        val.textContent = `Dia ${day} de ${totalDays}`;
       } else {
         lbl.textContent = 'Estado';
         val.textContent = 'Concluída';
@@ -203,15 +718,38 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  // ---------- Overview (Private) ----------
   function renderOverview() {
+    const t = state.trip;
+    const { nights } = getTripDurationInfo();
     const donePack = state.packing.filter((p) => p.checked).length;
+
+    const kickerEl = document.getElementById('hero-kicker');
+    if (kickerEl) {
+      kickerEl.textContent = t.subtitle || [t.destination, t.country].filter(Boolean).join(' · ') || 'Resumo da Viagem';
+    }
+    const headlineEl = document.getElementById('hero-main-heading');
+    if (headlineEl) {
+      headlineEl.textContent = t.headline || (nights > 0 ? `${nights} noites em ${t.destination || t.title}.` : `${t.title || t.destination}.`);
+    }
+
+    const outLegs = state.flights.outbound.legs || [];
+    const inLegs = state.flights.inbound.legs || [];
+
+    const outLbl = document.getElementById('hero-out-label');
+    const outVal = document.getElementById('hero-out-value');
+    const inLbl = document.getElementById('hero-in-label');
+    const inVal = document.getElementById('hero-in-value');
+    if (outLbl) outLbl.textContent = `Ida · ${formatDateMediumPt(outLegs[0]?.dateIso || t.startDate)}`;
+    if (outVal) outVal.textContent = outLegs.map((l) => l.flightNumber).join(' → ') || '--';
+    if (inLbl) inLbl.textContent = `Regresso · ${formatDateMediumPt(inLegs[0]?.dateIso || t.endDate)}`;
+    if (inVal) inVal.textContent = inLegs.map((l) => l.flightNumber).join(' → ') || '--';
+
     document.getElementById('hero-pack-progress').textContent = `${donePack} / ${state.packing.length}`;
     document.getElementById('wallet-summary-line').textContent = state.wallet.airCanadaPnr
-      ? `PNR Air Canada: ${state.wallet.airCanadaPnr}`
-      : 'Guarde o vosso PNR e código de reserva na Carteira';
+      ? `PNR / Reserva: ${state.wallet.airCanadaPnr}`
+      : 'Guarde o vosso código PNR e documentos na Carteira';
 
-    const outLegs = state.flights.outbound.legs;
-    const inLegs = state.flights.inbound.legs;
     const fmtRouteCodes = (legs) => {
       if (!legs.length) return '---';
       const codes = [legs[0].fromCode, ...legs.map((l) => l.toCode)];
@@ -220,10 +758,13 @@
     const fmtNums = (legs) => legs.map((l) => escapeHtml(l.flightNumber)).join(' · ');
     const fmtTimes = (legs) => (legs.length ? `${escapeHtml(legs[0].depTime)} ${escapeHtml(legs[0].fromCode)} → ${escapeHtml(legs[legs.length - 1].arrTime)} ${escapeHtml(legs[legs.length - 1].toCode)}` : '');
 
+    const outDateLabel = formatDateLongPt(outLegs[0]?.dateIso || t.startDate);
+    const inDateLabel = formatDateLongPt(inLegs[0]?.dateIso || t.endDate);
+
     document.getElementById('overview-flight-summary').innerHTML = `
       <div class="flight-mini-route">
         <div>
-          <div style="font-size: 0.74rem; color: var(--ink-muted); font-weight: 600;">IDA · ${escapeHtml(state.flights.outbound.dateLabel)}</div>
+          <div style="font-size: 0.74rem; color: var(--ink-muted); font-weight: 600;">IDA · ${escapeHtml(outDateLabel)}</div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:2px;flex-wrap:wrap;">
             ${fmtRouteCodes(outLegs)}
           </div>
@@ -235,7 +776,7 @@
       </div>
       <div class="flight-mini-route">
         <div>
-          <div style="font-size: 0.74rem; color: var(--ink-muted); font-weight: 600;">REGRESSO · ${escapeHtml(state.flights.inbound.dateLabel)}</div>
+          <div style="font-size: 0.74rem; color: var(--ink-muted); font-weight: 600;">REGRESSO · ${escapeHtml(inDateLabel)}</div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:2px;flex-wrap:wrap;">
             ${fmtRouteCodes(inLegs)}
           </div>
@@ -247,32 +788,59 @@
       </div>
     `;
 
-    document.getElementById('overview-doc-badges').innerHTML = `
-      <span class="tag ${state.wallet.canadaEta === 'Pronto' ? 'tag-open' : 'tag-soon'}">eTA Canadá: ${escapeHtml(state.wallet.canadaEta)}</span>
-      <span class="tag ${state.wallet.mexicoVisitax === 'Pronto' ? 'tag-open' : 'tag-soon'}">Visitax: ${escapeHtml(state.wallet.mexicoVisitax)}</span>
-      <span class="tag tag-cenote">${escapeHtml(state.wallet.suiteBuilding)}</span>
-    `;
+    const docs = Array.isArray(state.wallet.documents) ? state.wallet.documents : [];
+    document.getElementById('overview-doc-badges').innerHTML = [
+      ...docs.map((d) => `<span class="tag ${d.status === 'Pronto' ? 'tag-open' : 'tag-soon'}">${escapeHtml(d.label)}: ${escapeHtml(d.status)}</span>`),
+      state.wallet.suiteBuilding ? `<span class="tag tag-cenote">${escapeHtml(state.wallet.suiteBuilding)}</span>` : ''
+    ].join('');
 
-    const nowMins = getCancunMinutesNow('live');
+    const openTitle = document.getElementById('overview-open-title');
+    if (openTitle) openTitle.textContent = `Aberto Agora${t.title ? ` · ${t.title.split(' ').slice(0, 2).join(' ')}` : ''}`;
+
+    const nowMins = getDestMinutesNow('live');
     const openVenues = state.venues
       .map((v) => ({ v, st: evaluateVenueStatus(v, nowMins) }))
       .filter((x) => x.st.state === 'open' || x.st.state === 'soon')
       .slice(0, 4);
 
-    document.getElementById('overview-open-venues').innerHTML = openVenues
-      .map(
-        ({ v, st }) => `
-        <div class="open-venue-row">
-          <div>
-            <div style="font-weight: 600; font-size: 0.88rem;">${escapeHtml(v.name)}</div>
-            <div style="font-size: 0.76rem; color: var(--ink-secondary);">${escapeHtml(v.cuisine)}</div>
-          </div>
-          <span class="tag ${st.state === 'open' ? 'tag-open' : 'tag-soon'}">${escapeHtml(st.label)}</span>
-        </div>`
-      )
-      .join('');
+    const openEl = document.getElementById('overview-open-venues');
+    if (openEl) {
+      openEl.innerHTML = openVenues.length
+        ? openVenues
+            .map(
+              ({ v, st }) => `
+              <div class="open-venue-row">
+                <div>
+                  <div style="font-weight: 600; font-size: 0.88rem;">${escapeHtml(v.name)}</div>
+                  <div style="font-size: 0.76rem; color: var(--ink-secondary);">${escapeHtml(v.cuisine)}</div>
+                </div>
+                <span class="tag ${st.state === 'open' ? 'tag-open' : 'tag-soon'}">${escapeHtml(st.label)}</span>
+              </div>`
+            )
+            .join('')
+        : `<p style="font-size:0.84rem;color:var(--ink-muted);">Sem locais abertos neste horário (ou ainda sem locais configurados).</p>`;
+    }
+
+    // Dynamic Tips section
+    const tipsSec = document.getElementById('overview-tips-section');
+    const tipsList = document.getElementById('overview-tips-list');
+    const tips = Array.isArray(t.tips) ? t.tips : [];
+    if (tipsSec && tipsList) {
+      if (!tips.length) {
+        tipsList.innerHTML = `<div class="perk-item"><span class="perk-title">Sem dicas configuradas</span><p class="perk-desc">Pode adicionar lembretes úteis (tomadas, dress code, transfers, regras locais) no ecrã de Configuração.</p></div>`;
+      } else {
+        tipsList.innerHTML = tips
+          .map((tip) => `
+            <div class="perk-item">
+              <span class="perk-title">${escapeHtml(tip.title)}</span>
+              <p class="perk-desc">${escapeHtml(tip.desc)}</p>
+            </div>`)
+          .join('');
+      }
+    }
   }
 
+  // ---------- ADS-B Radar ----------
   function getFlightIata(flightNumber) {
     return String(flightNumber || '').replace(/\s+/g, '').toUpperCase();
   }
@@ -286,7 +854,8 @@
       VY: 'VLG', S4: 'RZO', B6: 'JBU', WN: 'SWA', NK: 'NKS', F9: 'FFT',
       Y4: 'VOI', VB: 'VIV', AV: 'AVA', CM: 'CMP', LA: 'LAN', OS: 'AUA',
       SN: 'BEL', AZ: 'ITY', SK: 'SAS', AY: 'FIN', EK: 'UAE', QR: 'QTR',
-      TK: 'THY', VS: 'VIR', FI: 'ICE', PD: 'POE', WG: 'SWG', F8: 'FLE'
+      TK: 'THY', VS: 'VIR', FI: 'ICE', PD: 'POE', WG: 'SWG', F8: 'FLE',
+      HV: 'TRA', TO: 'TVF', W6: 'WZZ', EW: 'EWG', LO: 'LOT', TP2: 'TAP'
     };
     const m = clean.match(/^([A-Z0-9]{2})(\d+.*)$/);
     if (m && map[m[1]]) return map[m[1]] + m[2];
@@ -348,10 +917,7 @@
           };
           airborneCount++;
         } else {
-          leg.liveStatus = {
-            active: false,
-            updatedAt
-          };
+          leg.liveStatus = { active: false, updatedAt };
         }
       } catch (err) {
         console.warn('ADS-B radar fetch error:', err);
@@ -360,7 +926,7 @@
       }
     }
 
-    saveState();
+    if (!publicMode) saveState();
     renderFlights();
     toast(
       airborneCount > 0
@@ -369,8 +935,47 @@
     );
   }
 
-  // ---------- "Onde estão agora?" status card (shown to everyone) ----------
+  // ---------- "Onde estão agora?" status card + Stepper + Local Time ----------
   let lastAutoRadarMs = 0;
+
+  function buildJourneyStepper(phase) {
+    const outLegs = state.flights.outbound.legs || [];
+    const inLegs = state.flights.inbound.legs || [];
+    const originCity = outLegs.length ? cityName(outLegs[0].fromCode, outLegs[0].fromCity) : (state.trip.homeCity || 'Partida');
+    const destCity = state.trip.destCity || (outLegs.length ? cityName(outLegs[outLegs.length - 1].toCode, outLegs[outLegs.length - 1].toCity) : state.trip.destination);
+    const hasOutLayover = outLegs.length > 1;
+    const layoverCity = hasOutLayover ? cityName(outLegs[0].toCode, outLegs[0].toCity) : '';
+
+    const steps = [
+      { key: 'depart', label: `Partida (${originCity})` },
+      ...(hasOutLayover ? [{ key: 'out_layover', label: `Escala (${layoverCity})` }] : []),
+      { key: 'dest', label: destCity || 'Destino' },
+      ...(inLegs.length ? [{ key: 'return', label: 'Regresso' }, { key: 'home', label: 'Casa' }] : [])
+    ];
+
+    let activeIdx = 0;
+    if (phase.kind === 'before') activeIdx = 0;
+    else if (phase.kind === 'flying' && phase.cur.dir === 'outbound') {
+      const idxInOut = outLegs.findIndex((l) => l.id === phase.cur.leg.id);
+      activeIdx = hasOutLayover ? (idxInOut === 0 ? 0 : 1) : 0;
+    } else if (phase.kind === 'layover' && phase.next.dir === 'outbound') {
+      activeIdx = hasOutLayover ? 1 : 0;
+    } else if (phase.kind === 'staying') {
+      activeIdx = hasOutLayover ? 2 : 1;
+    } else if ((phase.kind === 'flying' && phase.cur.dir === 'inbound') || (phase.kind === 'layover' && phase.next.dir === 'inbound')) {
+      activeIdx = steps.findIndex((s) => s.key === 'return');
+    } else if (phase.kind === 'home') {
+      activeIdx = steps.length - 1;
+    }
+
+    return `<div class="trip-stepper" aria-label="Etapas da viagem">${steps
+      .map((s, idx) => {
+        const cls = idx < activeIdx ? 'is-done' : idx === activeIdx ? 'is-current' : '';
+        const prefix = idx < activeIdx ? '✓ ' : '';
+        return `${idx > 0 ? '<span class="trip-step-sep" aria-hidden="true">→</span>' : ''}<span class="trip-step ${cls}">${prefix}${escapeHtml(s.label)}</span>`;
+      })
+      .join('')}</div>`;
+  }
 
   function renderFlightStatus() {
     const el = document.getElementById('flight-now-status');
@@ -378,8 +983,11 @@
     const phase = getTripPhase();
     if (!phase) { el.innerHTML = ''; return; }
     const now = Date.now();
+    const tCfg = state.trip;
+    const tzLbl = homeTzLabel();
     const from = (t) => cityName(t.leg.fromCode, t.leg.fromCity);
     const to = (t) => cityName(t.leg.toCode, t.leg.toCity);
+
     let icon = '';
     let title = '';
     let text = '';
@@ -390,7 +998,7 @@
       const t = phase.next;
       icon = '🧳';
       title = 'Ainda não partiram';
-      text = `O primeiro voo sai de ${escapeHtml(from(t))} ${escapeHtml(ptDayLong(t.dep))}, às <strong>${ptTime(t.dep)}</strong> (hora de Portugal).`;
+      text = `O primeiro voo sai de <strong>${escapeHtml(from(t))}</strong> ${escapeHtml(homeDayLong(t.dep))}, às <strong>${homeTime(t.dep)}</strong> (${escapeHtml(tzLbl)}).`;
       extra = `<div class="now-countdown">Faltam ${humanDuration(t.dep - now)}</div>`;
     } else if (phase.kind === 'flying') {
       const t = phase.cur;
@@ -398,7 +1006,7 @@
       icon = '✈️';
       tone = 'is-flying';
       title = 'Estão a voar agora';
-      text = `De <strong>${escapeHtml(from(t))}</strong> para <strong>${escapeHtml(to(t))}</strong>. Devem aterrar às <strong>${ptTime(t.arr)}</strong> (hora de Portugal).`;
+      text = `De <strong>${escapeHtml(from(t))}</strong> para <strong>${escapeHtml(to(t))}</strong>. Devem aterrar às <strong>${homeTime(t.arr)}</strong> (${escapeHtml(tzLbl)}).`;
       extra = `<div class="now-progress" role="img" aria-label="Viagem ${pct}% concluída">
           <span class="now-progress-city">${escapeHtml(from(t))}</span>
           <div class="now-progress-track"><div class="now-progress-fill" style="width:${pct}%"></div><span class="now-progress-plane" style="left:${pct}%">✈</span></div>
@@ -413,29 +1021,51 @@
       const t = phase.next;
       icon = '⏳';
       title = `Em escala em ${escapeHtml(from(t))}`;
-      text = `Já aterraram em ${escapeHtml(from(t))}. O próximo voo, para <strong>${escapeHtml(to(t))}</strong>, sai às <strong>${ptTime(t.dep)}</strong> (hora de Portugal).`;
+      text = `Já aterraram em ${escapeHtml(from(t))}. O próximo voo, para <strong>${escapeHtml(to(t))}</strong>, sai às <strong>${homeTime(t.dep)}</strong> (${escapeHtml(tzLbl)}).`;
       extra = `<div class="now-countdown">Faltam ${humanDuration(t.dep - now)}</div>`;
     } else if (phase.kind === 'staying') {
       const t = phase.next;
+      const destLabel = tCfg.destination || to(phase.last);
       icon = '🏝️';
       tone = 'is-good';
-      title = `Já estão em ${escapeHtml(to(phase.last))}!`;
-      text = `Chegaram bem. O regresso começa ${escapeHtml(ptDayLong(t.dep))}, às <strong>${ptTime(t.dep)}</strong> (hora de Portugal).`;
+      title = `Já estão em ${escapeHtml(destLabel)}!`;
+      text = `Chegaram bem. O regresso começa ${escapeHtml(homeDayLong(t.dep))}, às <strong>${homeTime(t.dep)}</strong> (${escapeHtml(tzLbl)}).`;
       extra = `<div class="now-countdown">Faltam ${humanDuration(t.dep - now)} para o regresso</div>`;
     } else {
       const t = phase.last;
       icon = '🏠';
       tone = 'is-good';
       title = 'Já chegaram a casa!';
-      text = `O último voo aterrou em ${escapeHtml(to(t))} ${escapeHtml(ptDayLong(t.arr))}, às ${ptTime(t.arr)}.`;
+      text = `O último voo aterrou em ${escapeHtml(to(t))} ${escapeHtml(homeDayLong(t.arr))}, às ${homeTime(t.arr)}.`;
     }
+
+    // Local destination clock comparison
+    const destCity = tCfg.destCity || tCfg.destination || 'Destino';
+    const destTz = tCfg.destTz || 'Europe/Lisbon';
+    const homeTz = tCfg.homeTz || 'Europe/Lisbon';
+    const destNowStr = formatTzTime(destTz);
+    const diffStr = getTimezoneDiffText(homeTz, destTz);
+    const localClockHtml = `
+      <div class="now-local-clock">
+        <span>🕒 Agora em <strong>${escapeHtml(destCity)}</strong> são <span class="now-local-clock-time">${escapeHtml(destNowStr)}</span></span>
+        <span class="now-local-clock-diff">${escapeHtml(diffStr)}</span>
+      </div>`;
+
+    const publicNoteHtml = tCfg.publicNote
+      ? `<div class="now-public-note">💬 <strong>Nota recente:</strong> ${escapeHtml(tCfg.publicNote)}</div>`
+      : '';
+
+    const cardLabel = 'Onde estão agora?';
 
     el.innerHTML = `
       <div class="now-card ${tone}">
-        <div class="now-card-label">Onde estão agora?</div>
+        <div class="now-card-label">${cardLabel}</div>
         <div class="now-card-head"><span class="now-icon" aria-hidden="true">${icon}</span><h3 class="now-title">${title}</h3></div>
         <p class="now-text">${text}</p>
         ${extra}
+        ${publicNoteHtml}
+        ${localClockHtml}
+        ${buildJourneyStepper(phase)}
       </div>`;
   }
 
@@ -451,20 +1081,27 @@
   function renderSimpleFlights() {
     const times = getLegTimes(activeFlightDir);
     const now = Date.now();
-    const firstDay = times[0] && times[0].dep != null ? ptDateKey(times[0].dep) : null;
+    const firstDay = times[0] && times[0].dep != null ? homeDateKey(times[0].dep) : null;
+    const tzLbl = homeTzLabel();
     const blocks = [];
+
+    if (!times.length) {
+      document.getElementById('flights-container').innerHTML = `<div class="surface"><p style="color:var(--ink-secondary);">Ainda não há voos configurados para este trajeto.</p></div>`;
+      updateFlightMap();
+      return;
+    }
 
     const timeBlock = (label, ms, hm, tz, city) => {
       if (ms == null) {
         return `<div class="sf-time-row"><span class="sf-time-label">${label}</span><span class="sf-time-main">${escapeHtml(hm)}</span></div>`;
       }
-      const otherDay = firstDay && ptDateKey(ms) !== firstDay;
-      const isPt = PT_TZ_CODES.has(String(tz || '').toUpperCase());
+      const otherDay = firstDay && homeDateKey(ms) !== firstDay;
+      const sameTz = isSameAsHomeTz(tz, ms);
       return `<div class="sf-time-row">
           <span class="sf-time-label">${label}</span>
-          <span class="sf-time-main">${ptTime(ms)}</span>
-          <span class="sf-time-sub">hora de Portugal${otherDay ? ` · <strong>${escapeHtml(ptDayLong(ms))}</strong>` : ''}</span>
-          ${isPt ? '' : `<span class="sf-time-local">(${escapeHtml(localHm(hm))} em ${escapeHtml(city)})</span>`}
+          <span class="sf-time-main">${homeTime(ms)}</span>
+          <span class="sf-time-sub">${escapeHtml(tzLbl)}${otherDay ? ` · <strong>${escapeHtml(homeDayLong(ms))}</strong>` : ''}</span>
+          ${sameTz ? '' : `<span class="sf-time-local">(${escapeHtml(localHm(hm))} em ${escapeHtml(city)})</span>`}
         </div>`;
     };
 
@@ -483,11 +1120,12 @@
         const altM = lv.altFt ? Math.round((lv.altFt * 0.3048) / 100) * 100 : null;
         liveLine = `<p class="sf-live">✈ O avião aparece no mapa${altM ? `, a ${altM.toLocaleString('pt-PT')} metros de altitude` : ''}${lv.speedKmh ? ` e a ${lv.speedKmh.toLocaleString('pt-PT')} km/h` : ''}.</p>`;
       }
+      const durText = leg.duration && leg.duration !== '--' ? leg.duration : formatDurationMs(t.arr - t.dep);
 
       blocks.push(`
         <article class="simple-flight ${status.cls}">
           <div class="sf-top">
-            <span class="sf-step">Voo ${i + 1} de ${times.length}</span>
+            <span class="sf-step">${times.length === 1 ? 'Voo Direto' : `Voo ${i + 1} de ${times.length}`}</span>
             <span class="sf-status">${status.label}</span>
           </div>
           <h3 class="sf-route">${escapeHtml(fromName)} <span class="sf-arrow" aria-label="para">→</span> ${escapeHtml(toName)}</h3>
@@ -496,7 +1134,7 @@
             ${timeBlock('Chega', t.arr, leg.arrTime, leg.arrTz, toName)}
           </div>
           ${liveLine}
-          <p class="sf-meta">Duração ${escapeHtml(leg.duration || '')} · Voo ${escapeHtml(leg.flightNumber)}</p>
+          <p class="sf-meta">Duração ${escapeHtml(durText)} · ${escapeHtml(leg.airline ? `${leg.airline} · ` : '')}Voo ${escapeHtml(leg.flightNumber)}</p>
         </article>`);
 
       const next = times[i + 1];
@@ -513,13 +1151,19 @@
     renderFlightStatus();
     if (publicMode) { renderSimpleFlights(); return; }
     const dir = state.flights[activeFlightDir];
-    const dynSummary = dir.legs.length
-      ? [dir.legs[0].fromCode, ...dir.legs.map((l) => l.toCode)].join(' → ')
-      : dir.summary;
+    const legs = dir.legs || [];
+    const layovers = dir.layovers || [];
+    const dynSummary = legs.length
+      ? [legs[0].fromCode, ...legs.map((l) => l.toCode)].join(' → ')
+      : 'Sem voos configurados';
+    const dynDateLabel = legs.length
+      ? formatDateLongPt(legs[0].dateIso || (activeFlightDir === 'outbound' ? state.trip.startDate : state.trip.endDate))
+      : dir.dateLabel || '';
+
     const blocks = [
       `<div class="surface" style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">
         <div>
-          <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-muted);font-weight:700;">${escapeHtml(dir.dateLabel)}</div>
+          <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-muted);font-weight:700;">${escapeHtml(dynDateLabel)}</div>
           <div style="font-size:1.06rem;font-weight:700;margin-top:2px;">${escapeHtml(dynSummary)}</div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
@@ -530,23 +1174,27 @@
       </div>`
     ];
 
-    const pre = dir.layovers.find((l) => l.beforeFirstLeg);
+    const pre = layovers.find((l) => l.beforeFirstLeg);
     if (pre) blocks.push(renderLayover(pre));
 
-    dir.legs.forEach((leg) => {
+    const times = getLegTimes(activeFlightDir);
+    legs.forEach((leg, idx) => {
       const iata = getFlightIata(leg.flightNumber).toLowerCase();
       const icao = getIcaoCallsign(leg.flightNumber);
       const live = leg.liveStatus;
+      const tObj = times[idx];
+      const durText = leg.duration && leg.duration !== '--' ? leg.duration : formatDurationMs(tObj ? tObj.arr - tObj.dep : null);
 
       blocks.push(`
         <article class="boarding-pass">
           <div class="bp-header">
             <div class="bp-flight-badge">
               <span class="bp-flight-num">${escapeHtml(leg.flightNumber)}</span>
-              <span>${escapeHtml(leg.airline)} · Callsign <strong class="mono">${escapeHtml(icao)}</strong></span>
+              <span>${escapeHtml(leg.airline || 'Companhia')} · Callsign <strong class="mono">${escapeHtml(icao)}</strong></span>
               ${formatStatusBadge(live)}
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-ghost-light btn-sm" data-edit-leg="${escapeHtml(leg.id)}">✎ Editar</button>
               <button type="button" class="btn btn-ghost-light btn-sm" data-refresh-leg="${escapeHtml(leg.id)}">↻ Radar</button>
             </div>
           </div>
@@ -554,25 +1202,25 @@
             <div class="bp-route-grid">
               <div>
                 <div class="bp-city-code">${escapeHtml(leg.fromCode)}</div>
-                <div class="bp-city-name">${escapeHtml(leg.fromCity)}</div>
+                <div class="bp-city-name">${escapeHtml(leg.fromCity || cityName(leg.fromCode))}</div>
                 <div class="bp-time">${escapeHtml(leg.depTime)} <span style="font-size:0.74rem;color:var(--ink-muted);">${escapeHtml(leg.depTz)}</span></div>
               </div>
               <div class="bp-duration-track">
-                <span class="mono" style="font-size:0.76rem;color:var(--ink-muted);">${escapeHtml(leg.duration)}</span>
+                <span class="mono" style="font-size:0.76rem;color:var(--ink-muted);">${escapeHtml(durText)}</span>
                 <div class="bp-duration-line"></div>
               </div>
               <div class="bp-endpoint-right">
                 <div class="bp-city-code">${escapeHtml(leg.toCode)}</div>
-                <div class="bp-city-name">${escapeHtml(leg.toCity)}</div>
+                <div class="bp-city-name">${escapeHtml(leg.toCity || cityName(leg.toCode))}</div>
                 <div class="bp-time">${escapeHtml(leg.arrTime)} <span style="font-size:0.74rem;color:var(--ink-muted);">${escapeHtml(leg.arrTz)}</span></div>
               </div>
             </div>
             <div class="bp-details-row">
-              <div><div class="bp-field-label">Terminal Partida</div><div class="bp-field-val">${escapeHtml(leg.fromTerminal)}</div></div>
-              <div><div class="bp-field-label">Terminal Chegada</div><div class="bp-field-val">${escapeHtml(leg.toTerminal)}</div></div>
-              <div><div class="bp-field-label">Porta (Gate)</div><div class="bp-field-val">${escapeHtml(leg.gate)}</div></div>
-              <div><div class="bp-field-label">Lugar (Seat)</div><div class="bp-field-val">${escapeHtml(leg.seat)}</div></div>
-              <div><div class="bp-field-label">PNR Air Canada</div><div class="bp-field-val">${escapeHtml(state.wallet.airCanadaPnr || '---')}</div></div>
+              <div><div class="bp-field-label">Terminal Partida</div><div class="bp-field-val">${escapeHtml(leg.fromTerminal || '---')}</div></div>
+              <div><div class="bp-field-label">Terminal Chegada</div><div class="bp-field-val">${escapeHtml(leg.toTerminal || '---')}</div></div>
+              <div><div class="bp-field-label">Porta (Gate)</div><div class="bp-field-val">${escapeHtml(leg.gate || 'A definir')}</div></div>
+              <div><div class="bp-field-label">Lugar (Seat)</div><div class="bp-field-val">${escapeHtml(leg.seat || 'A definir')}</div></div>
+              <div><div class="bp-field-label">PNR / Reserva</div><div class="bp-field-val">${escapeHtml(state.wallet.airCanadaPnr || '---')}</div></div>
             </div>
 
             ${live ? (live.active ? `
@@ -596,7 +1244,7 @@
             `) : ''}
 
             <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line-soft);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;">
-              <p style="font-size:0.81rem;color:var(--ink-secondary);"><strong>Nota:</strong> ${escapeHtml(leg.baggageNote)}</p>
+              <p style="font-size:0.81rem;color:var(--ink-secondary);">${leg.baggageNote ? `<strong>Nota:</strong> ${escapeHtml(leg.baggageNote)}` : ''}</p>
               <div style="display:flex;flex-wrap:wrap;gap:6px;">
                 <a href="https://globe.adsb.lol/?find_callsign=${encodeURIComponent(icao)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="text-decoration:none;">Mapa adsb.lol ↗</a>
                 <a href="https://www.flightradar24.com/data/flights/${encodeURIComponent(iata)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="text-decoration:none;">Flightradar24 ↗</a>
@@ -605,7 +1253,7 @@
           </div>
         </article>
       `);
-      const after = dir.layovers.find((l) => l.afterLegId === leg.id);
+      const after = layovers.find((l) => l.afterLegId === leg.id);
       if (after) blocks.push(renderLayover(after));
     });
 
@@ -621,24 +1269,12 @@
   let routeLayer = null;
   let planeLayer = null;
 
-  const KNOWN_AIRPORTS = {
-    LIS: [38.7742, -9.1342], OPO: [41.2481, -8.6814], FAO: [37.0144, -7.9659],
-    MAD: [40.4983, -3.5676], BCN: [41.2974, 2.0833], LHR: [51.4700, -0.4543],
-    CDG: [49.0097, 2.5479], ORY: [48.7262, 2.3652], FRA: [50.0379, 8.5622],
-    AMS: [52.3105, 4.7683], ZRH: [47.4647, 8.5492], DUB: [53.4213, -6.2701],
-    YYZ: [43.6777, -79.6248], YUL: [45.4706, -73.7408], YVR: [49.1967, -123.1815],
-    BOS: [42.3656, -71.0096], JFK: [40.6413, -73.7781], EWR: [40.6895, -74.1745],
-    MIA: [25.7959, -80.2870], MCO: [28.4312, -81.3081], ATL: [33.6407, -84.4277],
-    ORD: [41.9742, -87.9073], DFW: [32.8998, -97.0403], IAD: [38.9531, -77.4565],
-    CUN: [21.0365, -86.8771], MEX: [19.4363, -99.0721], PTY: [9.0714, -79.3835]
-  };
-
   function updateFlightMap() {
     const mapEl = document.getElementById('flight-live-map');
     if (!mapEl || typeof window.L === 'undefined') return;
 
     if (!flightMap) {
-      flightMap = window.L.map(mapEl, { scrollWheelZoom: false }).setView([36, -45], 3);
+      flightMap = window.L.map(mapEl, { scrollWheelZoom: false }).setView([36, -20], 3);
       window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 18
@@ -647,7 +1283,6 @@
       planeLayer = window.L.layerGroup().addTo(flightMap);
     }
 
-    // Public mode: static map so one-finger swipes scroll the page instead of panning the map.
     ['dragging', 'touchZoom', 'doubleClickZoom', 'boxZoom', 'keyboard'].forEach((h) => {
       if (flightMap[h]) publicMode ? flightMap[h].disable() : flightMap[h].enable();
     });
@@ -660,7 +1295,7 @@
     routeLayer.clearLayers();
     planeLayer.clearLayers();
 
-    const dirLegs = state.flights[activeFlightDir].legs;
+    const dirLegs = state.flights[activeFlightDir].legs || [];
     const allBounds = [];
     const plottedCodes = new Set();
 
@@ -725,7 +1360,6 @@
     fitAll();
     setTimeout(() => { if (flightMap) { flightMap.invalidateSize(); fitAll(); } }, 120);
 
-    // Build smart route label: only repeat origin if next leg starts at a different airport
     const routeParts = [];
     dirLegs.forEach((leg, i) => {
       if (i === 0 || leg.fromCode !== dirLegs[i - 1].toCode) {
@@ -751,19 +1385,24 @@
     return `<div class="layover-banner">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
         <strong style="font-size:0.93rem;">${escapeHtml(l.title)}</strong>
-        <span class="tag tag-cenote">${escapeHtml(l.badge)}</span>
+        ${l.badge ? `<span class="tag tag-cenote">${escapeHtml(l.badge)}</span>` : ''}
       </div>
-      <ol class="layover-steps">${l.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
+      <ol class="layover-steps">${(l.steps || []).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
     </div>`;
   }
 
+  // ---------- Planner ----------
   function renderPlanner() {
+    if (!state.days.length) return;
+    if (activeDayIndex >= state.days.length) activeDayIndex = 0;
+    const totalNights = Math.max(1, state.days.length - 1);
+
     const strip = document.getElementById('day-selector-strip');
     strip.innerHTML = state.days
       .map(
         (d, idx) => `
         <button type="button" class="day-pill ${idx === activeDayIndex ? 'is-active' : ''}" data-day-idx="${idx}">
-          <span class="day-pill-num">${d.dayNumber <= 10 ? `Noite ${d.dayNumber}` : 'Regresso'}</span>
+          <span class="day-pill-num">${idx < totalNights ? `Noite ${d.dayNumber}` : 'Regresso'}</span>
           <span class="day-pill-date">${escapeHtml(d.shortDate)}</span>
           <span class="day-pill-tag">${escapeHtml(d.dinnerChoice !== 'Sem restaurante marcado' ? d.dinnerChoice : d.theme)}</span>
         </button>`
@@ -778,22 +1417,25 @@
     );
 
     const day = state.days[activeDayIndex];
-    document.getElementById('planner-day-badge').textContent = day.dayNumber <= 10 ? `Noite ${day.dayNumber} de 10` : 'Dia de Regresso';
+    document.getElementById('planner-day-badge').textContent =
+      activeDayIndex < totalNights ? `Noite ${day.dayNumber} de ${totalNights}` : 'Dia de Regresso';
     document.getElementById('planner-day-title').textContent = `${day.shortDate} — ${day.theme}`;
 
     const sel = document.getElementById('planner-dinner-select');
-    if (!Array.from(sel.options).some((o) => o.value === day.dinnerChoice)) {
-      const opt = document.createElement('option');
-      opt.value = day.dinnerChoice;
-      opt.textContent = day.dinnerChoice;
-      sel.appendChild(opt);
+    if (sel) {
+      if (!Array.from(sel.options).some((o) => o.value === day.dinnerChoice)) {
+        const opt = document.createElement('option');
+        opt.value = day.dinnerChoice;
+        opt.textContent = day.dinnerChoice;
+        sel.appendChild(opt);
+      }
+      sel.value = day.dinnerChoice;
     }
-    sel.value = day.dinnerChoice;
     document.getElementById('planner-day-notes').value = day.notes || '';
 
     const listEl = document.getElementById('planner-agenda-list');
     if (!day.items.length) {
-      listEl.innerHTML = `<p style="color:var(--ink-muted);font-size:0.88rem;padding:8px 0;">Dia livre — sem planos pré-inventados. Clique em "+ Adicionar Plano" ou agende um restaurante a partir do guia.</p>`;
+      listEl.innerHTML = `<p style="color:var(--ink-muted);font-size:0.88rem;padding:8px 0;">Dia livre — clique em "+ Adicionar Plano" ou agende um restaurante a partir do guia.</p>`;
     } else {
       listEl.innerHTML = day.items
         .map(
@@ -827,6 +1469,7 @@
     }
   }
 
+  // ---------- Venues & Ratings ----------
   function getVenueAvg(v) {
     const r = v.ratings;
     if (!r) return 0;
@@ -858,7 +1501,7 @@
           </div>
           <div>
             <label class="field-label">Comentário / Prato Favorito</label>
-            <input id="rv-note" class="input" value="${escapeHtml(r.comment || '')}" placeholder="Ex: Melhor bife da viagem..." />
+            <input id="rv-note" class="input" value="${escapeHtml(r.comment || '')}" placeholder="Ex: Melhor prato da viagem..." />
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
@@ -874,7 +1517,7 @@
         vibe: Number(document.getElementById('rv-vibe').value),
         service: Number(document.getElementById('rv-serv').value),
         quality: Number(document.getElementById('rv-qual').value),
-        by: document.getElementById('rv-by').value.trim() || defaultBy || 'Casal',
+        by: document.getElementById('rv-by').value.trim() || defaultBy || 'Viajantes',
         comment: document.getElementById('rv-note').value.trim()
       };
       v.visited = true;
@@ -885,145 +1528,10 @@
     });
   }
 
-  function syncCustomBarsToCocktailSelect() {
-    const sel = document.getElementById('ck-bar');
-    if (!sel) return;
-    const existing = new Set(Array.from(sel.options).map((o) => o.value));
-    state.venues
-      .filter((v) => v.custom && v.category === 'bars')
-      .forEach((v) => {
-        if (!existing.has(v.name)) {
-          const opt = document.createElement('option');
-          opt.value = v.name;
-          opt.textContent = v.name;
-          sel.appendChild(opt);
-        }
-      });
-  }
-
-  function renderSettings() {
-    const flList = document.getElementById('settings-flights-list');
-    if (flList) {
-      const renderGroup = (dirKey, label) => {
-        const legs = state.flights[dirKey].legs;
-        return `
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-            <strong style="font-size:0.8rem;color:var(--cenote-700);">${label} (${legs.length} voo${legs.length === 1 ? '' : 's'})</strong>
-            <button type="button" class="btn btn-sm" data-add-leg-dir="${dirKey}">+ Adicionar Voo</button>
-          </div>
-          ${legs
-            .map(
-              (l) => `
-              <div class="open-venue-row">
-                <div>
-                  <strong class="mono">${escapeHtml(l.flightNumber)}</strong> · ${escapeHtml(l.fromCode)} → ${escapeHtml(l.toCode)}
-                  <span class="mono" style="font-size:0.78rem;color:var(--ink-secondary);">(${escapeHtml(l.depTime)} – ${escapeHtml(l.arrTime)})</span>
-                </div>
-                <div style="display:flex;gap:6px;align-items:center;">
-                  <button type="button" class="btn btn-sm" data-set-edit-leg="${escapeHtml(l.id)}">Alterar</button>
-                  ${legs.length > 1 ? `<button type="button" class="icon-btn" data-del-leg-dir="${dirKey}" data-del-leg-id="${escapeHtml(l.id)}" title="Remover voo">✕</button>` : ''}
-                </div>
-              </div>`
-            )
-            .join('')}
-        `;
-      };
-
-      flList.innerHTML = renderGroup('outbound', 'Ida') + renderGroup('inbound', 'Regresso');
-
-      flList.querySelectorAll('[data-set-edit-leg]').forEach((b) =>
-        b.addEventListener('click', () => openLegModal(b.getAttribute('data-set-edit-leg')))
-      );
-
-      flList.querySelectorAll('[data-add-leg-dir]').forEach((b) =>
-        b.addEventListener('click', () => {
-          const dirKey = b.getAttribute('data-add-leg-dir');
-          const legs = state.flights[dirKey].legs;
-          const prev = legs[legs.length - 1];
-          const newId = `leg-${Date.now()}`;
-          legs.push({
-            id: newId,
-            flightNumber: 'AC 000',
-            airline: 'Air Canada',
-            aircraft: 'Voo Adicional',
-            fromCode: prev ? prev.toCode : 'LIS',
-            fromCity: prev ? prev.toCity : 'Origem',
-            fromTerminal: 'Terminal 1',
-            depTime: '12:00',
-            depTz: 'EST',
-            toCode: dirKey === 'outbound' ? 'CUN' : 'LIS',
-            toCity: dirKey === 'outbound' ? 'Cancún Internacional' : 'Lisboa',
-            toTerminal: 'Terminal 1',
-            arrTime: '15:00',
-            arrTz: 'EST',
-            duration: '--',
-            gate: 'A definir',
-            seat: 'A definir',
-            baggageNote: 'Voo adicionado manualmente.'
-          });
-          saveState();
-          renderFlights();
-          renderSettings();
-          renderOverview();
-          openLegModal(newId);
-        })
-      );
-
-      flList.querySelectorAll('[data-del-leg-id]').forEach((b) =>
-        b.addEventListener('click', () => {
-          const dirKey = b.getAttribute('data-del-leg-dir');
-          const id = b.getAttribute('data-del-leg-id');
-          state.flights[dirKey].legs = state.flights[dirKey].legs.filter((l) => l.id !== id);
-          saveState();
-          renderFlights();
-          renderSettings();
-          renderOverview();
-          showToast('Voo removido');
-        })
-      );
-    }
-  }
-
-  document.getElementById('f-settings-add-venue')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const name = document.getElementById('sav-name').value.trim();
-    const category = document.getElementById('sav-cat').value;
-    const cuisine = document.getElementById('sav-cuisine').value.trim() || (category === 'bars' ? 'Bar / Bebidas' : 'Restaurante');
-    const hoursLabel = document.getElementById('sav-hours').value.trim() || 'Consultar horário local';
-    const description = document.getElementById('sav-desc').value.trim() || 'Adicionado em Configuração.';
-    if (!name) return;
-
-    state.venues.push({
-      id: `custom-v-${Date.now()}`,
-      name,
-      category,
-      cuisine,
-      included: category !== 'extra',
-      reservationRequired: false,
-      dressCode: category === 'bars' ? 'Casual' : 'Smart Casual / Casual',
-      hoursLabel,
-      openIntervals: [{ start: '00:00', end: '24:00' }],
-      description,
-      visited: false,
-      custom: true
-    });
-    document.getElementById('sav-name').value = '';
-    document.getElementById('sav-cuisine').value = '';
-    document.getElementById('sav-hours').value = '';
-    document.getElementById('sav-desc').value = '';
-    saveState();
-    syncCustomBarsToCocktailSelect();
-    renderResortVenues();
-    showToast(`${name} adicionado!`);
-  });
-
-  document.getElementById('btn-settings-wallet')?.addEventListener('click', openWalletModal);
-
   function renderResortVenues() {
-    const sim = document.getElementById('resort-time-sim').value;
-    const nowMins = getCancunMinutesNow(sim);
+    const sim = document.getElementById('resort-time-sim')?.value || 'live';
+    const nowMins = getDestMinutesNow(sim);
 
-    // Render Top Restaurants Podium
     const rankBox = document.getElementById('restaurants-ranking-box');
     if (rankBox) {
       const rated = state.venues
@@ -1069,14 +1577,17 @@
       return v.category === activeVenueCategory;
     });
 
-    // Always sort rated venues higher when in ranking mode
     if (activeVenueCategory === 'ranking') {
       list = [...list].sort((a, b) => getVenueAvg(b) - getVenueAvg(a));
     }
 
     const grid = document.getElementById('venue-cards-grid');
     if (!list.length) {
-      grid.innerHTML = `<div class="surface"><p style="font-size:0.88rem;color:var(--ink-secondary);">Ainda nenhum restaurante avaliado. Clique em "★ Avaliar" em qualquer restaurante para criar o vosso Top Ranking!</p></div>`;
+      grid.innerHTML = `<div class="surface"><p style="font-size:0.88rem;color:var(--ink-secondary);">${
+        activeVenueCategory === 'ranking'
+          ? 'Ainda nenhum restaurante avaliado. Clique em "★ Avaliar" em qualquer local para criar o vosso Top Ranking!'
+          : 'Sem locais nesta categoria. Pode adicionar novos restaurantes e bares no ecrã de Configuração.'
+      }</p></div>`;
       return;
     }
 
@@ -1116,7 +1627,7 @@
             <div>
               <div class="venue-meta-list">
                 <div><strong>Horário:</strong> ${escapeHtml(v.hoursLabel)}</div>
-                <div><strong>Dress Code:</strong> ${escapeHtml(v.dressCode)}</div>
+                ${v.dressCode ? `<div><strong>Dress Code:</strong> ${escapeHtml(v.dressCode)}</div>` : ''}
                 <div><strong>Acesso:</strong> ${v.included ? 'Incluído' : 'Pago à parte'} · ${v.reservationRequired ? 'Requer Reserva' : 'Sem Reserva'}</div>
               </div>
               <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;">
@@ -1136,6 +1647,619 @@
     );
   }
 
+  // ---------- Settings (Full Trip Control Panel) ----------
+  function populateTimezoneSelect(selectEl, selectedTz) {
+    if (!selectEl) return;
+    const list = [...COMMON_TIMEZONES];
+    if (selectedTz && !list.some((x) => x.tz === selectedTz)) {
+      list.unshift({ tz: selectedTz, label: selectedTz });
+    }
+    selectEl.innerHTML = list
+      .map((x) => `<option value="${escapeHtml(x.tz)}" ${x.tz === selectedTz ? 'selected' : ''}>${escapeHtml(x.label)}</option>`)
+      .join('');
+  }
+
+  function updateSettingsDurationPreview() {
+    const badge = document.getElementById('settings-trip-duration-badge');
+    const sVal = document.getElementById('st-start')?.value || state.trip.startDate;
+    const eVal = document.getElementById('st-end')?.value || state.trip.endDate;
+    if (!badge) return;
+    const s = Date.parse(`${sVal}T12:00:00Z`);
+    const e = Date.parse(`${eVal}T12:00:00Z`);
+    if (!Number.isNaN(s) && !Number.isNaN(e) && e >= s) {
+      const nights = Math.round((e - s) / 86400000);
+      badge.textContent = `${nights} ${nights === 1 ? 'noite' : 'noites'} · ${nights + 1} dias`;
+    } else {
+      badge.textContent = 'Datas inválidas';
+    }
+  }
+
+  function renderSettings() {
+    const t = state.trip;
+
+    // 1. General trip form
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+    setVal('st-title', t.title);
+    setVal('st-destination', t.destination);
+    setVal('st-country', t.country);
+    setVal('st-subtitle', t.subtitle);
+    setVal('st-headline', t.headline);
+    setVal('st-start', t.startDate);
+    setVal('st-end', t.endDate);
+    setVal('st-home-city', t.homeCity);
+    setVal('st-dest-city', t.destCity);
+    setVal('st-curr-code', t.currencyCode);
+    setVal('st-curr-name', t.currencyName);
+    setVal('st-curr-rate', state.rates.eurToDest);
+
+    populateTimezoneSelect(document.getElementById('st-home-tz'), t.homeTz);
+    populateTimezoneSelect(document.getElementById('st-dest-tz'), t.destTz);
+    updateSettingsDurationPreview();
+
+    // 2. Public panel settings
+    setVal('st-public-note', t.publicNote);
+    const showStayCb = document.getElementById('st-public-show-stay');
+    if (showStayCb) showStayCb.checked = t.publicShowStay !== false;
+
+    // 3. Flights list
+    const flList = document.getElementById('settings-flights-list');
+    if (flList) {
+      const renderGroup = (dirKey, label) => {
+        const legs = state.flights[dirKey].legs || [];
+        return `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:6px;">
+            <strong style="font-size:0.82rem;color:var(--cenote-700);">${label} (${legs.length} voo${legs.length === 1 ? '' : 's'})</strong>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="btn btn-sm" data-edit-layovers="${dirKey}">Notas Escala</button>
+              <button type="button" class="btn btn-sm" data-add-leg-dir="${dirKey}">+ Voo</button>
+            </div>
+          </div>
+          ${legs
+            .map(
+              (l, idx) => `
+              <div class="open-venue-row">
+                <div>
+                  <strong class="mono">${escapeHtml(l.flightNumber)}</strong> · ${escapeHtml(l.fromCode)} → ${escapeHtml(l.toCode)}
+                  <div class="mono" style="font-size:0.75rem;color:var(--ink-secondary);">${escapeHtml(formatDateMediumPt(l.dateIso))} · ${escapeHtml(l.depTime)} – ${escapeHtml(l.arrTime)}</div>
+                </div>
+                <div style="display:flex;gap:4px;align-items:center;">
+                  ${idx > 0 ? `<button type="button" class="icon-btn" data-move-leg="${dirKey}:${idx}:-1" title="Subir">↑</button>` : ''}
+                  ${idx < legs.length - 1 ? `<button type="button" class="icon-btn" data-move-leg="${dirKey}:${idx}:1" title="Descer">↓</button>` : ''}
+                  <button type="button" class="btn btn-sm" data-set-edit-leg="${escapeHtml(l.id)}">Alterar</button>
+                  ${legs.length > 1 ? `<button type="button" class="icon-btn" data-del-leg-dir="${dirKey}" data-del-leg-id="${escapeHtml(l.id)}" title="Remover voo">✕</button>` : ''}
+                </div>
+              </div>`
+            )
+            .join('')}
+        `;
+      };
+
+      flList.innerHTML = renderGroup('outbound', 'Ida') + renderGroup('inbound', 'Regresso');
+
+      flList.querySelectorAll('[data-set-edit-leg]').forEach((b) =>
+        b.addEventListener('click', () => openLegModal(b.getAttribute('data-set-edit-leg')))
+      );
+
+      flList.querySelectorAll('[data-edit-layovers]').forEach((b) =>
+        b.addEventListener('click', () => openLayoversModal(b.getAttribute('data-edit-layovers')))
+      );
+
+      flList.querySelectorAll('[data-move-leg]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const [dirKey, idxStr, deltaStr] = b.getAttribute('data-move-leg').split(':');
+          const idx = Number(idxStr);
+          const target = idx + Number(deltaStr);
+          const legs = state.flights[dirKey].legs;
+          if (target < 0 || target >= legs.length) return;
+          [legs[idx], legs[target]] = [legs[target], legs[idx]];
+          saveState(); renderAll();
+        })
+      );
+
+      flList.querySelectorAll('[data-add-leg-dir]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const dirKey = b.getAttribute('data-add-leg-dir');
+          const legs = state.flights[dirKey].legs;
+          const prev = legs[legs.length - 1];
+          const newId = `leg-${Date.now()}`;
+          legs.push({
+            id: newId,
+            dateIso: prev?.dateIso || (dirKey === 'outbound' ? state.trip.startDate : state.trip.endDate),
+            flightNumber: 'TP 000',
+            airline: prev?.airline || '',
+            aircraft: 'Voo',
+            fromCode: prev ? prev.toCode : (state.trip.homeCode || 'LIS'),
+            fromCity: prev ? prev.toCity : (state.trip.homeCity || 'Origem'),
+            fromTerminal: 'Terminal 1',
+            depTime: '12:00',
+            depTz: prev ? prev.arrTz : 'WET',
+            toCode: dirKey === 'outbound' ? (state.trip.destCode || 'DST') : (state.trip.homeCode || 'LIS'),
+            toCity: dirKey === 'outbound' ? (state.trip.destCity || state.trip.destination || 'Destino') : (state.trip.homeCity || 'Origem'),
+            toTerminal: 'Terminal 1',
+            arrTime: '15:00',
+            arrTz: dirKey === 'outbound' ? (prev?.arrTz || 'CET') : 'WET',
+            duration: '--',
+            gate: 'A definir',
+            seat: 'A definir',
+            baggageNote: ''
+          });
+          saveState();
+          renderAll();
+          openLegModal(newId);
+        })
+      );
+
+      flList.querySelectorAll('[data-del-leg-id]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const dirKey = b.getAttribute('data-del-leg-dir');
+          const id = b.getAttribute('data-del-leg-id');
+          state.flights[dirKey].legs = state.flights[dirKey].legs.filter((l) => l.id !== id);
+          saveState();
+          renderAll();
+          showToast('Voo removido');
+        })
+      );
+    }
+
+    // 4. Custom / manageable venues list
+    const venuesListEl = document.getElementById('settings-custom-venues-list');
+    if (venuesListEl) {
+      const customVenues = state.venues.filter((v) => v.custom);
+      venuesListEl.innerHTML = customVenues.length
+        ? `<div style="font-size:0.75rem;font-weight:700;color:var(--ink-muted);margin-top:4px;">Locais adicionados (${customVenues.length})</div>` +
+          customVenues
+            .map((v) => `
+              <div class="open-venue-row">
+                <div><strong>${escapeHtml(v.name)}</strong> <span style="font-size:0.76rem;color:var(--ink-secondary);">· ${escapeHtml(v.cuisine)}</span></div>
+                <button type="button" class="icon-btn" data-del-venue="${escapeHtml(v.id)}" title="Remover">✕</button>
+              </div>`)
+            .join('')
+        : '';
+      venuesListEl.querySelectorAll('[data-del-venue]').forEach((b) =>
+        b.addEventListener('click', () => {
+          state.venues = state.venues.filter((v) => v.id !== b.getAttribute('data-del-venue'));
+          saveState(); renderAll(); showToast('Local removido');
+        })
+      );
+    }
+
+    // 5. Useful Tips list
+    const tipsEl = document.getElementById('settings-tips-list');
+    if (tipsEl) {
+      const tips = Array.isArray(t.tips) ? t.tips : [];
+      tipsEl.innerHTML = tips.length
+        ? tips
+            .map((tip) => `
+              <div class="open-venue-row">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-weight:600;font-size:0.86rem;">${escapeHtml(tip.title)}</div>
+                  <div style="font-size:0.76rem;color:var(--ink-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(tip.desc)}</div>
+                </div>
+                <div style="display:flex;gap:4px;">
+                  <button type="button" class="btn btn-sm" data-edit-tip="${escapeHtml(tip.id)}">Editar</button>
+                  <button type="button" class="icon-btn" data-del-tip="${escapeHtml(tip.id)}" title="Remover">✕</button>
+                </div>
+              </div>`)
+            .join('')
+        : `<p style="font-size:0.82rem;color:var(--ink-muted);">Sem dicas adicionadas.</p>`;
+
+      tipsEl.querySelectorAll('[data-edit-tip]').forEach((b) =>
+        b.addEventListener('click', () => openTipModal(b.getAttribute('data-edit-tip')))
+      );
+      tipsEl.querySelectorAll('[data-del-tip]').forEach((b) =>
+        b.addEventListener('click', () => {
+          state.trip.tips = (state.trip.tips || []).filter((x) => x.id !== b.getAttribute('data-del-tip'));
+          saveState(); renderOverview(); renderSettings(); showToast('Dica removida');
+        })
+      );
+    }
+  }
+
+  document.getElementById('st-start')?.addEventListener('change', updateSettingsDurationPreview);
+  document.getElementById('st-end')?.addEventListener('change', updateSettingsDurationPreview);
+
+  document.getElementById('f-settings-trip')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const t = state.trip;
+    const oldStart = t.startDate;
+    const oldEnd = t.endDate;
+
+    const newStart = document.getElementById('st-start').value;
+    const newEnd = document.getElementById('st-end').value;
+    if (newStart && newEnd && newEnd < newStart) {
+      showToast('A data de regresso não pode ser anterior à partida.');
+      return;
+    }
+
+    t.title = document.getElementById('st-title').value.trim() || 'A Minha Viagem';
+    t.destination = document.getElementById('st-destination').value.trim() || t.title;
+    t.country = document.getElementById('st-country').value.trim();
+    t.subtitle = document.getElementById('st-subtitle').value.trim();
+    t.headline = document.getElementById('st-headline').value.trim();
+    t.startDate = newStart || t.startDate;
+    t.endDate = newEnd || t.endDate;
+    t.homeCity = document.getElementById('st-home-city').value.trim() || 'Lisboa';
+    t.homeTz = document.getElementById('st-home-tz').value || 'Europe/Lisbon';
+    t.destCity = document.getElementById('st-dest-city').value.trim() || t.destination;
+    t.destTz = document.getElementById('st-dest-tz').value || t.homeTz;
+    t.currencyCode = (document.getElementById('st-curr-code').value.trim() || 'EUR').toUpperCase();
+    t.currencyName = document.getElementById('st-curr-name').value.trim() || t.currencyCode;
+
+    const newRate = parseFloat(document.getElementById('st-curr-rate').value);
+    if (!Number.isNaN(newRate) && newRate > 0) {
+      state.rates.eurToDest = newRate;
+      state.rates.eurToMxn = newRate;
+    }
+
+    // If trip dates changed, sync flight legs that matched the old dates + rebuild days preserving notes
+    if (t.startDate !== oldStart) {
+      state.flights.outbound.legs.forEach((l) => {
+        if (!l.dateIso || l.dateIso === oldStart) l.dateIso = t.startDate;
+      });
+    }
+    if (t.endDate !== oldEnd) {
+      state.flights.inbound.legs.forEach((l) => {
+        if (!l.dateIso || l.dateIso === oldEnd) l.dateIso = t.endDate;
+      });
+    }
+    if (t.startDate !== oldStart || t.endDate !== oldEnd) {
+      state.days = buildDaysArray(t.startDate, t.endDate, state.days);
+      activeDayIndex = 0;
+    }
+
+    saveState();
+    renderAll();
+    showToast('Dados da viagem guardados e sincronizados!');
+  });
+
+  document.getElementById('f-settings-public')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    state.trip.publicNote = document.getElementById('st-public-note').value.trim();
+    state.trip.publicShowStay = Boolean(document.getElementById('st-public-show-stay').checked);
+    saveState();
+    renderAll();
+    showToast('Painel público atualizado!');
+  });
+
+  document.getElementById('btn-sync-public-now')?.addEventListener('click', async () => {
+    const ok = await pushPublicTrip(true);
+    if (ok) showToast('Link público atualizado para amigos e família!');
+  });
+
+  document.getElementById('f-settings-add-venue')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('sav-name').value.trim();
+    const category = document.getElementById('sav-cat').value;
+    const cuisine = document.getElementById('sav-cuisine').value.trim() || (category === 'bars' ? 'Bar / Bebidas' : 'Restaurante');
+    const hoursLabel = document.getElementById('sav-hours').value.trim() || 'Consultar horário local';
+    const description = document.getElementById('sav-desc').value.trim() || 'Adicionado em Configuração.';
+    if (!name) return;
+
+    state.venues.push({
+      id: `custom-v-${Date.now()}`,
+      name,
+      category,
+      cuisine,
+      included: category !== 'extra',
+      reservationRequired: false,
+      dressCode: category === 'bars' ? 'Casual' : 'Smart Casual / Casual',
+      hoursLabel,
+      openIntervals: [{ start: '00:00', end: '24:00' }],
+      description,
+      visited: false,
+      custom: true
+    });
+    document.getElementById('sav-name').value = '';
+    document.getElementById('sav-cuisine').value = '';
+    document.getElementById('sav-hours').value = '';
+    document.getElementById('sav-desc').value = '';
+    saveState();
+    renderAll();
+    showToast(`${name} adicionado!`);
+  });
+
+  document.getElementById('btn-settings-wallet')?.addEventListener('click', openWalletModal);
+  document.getElementById('btn-add-tip')?.addEventListener('click', () => openTipModal(null));
+  document.getElementById('overview-edit-tips-btn')?.addEventListener('click', () => switchView('settings'));
+
+  // Export / Import / New Trip
+  document.getElementById('btn-export-trip')?.addEventListener('click', () => {
+    const slug = (state.trip.destination || state.trip.title || 'viagem').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const exportBundle = {
+      ...state,
+      exportedAt: new Date().toISOString(),
+      photos: Array.isArray(galleryPhotos) ? galleryPhotos : []
+    };
+    const blob = new Blob([JSON.stringify(exportBundle, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `viagem-${slug}-${state.trip.startDate || 'backup'}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('Todos os dados da viagem foram exportados (JSON)!');
+  });
+
+  document.getElementById('input-import-trip')?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || '{}'));
+        state = normalizeState(parsed);
+        activeDayIndex = 0;
+        saveState();
+        renderAll();
+        showToast('Backup importado com sucesso!');
+      } catch {
+        showToast('Ficheiro JSON inválido.');
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById('btn-new-trip')?.addEventListener('click', openNewTripModal);
+
+  function openNewTripModal() {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const nextWeekIso = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    const tzOpts = COMMON_TIMEZONES.map((x) => `<option value="${escapeHtml(x.tz)}">${escapeHtml(x.label)}</option>`).join('');
+
+    openModal('Começar Nova Viagem', `
+      <form id="f-new-trip" class="form-grid">
+        <p style="font-size:0.84rem;color:var(--ink-secondary);">
+          Substitui a viagem ativa por uma viagem limpa para um novo destino (recomendamos clicar em "Exportar Tudo" antes).
+        </p>
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label">Nome da Viagem / Hotel</label><input id="nt-title" class="input" placeholder="Ex: Férias em Roma" required /></div>
+          <div><label class="field-label">Destino Final</label><input id="nt-dest" class="input" placeholder="Ex: Roma" required /></div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label">País</label><input id="nt-country" class="input" placeholder="Ex: Itália" /></div>
+          <div><label class="field-label">Fuso Horário Destino</label><select id="nt-tz" class="select">${tzOpts}</select></div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label">Data Partida</label><input id="nt-start" type="date" class="input mono" value="${todayIso}" required /></div>
+          <div><label class="field-label">Data Regresso</label><input id="nt-end" type="date" class="input mono" value="${nextWeekIso}" required /></div>
+        </div>
+        <div>
+          <label class="field-label">Aeroporto Destino (IATA) &amp; Moeda</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <input id="nt-code" class="input mono" maxlength="3" placeholder="FCO" value="FCO" />
+            <input id="nt-curr" class="input mono" maxlength="4" placeholder="EUR" value="EUR" />
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
+          <button type="submit" class="btn btn-primary">Criar Nova Viagem</button>
+        </div>
+      </form>
+    `);
+
+    document.getElementById('f-new-trip').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = document.getElementById('nt-title').value.trim();
+      const dest = document.getElementById('nt-dest').value.trim();
+      const country = document.getElementById('nt-country').value.trim();
+      const travelers = '';
+      const startDate = document.getElementById('nt-start').value;
+      const endDate = document.getElementById('nt-end').value;
+      const destTz = document.getElementById('nt-tz').value || 'Europe/Lisbon';
+      const destCode = (document.getElementById('nt-code').value.trim() || 'DST').toUpperCase();
+      const currCode = (document.getElementById('nt-curr').value.trim() || 'EUR').toUpperCase();
+
+      if (endDate < startDate) {
+        showToast('A data de regresso tem de ser igual ou posterior à partida.');
+        return;
+      }
+
+      const homeCode = state.trip.homeCode || 'LIS';
+      const homeCity = state.trip.homeCity || 'Lisboa';
+      const homeTz = state.trip.homeTz || 'Europe/Lisbon';
+
+      state = normalizeState({
+        version: 3,
+        trip: {
+          title,
+          destination: dest,
+          country,
+          subtitle: [dest, country].filter(Boolean).join(' · '),
+          headline: '',
+          travelers,
+          startDate,
+          endDate,
+          homeCity,
+          homeCode,
+          homeTz,
+          destCity: dest,
+          destCode,
+          destTz,
+          currencyCode: currCode,
+          currencyName: currCode === 'EUR' ? 'Euros' : currCode,
+          extraCurrencyCode: '',
+          extraCurrencyName: '',
+          publicShowStay: true,
+          publicNote: '',
+          venueScopeNote: 'Adicione restaurantes, cafés e bares em Configuração para gerir os vossos favoritos e horários.',
+          tips: []
+        },
+        wallet: {
+          airCanadaPnr: '',
+          resortBookingRef: '',
+          suiteBuilding: 'A definir no Check-in',
+          transferProvider: 'A definir',
+          documents: [
+            { id: 'doc-pass', label: 'Passaporte / CC', status: 'Pendente' },
+            { id: 'doc-ins', label: 'Seguro de Viagem', status: 'Pendente' }
+          ],
+          notes: ''
+        },
+        flights: {
+          outbound: {
+            dateLabel: formatDateLongPt(startDate),
+            summary: `${homeCity} (${homeCode}) → ${dest} (${destCode})`,
+            totalJourney: '',
+            legs: [{
+              id: `out-${Date.now()}`,
+              dateIso: startDate,
+              flightNumber: 'TP 001',
+              airline: 'Companhia Aérea',
+              aircraft: 'Voo Direto',
+              fromCode: homeCode,
+              fromCity: homeCity,
+              fromTerminal: 'Terminal 1',
+              depTime: '10:00',
+              depTz: homeTz,
+              toCode: destCode,
+              toCity: dest,
+              toTerminal: 'Terminal 1',
+              arrTime: '13:00',
+              arrTz: destTz,
+              duration: '--',
+              gate: 'A definir',
+              seat: 'A definir',
+              baggageNote: ''
+            }],
+            layovers: []
+          },
+          inbound: {
+            dateLabel: formatDateLongPt(endDate),
+            summary: `${dest} (${destCode}) → ${homeCity} (${homeCode})`,
+            totalJourney: '',
+            legs: [{
+              id: `in-${Date.now() + 1}`,
+              dateIso: endDate,
+              flightNumber: 'TP 002',
+              airline: 'Companhia Aérea',
+              aircraft: 'Voo Direto',
+              fromCode: destCode,
+              fromCity: dest,
+              fromTerminal: 'Terminal 1',
+              depTime: '15:00',
+              depTz: destTz,
+              toCode: homeCode,
+              toCity: homeCity,
+              toTerminal: 'Terminal 1',
+              arrTime: '18:00',
+              arrTz: homeTz,
+              duration: '--',
+              gate: 'A definir',
+              seat: 'A definir',
+              baggageNote: ''
+            }],
+            layovers: []
+          }
+        },
+        venues: [],
+        days: buildDaysArray(startDate, endDate, []),
+        packing: [
+          { id: 'p1', category: 'Documentos', item: 'Passaporte / Cartão de Cidadão + Cartões de embarque', checked: false },
+          { id: 'p2', category: 'Documentos', item: 'Reserva do alojamento + Seguro de viagem', checked: false },
+          { id: 'p3', category: 'Eletrónica', item: 'Carregadores, powerbank e adaptador de tomada', checked: false },
+          { id: 'p4', category: 'Essenciais', item: 'Medicação pessoal, protetor solar e artigos de higiene', checked: false }
+        ],
+        rates: { eurToDest: 1, eurToMxn: 1, eurToUsd: 1.08, eurToCad: 1.48 },
+        expenses: [],
+        cocktails: []
+      });
+
+      activeDayIndex = 0;
+      saveState();
+      renderAll();
+      closeModal();
+      showToast(`Nova viagem "${title}" criada! Ajuste os voos em Configuração.`);
+    });
+  }
+
+  function openTipModal(tipId) {
+    const existing = tipId ? (state.trip.tips || []).find((x) => x.id === tipId) : null;
+    openModal(existing ? 'Editar Dica Útil' : 'Nova Dica Útil', `
+      <form id="f-tip" class="form-grid">
+        <div><label class="field-label">Título</label><input id="tip-title" class="input" value="${escapeHtml(existing?.title || '')}" placeholder="Ex: Tomadas, Dress Code, Transfers..." required /></div>
+        <div><label class="field-label">Descrição</label><textarea id="tip-desc" class="textarea" rows="3" required>${escapeHtml(existing?.desc || '')}</textarea></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;"><button type="submit" class="btn btn-primary">Guardar</button></div>
+      </form>
+    `);
+    document.getElementById('f-tip').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = document.getElementById('tip-title').value.trim();
+      const desc = document.getElementById('tip-desc').value.trim();
+      if (!title) return;
+      if (!Array.isArray(state.trip.tips)) state.trip.tips = [];
+      if (existing) {
+        existing.title = title;
+        existing.desc = desc;
+      } else {
+        state.trip.tips.push({ id: `tip-${Date.now()}`, title, desc });
+      }
+      saveState(); renderOverview(); renderSettings(); closeModal(); showToast('Dica guardada!');
+    });
+  }
+
+  function openLayoversModal(dirKey) {
+    const dir = state.flights[dirKey];
+    const layovers = dir.layovers || [];
+    const label = dirKey === 'outbound' ? 'Ida' : 'Regresso';
+    const legs = dir.legs || [];
+
+    const renderList = () => {
+      const listHtml = layovers.length
+        ? layovers
+            .map((l, idx) => `
+              <div class="open-venue-row" style="align-items:flex-start;">
+                <div>
+                  <strong style="font-size:0.86rem;">${escapeHtml(l.title)}</strong>
+                  ${l.badge ? `<span class="tag tag-cenote" style="margin-left:6px;">${escapeHtml(l.badge)}</span>` : ''}
+                  <div style="font-size:0.76rem;color:var(--ink-secondary);margin-top:3px;">${(l.steps || []).map((s) => escapeHtml(s)).join(' · ')}</div>
+                </div>
+                <button type="button" class="icon-btn" data-del-lay="${idx}" title="Remover">✕</button>
+              </div>`)
+            .join('')
+        : '<p style="font-size:0.82rem;color:var(--ink-muted);">Sem notas de escala ou transfer neste trajeto.</p>';
+
+      const posOpts = [
+        '<option value="before">Antes do 1º voo</option>',
+        ...legs.map((lg) => `<option value="${escapeHtml(lg.id)}">Depois do voo ${escapeHtml(lg.flightNumber)} (${escapeHtml(lg.toCode)})</option>`)
+      ].join('');
+
+      openModal(`Notas de Escala / Transfer (${label})`, `
+        <div class="open-now-list" style="margin-bottom:14px;">${listHtml}</div>
+        <form id="f-add-lay" class="form-grid" style="padding-top:12px;border-top:1px solid var(--line-soft);">
+          <div class="form-grid form-grid-2">
+            <div><label class="field-label">Posição</label><select id="lay-pos" class="select">${posOpts}</select></div>
+            <div><label class="field-label">Etiqueta (opcional)</label><input id="lay-badge" class="input" placeholder="Ex: ~45 min, Mesmo Terminal..." /></div>
+          </div>
+          <div><label class="field-label">Título</label><input id="lay-title" class="input" placeholder="Ex: Escala em Madrid / Transfer para Hotel" required /></div>
+          <div><label class="field-label">Passos / Notas (1 por linha)</label><textarea id="lay-steps" class="textarea" rows="3" placeholder="Ex: Seguir placas de ligações internacionais..."></textarea></div>
+          <div style="display:flex;justify-content:flex-end;"><button type="submit" class="btn btn-primary btn-sm">+ Adicionar Nota</button></div>
+        </form>
+      `);
+
+      document.querySelectorAll('[data-del-lay]').forEach((b) =>
+        b.addEventListener('click', () => {
+          layovers.splice(Number(b.getAttribute('data-del-lay')), 1);
+          saveState(); renderFlights(); renderList();
+        })
+      );
+
+      document.getElementById('f-add-lay').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const pos = document.getElementById('lay-pos').value;
+        const title = document.getElementById('lay-title').value.trim();
+        const badge = document.getElementById('lay-badge').value.trim();
+        const steps = document.getElementById('lay-steps').value.split('\n').map((s) => s.trim()).filter(Boolean);
+        if (!title) return;
+        const entry = { title, badge, steps };
+        if (pos === 'before') entry.beforeFirstLeg = true;
+        else entry.afterLegId = pos;
+        layovers.push(entry);
+        saveState(); renderFlights(); renderList(); showToast('Nota adicionada!');
+      });
+    };
+    renderList();
+  }
+
+  // ---------- Packing & Currency & Expenses ----------
   function renderPacking() {
     const total = state.packing.length;
     const done = state.packing.filter((p) => p.checked).length;
@@ -1177,18 +2301,23 @@
   function updateCurrency(src, raw) {
     const v = parseFloat(raw);
     if (Number.isNaN(v)) return;
-    const { eurToMxn, eurToUsd, eurToCad } = state.rates;
-    const eur = src === 'EUR' ? v : src === 'MXN' ? v / eurToMxn : src === 'USD' ? v / eurToUsd : v / eurToCad;
-    if (src !== 'MXN') document.getElementById('conv-mxn').value = (eur * eurToMxn).toFixed(0);
+    const eurToDest = Number(state.rates.eurToDest) || 1;
+    const eurToUsd = Number(state.rates.eurToUsd) || 1.06;
+    const eurToCad = Number(state.rates.eurToCad) || 1.48;
+    const eur = src === 'EUR' ? v : (src === 'DEST' || src === 'MXN') ? v / eurToDest : src === 'USD' ? v / eurToUsd : v / eurToCad;
+    if (src !== 'DEST' && src !== 'MXN') {
+      document.getElementById('conv-mxn').value = eurToDest >= 10 ? (eur * eurToDest).toFixed(0) : (eur * eurToDest).toFixed(2);
+    }
     if (src !== 'EUR') document.getElementById('conv-eur').value = eur.toFixed(2);
     if (src !== 'USD') document.getElementById('conv-usd').value = (eur * eurToUsd).toFixed(2);
-    if (src !== 'CAD') document.getElementById('conv-cad').value = (eur * eurToCad).toFixed(2);
+    if (src !== 'CAD' && document.getElementById('conv-cad')) document.getElementById('conv-cad').value = (eur * eurToCad).toFixed(2);
   }
 
   function renderExpenses() {
     const listEl = document.getElementById('expenses-list');
     const totEl = document.getElementById('expenses-total-eur');
-    const toEur = (a, c) => (c === 'EUR' ? a : c === 'USD' ? a / state.rates.eurToUsd : a / state.rates.eurToMxn);
+    const eurToDest = Number(state.rates.eurToDest) || 1;
+    const toEur = (a, c) => (c === 'EUR' ? a : c === 'USD' ? a / (state.rates.eurToUsd || 1.06) : a / eurToDest);
     const total = state.expenses.reduce((s, e) => s + toEur(Number(e.amount) || 0, e.currency), 0);
     totEl.textContent = `€${total.toFixed(2)}`;
 
@@ -1216,6 +2345,7 @@
     );
   }
 
+  // ---------- Modals ----------
   function openModal(title, html) {
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-body').innerHTML = html;
@@ -1225,35 +2355,77 @@
 
   function openWalletModal() {
     const w = state.wallet;
-    openModal('Carteira & Códigos da Viagem', `
-      <form id="f-wallet" class="form-grid">
-        <div class="form-grid form-grid-2">
-          <div><label class="field-label">PNR Air Canada</label><input id="w-pnr" class="input mono" value="${escapeHtml(w.airCanadaPnr)}" placeholder="Ex: K8M4QX" /></div>
-          <div><label class="field-label">Reserva do Hotel</label><input id="w-ref" class="input mono" value="${escapeHtml(w.resortBookingRef)}" /></div>
-        </div>
-        <div class="form-grid form-grid-2">
-          <div><label class="field-label">Suite / Edifício</label><input id="w-suite" class="input" value="${escapeHtml(w.suiteBuilding)}" /></div>
-          <div><label class="field-label">Transfer Aeroporto–Hotel</label><input id="w-tr" class="input" value="${escapeHtml(w.transferProvider)}" /></div>
-        </div>
-        <div class="form-grid form-grid-2">
-          <div><label class="field-label">eTA Canadá</label><select id="w-eta" class="select"><option value="Pendente" ${w.canadaEta==='Pendente'?'selected':''}>Pendente</option><option value="Pronto" ${w.canadaEta==='Pronto'?'selected':''}>Pronto</option></select></div>
-          <div><label class="field-label">Visitax Quintana Roo</label><select id="w-vis" class="select"><option value="Pendente" ${w.mexicoVisitax==='Pendente'?'selected':''}>Pendente</option><option value="Pronto" ${w.mexicoVisitax==='Pronto'?'selected':''}>Pronto</option></select></div>
-        </div>
-        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
-          <button type="submit" class="btn btn-primary">Guardar</button>
-        </div>
-      </form>
-    `);
-    document.getElementById('f-wallet').addEventListener('submit', (e) => {
-      e.preventDefault();
-      w.airCanadaPnr = document.getElementById('w-pnr').value.trim().toUpperCase();
-      w.resortBookingRef = document.getElementById('w-ref').value.trim();
-      w.suiteBuilding = document.getElementById('w-suite').value.trim() || 'Suite a definir';
-      w.transferProvider = document.getElementById('w-tr').value.trim();
-      w.canadaEta = document.getElementById('w-eta').value;
-      w.mexicoVisitax = document.getElementById('w-vis').value;
-      saveState(); renderOverview(); renderFlights(); closeModal(); showToast('Guardado!');
-    });
+    if (!Array.isArray(w.documents)) w.documents = [];
+
+    const renderBody = () => {
+      const docsHtml = w.documents
+        .map((d, idx) => `
+          <div class="open-venue-row" style="padding:6px 10px;">
+            <span style="font-size:0.84rem;font-weight:600;">${escapeHtml(d.label)}</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <select class="select" style="width:auto;padding:4px 8px;font-size:0.78rem;" data-doc-status="${idx}">
+                <option value="Pendente" ${d.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
+                <option value="Pronto" ${d.status === 'Pronto' ? 'selected' : ''}>Pronto</option>
+              </select>
+              <button type="button" class="icon-btn" data-doc-del="${idx}" title="Remover">✕</button>
+            </div>
+          </div>`)
+        .join('');
+
+      openModal('Carteira & Documentos da Viagem', `
+        <form id="f-wallet" class="form-grid">
+          <div class="form-grid form-grid-2">
+            <div><label class="field-label">PNR / Reserva de Voo</label><input id="w-pnr" class="input mono" value="${escapeHtml(w.airCanadaPnr)}" placeholder="Ex: K8M4QX" /></div>
+            <div><label class="field-label">Reserva do Alojamento</label><input id="w-ref" class="input mono" value="${escapeHtml(w.resortBookingRef)}" /></div>
+          </div>
+          <div class="form-grid form-grid-2">
+            <div><label class="field-label">Quarto / Suite / Edifício</label><input id="w-suite" class="input" value="${escapeHtml(w.suiteBuilding)}" /></div>
+            <div><label class="field-label">Transfer Aeroporto–Hotel</label><input id="w-tr" class="input" value="${escapeHtml(w.transferProvider)}" /></div>
+          </div>
+          <div>
+            <label class="field-label">Documentos &amp; Requisitos (eTA, Visto, Seguro, Taxas...)</label>
+            <div class="open-now-list" style="margin-bottom:8px;">${docsHtml || '<p style="font-size:0.8rem;color:var(--ink-muted);">Sem documentos na lista.</p>'}</div>
+            <div style="display:flex;gap:6px;">
+              <input id="w-new-doc" class="input" placeholder="Adicionar documento (ex: ESTA, Seguro)..." />
+              <button type="button" class="btn btn-sm" id="btn-add-wallet-doc">+ Adicionar</button>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+          </div>
+        </form>
+      `);
+
+      document.querySelectorAll('[data-doc-status]').forEach((sel) =>
+        sel.addEventListener('change', () => {
+          const idx = Number(sel.getAttribute('data-doc-status'));
+          if (w.documents[idx]) w.documents[idx].status = sel.value;
+        })
+      );
+      document.querySelectorAll('[data-doc-del]').forEach((btn) =>
+        btn.addEventListener('click', () => {
+          w.documents.splice(Number(btn.getAttribute('data-doc-del')), 1);
+          renderBody();
+        })
+      );
+      document.getElementById('btn-add-wallet-doc').addEventListener('click', () => {
+        const inp = document.getElementById('w-new-doc');
+        const label = inp.value.trim();
+        if (!label) return;
+        w.documents.push({ id: `doc-${Date.now()}`, label, status: 'Pendente' });
+        renderBody();
+      });
+
+      document.getElementById('f-wallet').addEventListener('submit', (e) => {
+        e.preventDefault();
+        w.airCanadaPnr = document.getElementById('w-pnr').value.trim().toUpperCase();
+        w.resortBookingRef = document.getElementById('w-ref').value.trim();
+        w.suiteBuilding = document.getElementById('w-suite').value.trim() || 'A definir';
+        w.transferProvider = document.getElementById('w-tr').value.trim();
+        saveState(); renderOverview(); renderFlights(); closeModal(); showToast('Carteira guardada!');
+      });
+    };
+    renderBody();
   }
 
   async function lookupFlightRoute(flightNumber) {
@@ -1262,7 +2434,9 @@
     const airlines = {
       AC: 'Air Canada', TP: 'TAP Air Portugal', TS: 'Air Transat', WS: 'WestJet',
       AM: 'Aeroméxico', UA: 'United Airlines', AA: 'American Airlines', DL: 'Delta Air Lines',
-      LH: 'Lufthansa', IB: 'Iberia', AF: 'Air France', BA: 'British Airways', KL: 'KLM'
+      LH: 'Lufthansa', IB: 'Iberia', AF: 'Air France', BA: 'British Airways', KL: 'KLM',
+      FR: 'Ryanair', U2: 'easyJet', VY: 'Vueling', EK: 'Emirates', QR: 'Qatar Airways',
+      TK: 'Turkish Airlines', LX: 'SWISS', AZ: 'ITA Airways', S4: 'Azores Airlines'
     };
     const prefix = clean.slice(0, 2);
     const result = { airline: airlines[prefix] || '', fromCode: '', toCode: '', fromCity: '', toCity: '', fromCoords: null, toCoords: null };
@@ -1299,19 +2473,24 @@
     if (!leg) return;
     let lookedUp = null;
 
-    const defaultIso = leg.dateIso || (isOut ? '2026-11-28' : '2026-12-08');
+    const defaultIso = leg.dateIso || (isOut ? state.trip.startDate : state.trip.endDate);
+    const tzChoices = ['WET', 'WEST', 'CET', 'CEST', 'EST', 'EDT', 'CST', 'CDT', 'PST', 'PDT', 'BRT', 'GST', 'JST', 'UTC', ...COMMON_TIMEZONES.map((x) => x.tz)];
+    const tzOptionsHtml = (selected) => {
+      const list = tzChoices.includes(selected) ? tzChoices : [selected, ...tzChoices].filter(Boolean);
+      return list.map((z) => `<option value="${escapeHtml(z)}" ${z === selected ? 'selected' : ''}>${escapeHtml(z)}</option>`).join('');
+    };
 
     openModal(`Alterar Voo ${leg.flightNumber}`, `
       <form id="f-leg" class="form-grid">
         <div class="form-grid form-grid-2">
-          <div><label class="field-label">Nº do Voo (ex: AC 811)</label><input id="l-num" class="input mono" value="${escapeHtml(leg.flightNumber)}" required /></div>
+          <div><label class="field-label">Nº do Voo (ex: AC 811, TP 832)</label><input id="l-num" class="input mono" value="${escapeHtml(leg.flightNumber)}" required /></div>
           <div><label class="field-label">Data do Voo</label><input id="l-date" type="date" class="input mono" value="${escapeHtml(defaultIso)}" required /></div>
         </div>
         <div style="display:flex;justify-content:flex-start;">
           <button type="button" class="btn btn-sm" id="btn-auto-route">🔍 Preencher Companhia &amp; Rota</button>
         </div>
         <div class="form-grid form-grid-2">
-          <div><label class="field-label">Companhia Aérea</label><input id="l-air" class="input" value="${escapeHtml(leg.airline)}" /></div>
+          <div><label class="field-label">Companhia Aérea</label><input id="l-air" class="input" value="${escapeHtml(leg.airline || '')}" /></div>
           <div><label class="field-label">Origem → Destino (IATA)</label>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
               <input id="l-from" class="input mono" value="${escapeHtml(leg.fromCode)}" maxlength="3" placeholder="LIS" />
@@ -1320,13 +2499,34 @@
           </div>
         </div>
         <div class="form-grid form-grid-2">
-          <div><label class="field-label">Hora Partida</label><input id="l-dep" class="input mono" value="${escapeHtml(leg.depTime)}" /></div>
-          <div><label class="field-label">Hora Chegada</label><input id="l-arr" class="input mono" value="${escapeHtml(leg.arrTime)}" /></div>
+          <div><label class="field-label">Cidade Origem</label><input id="l-from-city" class="input" value="${escapeHtml(leg.fromCity || '')}" placeholder="Lisboa" /></div>
+          <div><label class="field-label">Cidade Destino</label><input id="l-to-city" class="input" value="${escapeHtml(leg.toCity || '')}" placeholder="Toronto" /></div>
         </div>
         <div class="form-grid form-grid-2">
-          <div><label class="field-label">Porta (Gate)</label><input id="l-gate" class="input mono" value="${escapeHtml(leg.gate)}" /></div>
-          <div><label class="field-label">Lugar (Seat)</label><input id="l-seat" class="input mono" value="${escapeHtml(leg.seat)}" /></div>
+          <div>
+            <label class="field-label">Hora Partida &amp; Fuso</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+              <input id="l-dep" class="input mono" value="${escapeHtml(leg.depTime)}" placeholder="10:55" />
+              <select id="l-dep-tz" class="select mono">${tzOptionsHtml(leg.depTz || 'WET')}</select>
+            </div>
+          </div>
+          <div>
+            <label class="field-label">Hora Chegada &amp; Fuso</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+              <input id="l-arr" class="input mono" value="${escapeHtml(leg.arrTime)}" placeholder="14:00" />
+              <select id="l-arr-tz" class="select mono">${tzOptionsHtml(leg.arrTz || 'CET')}</select>
+            </div>
+          </div>
         </div>
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label">Terminal Partida</label><input id="l-from-term" class="input" value="${escapeHtml(leg.fromTerminal || '')}" placeholder="Terminal 1" /></div>
+          <div><label class="field-label">Terminal Chegada</label><input id="l-to-term" class="input" value="${escapeHtml(leg.toTerminal || '')}" placeholder="Terminal 1" /></div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label">Porta (Gate)</label><input id="l-gate" class="input mono" value="${escapeHtml(leg.gate || '')}" /></div>
+          <div><label class="field-label">Lugar (Seat)</label><input id="l-seat" class="input mono" value="${escapeHtml(leg.seat || '')}" /></div>
+        </div>
+        <div><label class="field-label">Nota / Bagagem (opcional)</label><input id="l-note" class="input" value="${escapeHtml(leg.baggageNote || '')}" placeholder="Ex: Bagagem segue até ao destino final" /></div>
         <div style="display:flex;justify-content:flex-end;margin-top:6px;"><button type="submit" class="btn btn-primary">Guardar Alterações</button></div>
       </form>
     `);
@@ -1339,6 +2539,8 @@
       if (lookedUp.airline) document.getElementById('l-air').value = lookedUp.airline;
       if (lookedUp.fromCode) document.getElementById('l-from').value = lookedUp.fromCode;
       if (lookedUp.toCode) document.getElementById('l-to').value = lookedUp.toCode;
+      if (lookedUp.fromCity) document.getElementById('l-from-city').value = lookedUp.fromCity;
+      if (lookedUp.toCity) document.getElementById('l-to-city').value = lookedUp.toCity;
       showToast(lookedUp.fromCode && lookedUp.toCode ? `Rota encontrada: ${lookedUp.fromCode} → ${lookedUp.toCode}!` : 'Companhia preenchida.');
     });
 
@@ -1357,16 +2559,13 @@
         return;
       }
       if (!validIata.test(newFrom) || !validIata.test(newTo)) {
-        showToast('Origem e Destino devem ser códigos de 3 letras (ex: LIS, BOS, CUN).');
+        showToast('Origem e Destino devem ser códigos de 3 letras (ex: LIS, FCO, CUN).');
         return;
       }
 
       if (isoDate) {
         leg.dateIso = isoDate;
-        try {
-          const dt = new Date(`${isoDate}T12:00:00Z`);
-          dirObj.dateLabel = new Intl.DateTimeFormat('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(dt);
-        } catch {}
+        dirObj.dateLabel = formatDateLongPt(isoDate);
       }
       if (newNum !== leg.flightNumber) {
         leg.flightNumber = newNum;
@@ -1374,28 +2573,45 @@
       }
       leg.airline = document.getElementById('l-air').value.trim() || leg.airline;
       leg.fromCode = newFrom;
-      leg.fromCity = (lookedUp && lookedUp.fromCode === newFrom && lookedUp.fromCity) ? lookedUp.fromCity : (leg.fromCity || newFrom);
+      leg.fromCity = document.getElementById('l-from-city').value.trim() || (lookedUp && lookedUp.fromCode === newFrom ? lookedUp.fromCity : cityName(newFrom));
       leg.fromCoords = (lookedUp && lookedUp.fromCode === newFrom && lookedUp.fromCoords) ? lookedUp.fromCoords : (KNOWN_AIRPORTS[newFrom] || leg.fromCoords || null);
       leg.toCode = newTo;
-      leg.toCity = (lookedUp && lookedUp.toCode === newTo && lookedUp.toCity) ? lookedUp.toCity : (leg.toCity || newTo);
+      leg.toCity = document.getElementById('l-to-city').value.trim() || (lookedUp && lookedUp.toCode === newTo ? lookedUp.toCity : cityName(newTo));
       leg.toCoords = (lookedUp && lookedUp.toCode === newTo && lookedUp.toCoords) ? lookedUp.toCoords : (KNOWN_AIRPORTS[newTo] || leg.toCoords || null);
 
       leg.depTime = document.getElementById('l-dep').value.trim() || leg.depTime;
+      leg.depTz = document.getElementById('l-dep-tz').value || leg.depTz;
       leg.arrTime = document.getElementById('l-arr').value.trim() || leg.arrTime;
+      leg.arrTz = document.getElementById('l-arr-tz').value || leg.arrTz;
+      leg.fromTerminal = document.getElementById('l-from-term').value.trim();
+      leg.toTerminal = document.getElementById('l-to-term').value.trim();
       leg.gate = document.getElementById('l-gate').value.trim() || 'A definir';
       leg.seat = document.getElementById('l-seat').value.trim() || 'A definir';
-      saveState(); renderFlights(); renderSettings(); renderOverview(); closeModal();
+      leg.baggageNote = document.getElementById('l-note').value.trim();
+
+      // Auto-calculate duration from updated times/timezones
+      const depMs = hmToUtcMs(leg.dateIso, leg.depTime, leg.depTz);
+      let arrMs = hmToUtcMs(leg.dateIso, leg.arrTime, leg.arrTz);
+      if (depMs != null && arrMs != null) {
+        while (arrMs <= depMs) arrMs += 86400000;
+        leg.duration = formatDurationMs(arrMs - depMs);
+      }
+
+      saveState();
+      renderAll();
+      closeModal();
       fetchAdsbLive(leg.id);
     });
   }
 
   function openAddAgendaModal() {
     const day = state.days[activeDayIndex];
+    if (!day) return;
     openModal(`Adicionar a ${day.shortDate}`, `
       <form id="f-ag" class="form-grid">
         <div class="form-grid form-grid-2">
           <div><label class="field-label">Hora</label><input type="time" id="a-time" class="input mono" value="19:30" required /></div>
-          <div><label class="field-label">Plano / Reserva</label><input id="a-title" class="input" placeholder="Ex: Jantar Kotatsu" required /></div>
+          <div><label class="field-label">Plano / Reserva</label><input id="a-title" class="input" placeholder="Ex: Jantar, Excursão..." required /></div>
         </div>
         <div><label class="field-label">Nota opcional</label><input id="a-note" class="input" /></div>
         <div style="display:flex;justify-content:flex-end;margin-top:6px;"><button type="submit" class="btn btn-primary">Adicionar</button></div>
@@ -1411,10 +2627,10 @@
 
   function openSchedModal(venueId) {
     const v = state.venues.find((x) => x.id === venueId);
-    if (!v) return;
+    if (!v || !state.days.length) return;
     openModal(`Agendar ${v.name}`, `
       <form id="f-sv" class="form-grid">
-        <div><label class="field-label">Escolher Dia</label><select id="sv-d" class="select">${state.days.map((d, i) => `<option value="${i}" ${i===activeDayIndex?'selected':''}>${escapeHtml(d.shortDate)}</option>`).join('')}</select></div>
+        <div><label class="field-label">Escolher Dia</label><select id="sv-d" class="select">${state.days.map((d, i) => `<option value="${i}" ${i === activeDayIndex ? 'selected' : ''}>${escapeHtml(d.shortDate)}</option>`).join('')}</select></div>
         <div><label class="field-label">Hora</label><input type="time" id="sv-t" class="input mono" value="19:30" required /></div>
         <div style="display:flex;justify-content:flex-end;margin-top:6px;"><button type="submit" class="btn btn-primary">Agendar</button></div>
       </form>
@@ -1430,8 +2646,12 @@
     });
   }
 
+  // ---------- Event Bindings ----------
   document.querySelectorAll('[data-view-target]').forEach((b) => b.addEventListener('click', () => switchView(b.getAttribute('data-view-target'))));
-  document.getElementById('brand-home-link')?.addEventListener('click', (e) => { e.preventDefault(); switchView('overview'); });
+  document.getElementById('brand-home-link')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchView(publicMode ? 'flights' : 'overview');
+  });
   document.getElementById('hero-btn-flights')?.addEventListener('click', () => switchView('flights'));
   document.getElementById('hero-btn-resort')?.addEventListener('click', () => switchView('resort'));
   document.getElementById('overview-all-dining-btn')?.addEventListener('click', () => switchView('resort'));
@@ -1449,8 +2669,18 @@
   );
 
   document.getElementById('btn-add-agenda-item')?.addEventListener('click', openAddAgendaModal);
-  document.getElementById('planner-dinner-select')?.addEventListener('change', (e) => { state.days[activeDayIndex].dinnerChoice = e.target.value; saveState(); renderPlanner(); });
-  document.getElementById('planner-day-notes')?.addEventListener('input', (e) => { state.days[activeDayIndex].notes = e.target.value; saveState(); });
+  document.getElementById('planner-dinner-select')?.addEventListener('change', (e) => {
+    if (state.days[activeDayIndex]) {
+      state.days[activeDayIndex].dinnerChoice = e.target.value;
+      saveState(); renderPlanner();
+    }
+  });
+  document.getElementById('planner-day-notes')?.addEventListener('input', (e) => {
+    if (state.days[activeDayIndex]) {
+      state.days[activeDayIndex].notes = e.target.value;
+      saveState();
+    }
+  });
 
   document.querySelectorAll('[data-venue-cat]').forEach((c) =>
     c.addEventListener('click', () => {
@@ -1471,15 +2701,8 @@
     }
   });
 
-  [['conv-mxn', 'MXN'], ['conv-eur', 'EUR'], ['conv-usd', 'USD'], ['conv-cad', 'CAD']].forEach(([id, c]) =>
+  [['conv-mxn', 'DEST'], ['conv-eur', 'EUR'], ['conv-usd', 'USD'], ['conv-cad', 'CAD']].forEach(([id, c]) =>
     document.getElementById(id)?.addEventListener('input', (e) => updateCurrency(c, e.target.value))
-  );
-  document.querySelectorAll('[data-mxn-preset]').forEach((b) =>
-    b.addEventListener('click', () => {
-      const m = b.getAttribute('data-mxn-preset');
-      document.getElementById('conv-mxn').value = m;
-      updateCurrency('MXN', m);
-    })
   );
 
   document.getElementById('form-add-expense')?.addEventListener('submit', (e) => {
@@ -1497,7 +2720,6 @@
   /* ========================================================================
      Cocktails Rating (Privado)
      ======================================================================== */
-
   function renderCocktails() {
     const grid = document.getElementById('cocktails-list-grid');
     const badge = document.getElementById('cocktails-count-badge');
@@ -1583,7 +2805,7 @@
               ${c.note ? `<p class="venue-desc" style="margin-top:8px;">"${escapeHtml(c.note)}"</p>` : ''}
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--line-soft);font-size:0.76rem;color:var(--ink-muted);">
-              <span>Avaliado por <strong>${escapeHtml(c.by || 'Casal')}</strong></span>
+              <span>Avaliado por <strong>${escapeHtml(c.by || 'Viajantes')}</strong></span>
               <button type="button" class="icon-btn" data-del-ck="${escapeHtml(c.id)}" title="Remover">✕</button>
             </div>
           </article>
@@ -1636,7 +2858,7 @@
       aspects: { flavor, fresh, strength, look },
       photoUrl,
       note,
-      by: byInput || (sbUser?.email ? sbUser.email.split('@')[0] : 'Casal'),
+      by: byInput || (sbUser?.email ? sbUser.email.split('@')[0] : 'Viajantes'),
       createdAt: new Date().toISOString()
     });
     document.getElementById('ck-name').value = '';
@@ -1648,19 +2870,138 @@
   });
 
   /* ========================================================================
-     Supabase Cloud Sync, Public Photos & Private Sections Gate
+     Supabase Cloud Sync (Private trip_state + Public public_trip) & Photos
      ======================================================================== */
-
   const PUBLIC_VIEWS = new Set(['flights', 'photos']);
   let sbClient = null;
   let sbUser = null;
   let syncTimer = null;
 
+  function buildPublicPayload() {
+    const t = state.trip;
+    const sanitizeLegs = (legs) =>
+      (legs || []).map((l) => ({
+        id: l.id,
+        dateIso: l.dateIso,
+        flightNumber: l.flightNumber,
+        airline: l.airline,
+        fromCode: l.fromCode,
+        fromCity: l.fromCity,
+        fromCoords: l.fromCoords || null,
+        toCode: l.toCode,
+        toCity: l.toCity,
+        toCoords: l.toCoords || null,
+        depTime: l.depTime,
+        depTz: l.depTz,
+        arrTime: l.arrTime,
+        arrTz: l.arrTz,
+        duration: l.duration,
+        liveStatus: l.liveStatus || null
+      }));
+
+    return {
+      trip: {
+        title: t.title,
+        destination: t.destination,
+        country: t.country,
+        subtitle: t.subtitle,
+        headline: t.headline,
+        travelers: t.travelers,
+        startDate: t.startDate,
+        endDate: t.endDate,
+        homeCity: t.homeCity,
+        homeCode: t.homeCode,
+        homeTz: t.homeTz,
+        destCity: t.destCity,
+        destCode: t.destCode,
+        destTz: t.destTz,
+        publicShowStay: t.publicShowStay !== false,
+        publicNote: t.publicNote || ''
+      },
+      flights: {
+        outbound: {
+          dateLabel: state.flights.outbound.dateLabel,
+          summary: state.flights.outbound.summary,
+          legs: sanitizeLegs(state.flights.outbound.legs)
+        },
+        inbound: {
+          dateLabel: state.flights.inbound.dateLabel,
+          summary: state.flights.inbound.summary,
+          legs: sanitizeLegs(state.flights.inbound.legs)
+        }
+      },
+      days: (state.days || []).map((d) => ({
+        dayNumber: d.dayNumber,
+        date: d.date,
+        shortDate: d.shortDate
+      }))
+    };
+  }
+
+  async function pushPublicTrip(showErrorToast = false) {
+    if (!sbClient || !sbUser) return false;
+    const badge = document.getElementById('public-sync-badge');
+    try {
+      const { error } = await sbClient.from('public_trip').upsert({
+        id: 'main-trip',
+        data: buildPublicPayload(),
+        updated_at: new Date().toISOString()
+      });
+      if (error) throw error;
+      if (badge) {
+        badge.className = 'tag tag-open';
+        badge.textContent = '✓ Link público atualizado';
+      }
+      return true;
+    } catch (err) {
+      console.warn('Public trip sync error:', err);
+      if (badge) {
+        badge.className = 'tag tag-soon';
+        badge.textContent = 'Executar supabase.sql p/ partilha pública';
+      }
+      if (showErrorToast) {
+        showToast('Execute o SQL em supabase.sql no Supabase para ativar a tabela public_trip.');
+      }
+      return false;
+    }
+  }
+
+  async function pullPublicTrip() {
+    if (!sbClient || sbUser) return;
+    try {
+      const { data, error } = await sbClient.from('public_trip').select('data').eq('id', 'main-trip').maybeSingle();
+      if (error || !data || !data.data) return;
+      const pub = data.data;
+      if (pub.trip) state.trip = { ...state.trip, ...pub.trip };
+      if (pub.flights?.outbound?.legs) {
+        state.flights.outbound = { ...state.flights.outbound, ...pub.flights.outbound };
+      }
+      if (pub.flights?.inbound?.legs) {
+        state.flights.inbound = { ...state.flights.inbound, ...pub.flights.inbound };
+      }
+      if (Array.isArray(pub.days) && pub.days.length) {
+        state.days = pub.days.map((d) => ({
+          ...d,
+          theme: d.theme || '',
+          dinnerChoice: 'Sem restaurante marcado',
+          notes: '',
+          items: []
+        }));
+      }
+      renderTripChrome();
+      updateClocksAndCountdown();
+      chooseDefaultFlightDir();
+      renderFlights();
+    } catch (err) {
+      console.warn('Public trip pull failed:', err);
+    }
+  }
+
   function openLoginModal() {
-    openModal('Área Privada do Casal', `
+    openModal('Área Privada', `
       <form id="form-modal-login" class="form-grid">
         <p style="font-size:0.84rem;color:var(--ink-secondary);">
-          Os <strong>Voos &amp; Radar</strong> e as <strong>Fotos</strong> são públicos. Inicie sessão para aceder ao Plano dos 10 Dias, Restaurantes, Avaliação de Cocktails e Mala.
+          O painel da <strong>Viagem</strong> e as <strong>Fotos</strong> são públicos para amigos e família acompanharem. Inicie sessão para editar Configurações, Plano, Locais, Cocktails e Mala.
         </p>
         <div><label class="field-label">Email</label><input id="ml-email" type="email" class="input" required /></div>
         <div><label class="field-label">Password</label><input id="ml-pass" type="password" class="input" required /></div>
@@ -1705,6 +3046,7 @@
     if (!isLoggedIn && !PUBLIC_VIEWS.has(activeView)) {
       switchView('flights');
     }
+    renderTripChrome();
     if (modeChanged) renderFlights();
     renderPhotosAndSync();
   }
@@ -1728,12 +3070,14 @@
         updateAuthVisibility();
         loadPhotosGallery();
         if (sbUser) pullStateFromSupabase();
+        else pullPublicTrip();
       });
       sbClient.auth.onAuthStateChange((_evt, session) => {
         sbUser = session?.user || null;
         updateAuthVisibility();
         loadPhotosGallery();
         if (sbUser) pullStateFromSupabase();
+        else pullPublicTrip();
       });
     } else {
       updateAuthVisibility();
@@ -1750,6 +3094,7 @@
           data: state,
           updated_at: new Date().toISOString()
         });
+        await pushPublicTrip(false);
         const badge = document.getElementById('sync-status-badge');
         if (badge) {
           badge.className = 'tag tag-open';
@@ -1765,24 +3110,21 @@
     if (!sbClient || !sbUser) return;
     const { data, error } = await sbClient.from('trip_state').select('data').eq('id', 'main-trip').maybeSingle();
     if (!error && data && data.data) {
-      state = { ...JSON.parse(JSON.stringify(window.DEFAULT_TRIP_DATA)), ...data.data };
+      state = normalizeState(data.data);
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
-      renderOverview();
-      renderFlights();
-      renderPlanner();
-      renderResortVenues();
-      renderCocktails();
-      renderPacking();
-      renderExpenses();
+      renderAll();
+      // Ensure public_trip stays aligned with the latest private state
+      pushPublicTrip(false);
     }
   }
 
-  // Photos in display order, used by the full-screen viewer for "Anterior / Seguinte".
+  // ---------- Photos Gallery & Lightbox ----------
   let galleryPhotos = [];
 
   function tripDayLabel(dayNumber) {
     const d = (state.days || []).find((x) => Number(x.dayNumber) === Number(dayNumber));
-    const iso = d && d.date ? d.date : new Date(Date.parse('2026-11-28T12:00:00Z') + (Number(dayNumber) - 1) * 86400000).toISOString().slice(0, 10);
+    const baseIso = state.trip.startDate || '2026-11-28';
+    const iso = d && d.date ? d.date : new Date(Date.parse(`${baseIso}T12:00:00Z`) + (Number(dayNumber) - 1) * 86400000).toISOString().slice(0, 10);
     try {
       return new Intl.DateTimeFormat('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${iso}T12:00:00Z`));
     } catch {
@@ -1806,7 +3148,6 @@
       return;
     }
 
-    // Group by trip day: newest day first, photos inside each day in the order they were taken.
     const byDay = new Map();
     rows.forEach((row) => {
       const day = Number(row.day_number) || 1;
@@ -1861,7 +3202,6 @@
     );
   }
 
-  // ---------- Full-screen photo viewer ----------
   let lightboxIndex = 0;
   let lightboxOpen = false;
 
@@ -1885,7 +3225,6 @@
     document.getElementById('photo-lightbox').hidden = false;
     document.documentElement.classList.add('lightbox-open');
     if (!lightboxOpen) {
-      // Lets the phone's "back" gesture/button close the photo instead of leaving the site.
       try { history.pushState({ lightbox: true }, ''); } catch {}
     }
     lightboxOpen = true;
@@ -1998,6 +3337,19 @@
     loadPhotosGallery();
   });
 
+  function renderAll() {
+    renderTripChrome();
+    updateClocksAndCountdown();
+    renderOverview();
+    renderFlights();
+    renderSettings();
+    renderPlanner();
+    renderResortVenues();
+    renderCocktails();
+    renderPacking();
+    renderExpenses();
+  }
+
   const _origSave = saveState;
   saveState = function () {
     _origSave();
@@ -2005,21 +3357,25 @@
   };
 
   activeView = 'flights';
-  updateClocksAndCountdown();
-  renderOverview();
   chooseDefaultFlightDir();
-  renderFlights();
-  renderSettings();
-  syncCustomBarsToCocktailSelect();
-  renderPlanner();
-  renderResortVenues();
-  renderCocktails();
-  renderPacking();
-  updateCurrency('MXN', '400');
-  renderExpenses();
+  renderAll();
+  updateCurrency('EUR', '20');
   initSupabase();
+
   setInterval(updateClocksAndCountdown, 30000);
-  setInterval(() => { if (activeView === 'flights') renderFlightStatus(); }, 60000);
+  setInterval(() => {
+    if (activeView === 'flights') renderFlightStatus();
+  }, 60000);
+  // Keep public visitors always up-to-date when they return to the tab or leave it open
+  setInterval(() => {
+    if (publicMode) pullPublicTrip();
+  }, 5 * 60000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && publicMode) {
+      pullPublicTrip();
+      loadPhotosGallery();
+    }
+  });
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
