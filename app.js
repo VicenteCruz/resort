@@ -3942,6 +3942,7 @@
     return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   }
   document.getElementById('ck-search')?.addEventListener('input', () => renderCocktails());
+  const expandedCocktailIds = new Set();
 
   function renderCocktails() {
     const grid = document.getElementById('cocktails-list-grid');
@@ -3983,11 +3984,13 @@
         const avgNum = getCocktailAvg(c);
         const avg = avgNum.toFixed(1);
         const isGold = idx === 0;
+        const isExpanded = expandedCocktailIds.has(c.id);
         const rankCls = medalClasses[idx] || '';
         const rankBadgeHtml = `<span class="rank-medallion ${rankCls}">${idx < 3 ? UI_ICONS.trophy : ''}#${idx + 1}</span>`;
         const uniqueBars = [...new Set(c.reviews.map((r) => r.bar || c.bar).filter(Boolean))];
         const uniqueAuthors = [...new Set(c.reviews.map((r) => r.by).filter(Boolean))];
         const sensoryAvgs = getCocktailAspectAverages(c);
+        const latestWithQuote = [...c.reviews].reverse().find((r) => r.note) || c.reviews[c.reviews.length - 1];
 
         const reviewsHtml = c.reviews
           .map((r) => {
@@ -4023,7 +4026,7 @@
           .join('');
 
         return `
-          <article class="ck-card ${isGold ? 'is-gold-card' : ''}">
+          <article class="ck-card ${isGold ? 'is-gold-card' : ''} ${isExpanded ? 'is-reviews-open' : ''}" data-ck-card="${escapeHtml(c.id)}">
             ${c.photoUrl ? `
               <div class="ck-card-photo-stage">
                 <img src="${escapeHtml(c.photoUrl)}" alt="${escapeHtml(c.name)}" loading="lazy" data-zoom-ck="${escapeHtml(c.id)}" />
@@ -4066,16 +4069,32 @@
 
               ${sensoryAvgs ? renderSensoryMeters(sensoryAvgs, isGold) : ''}
 
-              <div class="tasting-feed">
-                <div class="tasting-feed-header">
-                  <span class="tasting-feed-kicker">Notas de Prova (${c.reviews.length})</span>
+              ${latestWithQuote?.note ? `
+                <div class="ck-mobile-teaser" data-toggle-ck-revs="${escapeHtml(c.id)}">
+                  ${renderAvatarHtml(latestWithQuote.by)}
+                  <span class="rest-latest-quote-text">“${escapeHtml(latestWithQuote.note)}”</span>
+                </div>` : ''}
+
+              <div class="ck-reviews-collapse">
+                <div class="tasting-feed">
+                  <div class="tasting-feed-header">
+                    <span class="tasting-feed-kicker">Notas de Prova (${c.reviews.length})</span>
+                  </div>
+                  ${reviewsHtml}
                 </div>
-                ${reviewsHtml}
               </div>
             </div>
 
             <div class="ck-card-footer">
-              <div class="avatar-stack">
+              <button type="button" class="ck-mobile-rev-toggle" data-toggle-ck-revs="${escapeHtml(c.id)}" aria-expanded="${isExpanded ? 'true' : 'false'}">
+                <span class="avatar-stack-circles">
+                  ${uniqueAuthors.slice(0, 3).map((a) => renderAvatarHtml(a)).join('')}
+                </span>
+                <span class="ck-toggle-label-closed">Ver ${c.reviews.length} ${c.reviews.length === 1 ? 'review' : 'reviews'}</span>
+                <span class="ck-toggle-label-open">Ocultar reviews</span>
+                <span class="ck-toggle-chevron" aria-hidden="true">▾</span>
+              </button>
+              <div class="avatar-stack ck-desktop-authors">
                 <div class="avatar-stack-circles">
                   ${uniqueAuthors.slice(0, 4).map((a) => renderAvatarHtml(a)).join('')}
                 </div>
@@ -4091,6 +4110,20 @@
         `;
       })
       .join('');
+
+    grid.querySelectorAll('[data-toggle-ck-revs]').forEach((el) =>
+      el.addEventListener('click', () => {
+        const ckId = el.getAttribute('data-toggle-ck-revs');
+        const card = grid.querySelector(`[data-ck-card="${CSS.escape(ckId)}"]`);
+        if (!card) return;
+        const nowOpen = !card.classList.contains('is-reviews-open');
+        card.classList.toggle('is-reviews-open', nowOpen);
+        if (nowOpen) expandedCocktailIds.add(ckId);
+        else expandedCocktailIds.delete(ckId);
+        const btn = card.querySelector('.ck-mobile-rev-toggle');
+        if (btn) btn.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
+      })
+    );
 
     grid.querySelectorAll('[data-zoom-ck]').forEach((img) =>
       img.addEventListener('click', () => {

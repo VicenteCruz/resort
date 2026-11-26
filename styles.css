@@ -1639,6 +1639,78 @@ html.is-public .toast { bottom: 110px; font-size: 1rem; }
   color: var(--ink-muted);
 }
 
+.ck-mobile-teaser,
+.ck-mobile-rev-toggle {
+  display: none;
+}
+
+@media (max-width: 859px) {
+  .ck-desktop-authors {
+    display: none;
+  }
+  .ck-card-photo-stage {
+    height: 150px;
+  }
+  .ck-card-body {
+    padding: 14px 15px 12px;
+    gap: 10px;
+  }
+  .ck-card-title {
+    font-size: 1.18rem;
+  }
+  /* Hide full tasting notes on mobile until user expands */
+  .ck-card:not(.is-reviews-open) .ck-reviews-collapse {
+    display: none;
+  }
+  .ck-mobile-teaser {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--ink-secondary);
+    cursor: pointer;
+    padding-top: 2px;
+  }
+  .ck-card.is-reviews-open .ck-mobile-teaser {
+    display: none;
+  }
+  .ck-mobile-rev-toggle {
+    appearance: none;
+    border: 1px solid var(--line-soft);
+    background: var(--bg-elevated);
+    border-radius: var(--radius-pill);
+    padding: 6px 12px 6px 8px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--cenote-700);
+    transition: background 150ms var(--ease-out);
+  }
+  .ck-mobile-rev-toggle:hover {
+    background: var(--cenote-100);
+  }
+  .ck-toggle-label-open {
+    display: none;
+  }
+  .ck-card.is-reviews-open .ck-toggle-label-closed {
+    display: none;
+  }
+  .ck-card.is-reviews-open .ck-toggle-label-open {
+    display: inline;
+  }
+  .ck-toggle-chevron {
+    font-size: 0.85rem;
+    line-height: 1;
+    transition: transform 180ms var(--ease-out);
+  }
+  .ck-card.is-reviews-open .ck-toggle-chevron {
+    transform: rotate(180deg);
+  }
+}
+
 /* ---------- Empty State Card ---------- */
 .reviews-empty-state {
   grid-column: 1 / -1;
@@ -2089,20 +2161,99 @@ html.is-public .toast { bottom: 110px; font-size: 1rem; }
 }
 
 @media (max-width: 540px) {
-  .rest-card-body,
-  .ck-card-body {
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modal-sheet {
+    max-width: 100%;
+    max-height: 92dvh;
+    border-radius: 22px 22px 0 0;
+    padding: 18px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  .modal-header {
+    padding-bottom: 11px;
+    margin-bottom: 12px;
+  }
+  /* Prevent iOS Safari auto-zoom on input focus */
+  .input,
+  .select,
+  .textarea {
+    font-size: 16px;
+  }
+  .live-rating-banner {
+    padding: 10px 13px;
+  }
+  .star-criterion-row {
+    flex-wrap: nowrap;
+    padding: 7px 10px;
+    gap: 6px;
+  }
+  .star-criterion-info {
+    min-width: 0;
+    flex: 1;
+  }
+  .star-criterion-title {
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .star-buttons-group {
+    gap: 1px;
+    flex-shrink: 0;
+  }
+  .star-tap-btn {
+    min-width: 31px;
+    min-height: 34px;
+    padding: 4px 2px;
+    font-size: 1.24rem;
+  }
+  .rest-detail-topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .rest-detail-topbar > #btn-back-restaurants {
+    align-self: flex-start;
+  }
+  .rest-detail-topbar > div {
+    display: grid !important;
+    grid-template-columns: auto 1fr 1fr;
+    gap: 6px !important;
+  }
+  .rest-detail-topbar > div .btn {
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: 0.76rem;
+  }
+  .rest-detail-hero {
+    padding: 16px;
+    gap: 14px;
+  }
+  .rest-photo-stage {
+    height: 186px;
+  }
+  .rest-card-body {
     padding: 15px 15px 14px;
+  }
+  .ck-card-body {
+    padding: 13px 15px 11px;
+    gap: 9px;
   }
   .rest-card-footer,
   .ck-card-footer {
-    padding: 10px 15px;
+    padding: 9px 14px;
   }
   .ck-card-photo-stage {
-    height: 184px;
+    height: 144px;
+  }
+  .tasting-note {
+    padding: 11px 12px;
   }
   .tasting-note-actions .icon-btn {
-    min-width: 32px;
-    min-height: 32px;
+    min-width: 34px;
+    min-height: 34px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
