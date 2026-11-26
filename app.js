@@ -2817,34 +2817,222 @@
     if (src !== 'CAD' && document.getElementById('conv-cad')) document.getElementById('conv-cad').value = (eur * eurToCad).toFixed(2);
   }
 
+  function getExpenseParticipants() {
+    if (!Array.isArray(state.expenseParticipants) || !state.expenseParticipants.length) {
+      const me = getCurrentReviewer().by;
+      state.expenseParticipants = [me && me !== 'Viajante' ? me : 'Pessoa 1', 'Pessoa 2'];
+    }
+    return state.expenseParticipants;
+  }
+
+  function openManageParticipantsModal() {
+    const renderBody = () => {
+      const people = getExpenseParticipants();
+      const rows = people
+        .map((p, idx) => `
+          <div class="open-venue-row" style="padding:7px 10px;">
+            <strong style="font-size:0.88rem;">${escapeHtml(p)}</strong>
+            ${people.length > 1 ? `<button type="button" class="icon-btn" data-del-part="${idx}" title="Remover">✕</button>` : ''}
+          </div>`)
+        .join('');
+
+      openModal('Pessoas nas Despesas (Tricount)', `
+        <div class="form-grid">
+          <p style="font-size:0.84rem;color:var(--ink-secondary);">Adicione ou remova os nomes das pessoas que dividem despesas nesta viagem.</p>
+          <div class="open-now-list">${rows}</div>
+          <form id="f-add-part" style="display:flex;gap:8px;margin-top:4px;">
+            <input id="inp-new-part" class="input" placeholder="Nome (ex: Vicente, Ana, João)..." required />
+            <button type="submit" class="btn btn-primary btn-sm">+ Adicionar</button>
+          </form>
+        </div>
+      `);
+
+      document.querySelectorAll('[data-del-part]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const idx = Number(b.getAttribute('data-del-part'));
+          if (state.expenseParticipants.length <= 1) return;
+          state.expenseParticipants.splice(idx, 1);
+          saveState();
+          renderExpenses();
+          renderBody();
+        })
+      );
+
+      document.getElementById('f-add-part')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('inp-new-part')?.value.trim();
+        if (!name) return;
+        if (!state.expenseParticipants.some((x) => x.toLowerCase() === name.toLowerCase())) {
+          state.expenseParticipants.push(name);
+          saveState();
+          renderExpenses();
+        }
+        renderBody();
+      });
+    };
+    renderBody();
+  }
+
+  document.getElementById('btn-manage-participants')?.addEventListener('click', openManageParticipantsModal);
+
+  function computeExpenseSettlements(expenses, participants, toEur) {
+    const allNames = new Set(participants);
+    expenses.forEach((e) => {
+      if (e.paidBy) allNames.add(e.paidBy);
+      if (e.splitMode && e.splitMode.startsWith('for:')) allNames.add(e.splitMode.slice(4));
+    });
+    const people = [...allNames];
+    const net = Object.fromEntries(people.map((p) => [p, 0]));
+
+    expenses.forEach((e) => {
+      const eur = toEur(Number(e.amount) || 0, e.currency);
+      if (eur <= 0) return;
+      const payer = e.paidBy || people[0];
+      const mode = e.splitMode || 'equal';
+      if (mode === 'personal') {
+        // Paid by payer for themselves — net 0
+        return;
+      }
+      net[payer] = (net[payer] || 0) + eur;
+      if (mode.startsWith('for:')) {
+        const target = mode.slice(4);
+        net[target] = (net[target] || 0) - eur;
+      } else {
+        const splitGroup = participants.length ? participants : people;
+        const share = eur / splitGroup.length;
+        splitGroup.forEach((p) => {
+          net[p] = (net[p] || 0) - share;
+        });
+      }
+    });
+
+    const debtors = [];
+    const creditors = [];
+    Object.entries(net).forEach(([name, bal]) => {
+      if (bal < -0.01) debtors.push({ name, amt: -bal });
+      else if (bal > 0.01) creditors.push({ name, amt: bal });
+    });
+    debtors.sort((a, b) => b.amt - a.amt);
+    creditors.sort((a, b) => b.amt - a.amt);
+
+    const transfers = [];
+    let i = 0;
+    let j = 0;
+    while (i < debtors.length && j < creditors.length) {
+      const pay = Math.min(debtors[i].amt, creditors[j].amt);
+      if (pay > 0.01) {
+        transfers.push({ from: debtors[i].name, to: creditors[j].name, amountEur: pay });
+      }
+      debtors[i].amt -= pay;
+      creditors[j].amt -= pay;
+      if (debtors[i].amt < 0.01) i++;
+      if (creditors[j].amt < 0.01) j++;
+    }
+    return transfers;
+  }
+
   function renderExpenses() {
     const listEl = document.getElementById('expenses-list');
     const totEl = document.getElementById('expenses-total-eur');
+    const setBox = document.getElementById('expenses-settlement-box');
+    const paidBySel = document.getElementById('exp-paid-by');
+    const splitSel = document.getElementById('exp-split-mode');
+    if (!listEl || !totEl) return;
+
+    const people = getExpenseParticipants();
+    const me = getCurrentReviewer().by;
+
+    if (paidBySel) {
+      const prev = paidBySel.value;
+      paidBySel.innerHTML = people.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+      if (prev && people.includes(prev)) paidBySel.value = prev;
+      else if (people.includes(me)) paidBySel.value = me;
+    }
+
+    if (splitSel) {
+      const prev = splitSel.value;
+      const opts = [
+        `<option value="equal">A dividir por todos (${people.length})</option>`,
+        `<option value="personal">Individual (não dividir)</option>`,
+        ...people.map((p) => `<option value="for:${escapeHtml(p)}">100% para ${escapeHtml(p)}</option>`)
+      ];
+      splitSel.innerHTML = opts.join('');
+      if (prev && Array.from(splitSel.options).some((o) => o.value === prev)) splitSel.value = prev;
+    }
+
     const eurToDest = Number(state.rates.eurToDest) || 1;
     const toEur = (a, c) => (c === 'EUR' ? a : c === 'USD' ? a / (state.rates.eurToUsd || 1.06) : a / eurToDest);
     const total = state.expenses.reduce((s, e) => s + toEur(Number(e.amount) || 0, e.currency), 0);
     totEl.textContent = `€${total.toFixed(2)}`;
 
+    if (setBox) {
+      if (!state.expenses.length) {
+        setBox.innerHTML = '';
+      } else {
+        const transfers = computeExpenseSettlements(state.expenses, people, toEur);
+        if (!transfers.length) {
+          setBox.innerHTML = `<div style="padding:10px 12px;border-radius:10px;background:var(--agave-100);color:var(--agave-700);font-size:0.84rem;font-weight:600;">✓ Contas certas! Ninguém deve nada.</div>`;
+        } else {
+          setBox.innerHTML = `
+            <div style="padding:10px 12px;border-radius:10px;background:var(--cenote-100);border:1px solid var(--cenote-200);display:flex;flex-direction:column;gap:6px;">
+              <div style="font-size:0.74rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--cenote-700);">Acerto de Contas</div>
+              ${transfers
+                .map((tr) => `<div style="font-size:0.88rem;color:var(--ink-primary);">💸 <strong>${escapeHtml(tr.from)}</strong> deve <strong class="mono" style="color:var(--cenote-700);">€${tr.amountEur.toFixed(2)}</strong> a <strong>${escapeHtml(tr.to)}</strong></div>`)
+                .join('')}
+            </div>`;
+        }
+      }
+    }
+
     if (!state.expenses.length) {
       listEl.innerHTML = `<p style="font-size:0.82rem;color:var(--ink-muted);">Sem despesas registadas.</p>`;
       return;
     }
-    listEl.innerHTML = state.expenses
-      .map(
-        (e) => `
+
+    const splitLabel = (e) => {
+      const m = e.splitMode || 'equal';
+      if (m === 'personal') return 'Individual';
+      if (m.startsWith('for:')) return `Para ${m.slice(4)}`;
+      return 'A dividir';
+    };
+
+    listEl.innerHTML = [...state.expenses]
+      .reverse()
+      .map((e) => {
+        const eurVal = toEur(Number(e.amount) || 0, e.currency);
+        const eurHint = e.currency !== 'EUR' ? ` (~€${eurVal.toFixed(2)})` : '';
+        return `
         <div class="open-venue-row" style="padding:8px 10px;">
-          <span style="font-size:0.84rem;font-weight:500;">${escapeHtml(e.label)}</span>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span class="mono" style="font-size:0.82rem;font-weight:600;">${e.amount} ${escapeHtml(e.currency)}</span>
-            <button type="button" class="icon-btn" data-del-exp="${escapeHtml(e.id)}">✕</button>
+          <div style="min-width:0;">
+            <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(e.label)}</div>
+            <div style="font-size:0.74rem;color:var(--ink-secondary);">
+              Pago por <strong>${escapeHtml(e.paidBy || people[0])}</strong> · ${escapeHtml(splitLabel(e))}
+            </div>
           </div>
-        </div>`
-      )
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <span class="mono" style="font-size:0.8rem;font-weight:600;">${e.amount} ${escapeHtml(e.currency)}<span style="color:var(--ink-muted);font-weight:400;">${eurHint}</span></span>
+            <button type="button" class="icon-btn" data-del-exp="${escapeHtml(e.id)}" title="Remover">✕</button>
+          </div>
+        </div>`;
+      })
       .join('');
+
     listEl.querySelectorAll('[data-del-exp]').forEach((b) =>
       b.addEventListener('click', () => {
-        state.expenses = state.expenses.filter((x) => x.id !== b.getAttribute('data-del-exp'));
-        saveState(); renderExpenses();
+        const id = b.getAttribute('data-del-exp');
+        const exp = state.expenses.find((x) => x.id === id);
+        if (!exp) return;
+        openConfirmModal({
+          title: 'Apagar Despesa?',
+          message: `Remover "${exp.label}" (${exp.amount} ${exp.currency}) do registo?`,
+          confirmLabel: 'Apagar Despesa',
+          onConfirm: () => {
+            state.expenses = state.expenses.filter((x) => x.id !== id);
+            saveState();
+            renderExpenses();
+            showToast('Despesa removida');
+          }
+        });
       })
     );
   }
@@ -3239,10 +3427,21 @@
     const l = document.getElementById('exp-label');
     const a = document.getElementById('exp-amount');
     const c = document.getElementById('exp-currency');
+    const p = document.getElementById('exp-paid-by');
+    const s = document.getElementById('exp-split-mode');
     if (l.value.trim() && a.value) {
-      state.expenses.push({ id: `e-${Date.now()}`, label: l.value.trim(), amount: parseFloat(a.value), currency: c.value });
+      state.expenses.push({
+        id: `e-${Date.now()}`,
+        label: l.value.trim(),
+        amount: parseFloat(a.value),
+        currency: c.value,
+        paidBy: p?.value || getExpenseParticipants()[0],
+        splitMode: s?.value || 'equal',
+        createdAt: new Date().toISOString()
+      });
       l.value = ''; a.value = '';
       saveState(); renderExpenses();
+      showToast('Despesa registada!');
     }
   });
 

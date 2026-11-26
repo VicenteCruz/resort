@@ -299,28 +299,12 @@
     <section class="view-panel" id="view-toolkit" aria-labelledby="toolkit-heading">
       <div class="section-header">
         <div>
-          <h2 class="section-title" id="toolkit-heading">Checklist Essencial &amp; Conversor de Moeda</h2>
-          <p class="section-subtitle" id="toolkit-subtitle">Checklist prática e conversão rápida de moeda para o destino</p>
+          <h2 class="section-title" id="toolkit-heading">Câmbio, Despesas &amp; Checklist</h2>
+          <p class="section-subtitle" id="toolkit-subtitle">Conversor rápido de moeda, divisão de despesas e checklist pré-viagem</p>
         </div>
       </div>
 
-      <div class="surface">
-        <div class="section-header" style="margin-bottom: 4px;">
-          <div>
-            <h3 style="font-size: 1.15rem;">Checklist Pré-Viagem</h3>
-            <p class="section-subtitle" id="packing-status-text">0 de 0 prontos</p>
-          </div>
-        </div>
-        <div class="progress-track"><div class="progress-fill" id="packing-progress-bar" style="width: 0%;"></div></div>
-        <div class="pack-list" id="packing-items-container"></div>
-
-        <form id="form-add-pack-item" style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
-          <input type="text" id="input-new-pack-item" class="input" style="flex: 1; min-width: 200px;" placeholder="Adicionar item à lista..." required />
-          <button type="submit" class="btn btn-primary">+ Adicionar</button>
-        </form>
-      </div>
-
-      <div class="grid-2 section-block">
+      <div class="grid-2">
         <div class="surface">
           <h3 style="font-size: 1.15rem;" id="conv-title">Conversor de Moeda</h3>
           <p class="section-subtitle" style="margin-bottom: 14px;">Escreva em qualquer campo para converter automaticamente</p>
@@ -336,22 +320,59 @@
         <div class="surface">
           <div class="section-header" style="margin-bottom: 10px;">
             <div>
-              <h3 style="font-size: 1.15rem;">Registo Opcional de Despesas</h3>
-              <p class="section-subtitle">Total registado: <strong class="mono" id="expenses-total-eur">€0.00</strong></p>
+              <h3 style="font-size: 1.15rem;">Despesas &amp; Divisão (Tricount)</h3>
+              <p class="section-subtitle">Total gasto: <strong class="mono" id="expenses-total-eur">€0.00</strong></p>
             </div>
+            <button type="button" class="btn btn-sm" id="btn-manage-participants">👥 Pessoas</button>
           </div>
-          <form id="form-add-expense" class="expense-form-grid">
-            <input type="text" id="exp-label" class="input" placeholder="Descrição (ex: táxi, excursão)..." required />
-            <input type="number" step="any" id="exp-amount" class="input mono" placeholder="Valor" required />
-            <select id="exp-currency" class="select mono">
-              <option value="DEST" id="exp-currency-dest">MXN</option>
-              <option value="EUR">EUR</option>
-              <option value="USD">USD</option>
-            </select>
-            <button type="submit" class="btn btn-primary btn-sm">Registar</button>
+
+          <div id="expenses-settlement-box" style="margin-bottom: 12px;"></div>
+
+          <form id="form-add-expense" class="form-grid" style="margin-bottom: 12px;">
+            <div class="form-grid form-grid-2">
+              <input type="text" id="exp-label" class="input" placeholder="Descrição (ex: táxi, excursão)..." required />
+              <div style="display:grid;grid-template-columns:1fr 82px;gap:6px;">
+                <input type="number" step="any" id="exp-amount" class="input mono" placeholder="Valor" required />
+                <select id="exp-currency" class="select mono">
+                  <option value="DEST" id="exp-currency-dest">MXN</option>
+                  <option value="EUR">EUR</option>
+                  <option value="USD">USD</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-grid form-grid-2">
+              <div>
+                <label class="field-label" for="exp-paid-by">Quem pagou?</label>
+                <select id="exp-paid-by" class="select"></select>
+              </div>
+              <div>
+                <label class="field-label" for="exp-split-mode">Divisão</label>
+                <select id="exp-split-mode" class="select"></select>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;">
+              <button type="submit" class="btn btn-primary btn-sm">+ Registar Despesa</button>
+            </div>
           </form>
-          <div id="expenses-list" style="display: flex; flex-direction: column; gap: 7px; max-height: 210px; overflow-y: auto;"></div>
+
+          <div id="expenses-list" style="display: flex; flex-direction: column; gap: 7px; max-height: 260px; overflow-y: auto;"></div>
         </div>
+      </div>
+
+      <div class="surface section-block">
+        <div class="section-header" style="margin-bottom: 4px;">
+          <div>
+            <h3 style="font-size: 1.15rem;">Checklist Pré-Viagem</h3>
+            <p class="section-subtitle" id="packing-status-text">0 de 0 prontos</p>
+          </div>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="packing-progress-bar" style="width: 0%;"></div></div>
+        <div class="pack-list" id="packing-items-container"></div>
+
+        <form id="form-add-pack-item" style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
+          <input type="text" id="input-new-pack-item" class="input" style="flex: 1; min-width: 200px;" placeholder="Adicionar item à lista..." required />
+          <button type="submit" class="btn btn-primary">+ Adicionar</button>
+        </form>
       </div>
     </section>
 
