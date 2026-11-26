@@ -388,18 +388,15 @@
   let planeLayer = null;
 
   const KNOWN_AIRPORTS = {
-    LIS: [38.7742, -9.1342],
-    OPO: [41.2481, -8.6814],
-    MAD: [40.4983, -3.5676],
-    YYZ: [43.6777, -79.6248],
-    YUL: [45.4706, -73.7408],
-    CUN: [21.0365, -86.8771],
-    MEX: [19.4363, -99.0721],
-    JFK: [40.6413, -73.7781],
-    MIA: [25.7959, -80.2870],
-    LHR: [51.4700, -0.4543],
-    CDG: [49.0097, 2.5479],
-    FRA: [50.0379, 8.5622]
+    LIS: [38.7742, -9.1342], OPO: [41.2481, -8.6814], FAO: [37.0144, -7.9659],
+    MAD: [40.4983, -3.5676], BCN: [41.2974, 2.0833], LHR: [51.4700, -0.4543],
+    CDG: [49.0097, 2.5479], ORY: [48.7262, 2.3652], FRA: [50.0379, 8.5622],
+    AMS: [52.3105, 4.7683], ZRH: [47.4647, 8.5492], DUB: [53.4213, -6.2701],
+    YYZ: [43.6777, -79.6248], YUL: [45.4706, -73.7408], YVR: [49.1967, -123.1815],
+    BOS: [42.3656, -71.0096], JFK: [40.6413, -73.7781], EWR: [40.6895, -74.1745],
+    MIA: [25.7959, -80.2870], MCO: [28.4312, -81.3081], ATL: [33.6407, -84.4277],
+    ORD: [41.9742, -87.9073], DFW: [32.8998, -97.0403], IAD: [38.9531, -77.4565],
+    CUN: [21.0365, -86.8771], MEX: [19.4363, -99.0721], PTY: [9.0714, -79.3835]
   };
 
   function updateFlightMap() {
@@ -416,19 +413,20 @@
       planeLayer = window.L.layerGroup().addTo(flightMap);
     }
 
-    setTimeout(() => flightMap && flightMap.invalidateSize(), 120);
+    setTimeout(() => flightMap && flightMap.invalidateSize(), 100);
     routeLayer.clearLayers();
     planeLayer.clearLayers();
 
     const dirLegs = state.flights[activeFlightDir].legs;
-    const routePoints = [];
+    const allBounds = [];
     const plottedCodes = new Set();
 
     dirLegs.forEach((leg) => {
       const fromPt = leg.fromCoords || KNOWN_AIRPORTS[leg.fromCode];
       const toPt = leg.toCoords || KNOWN_AIRPORTS[leg.toCode];
+
       if (fromPt) {
-        routePoints.push(fromPt);
+        allBounds.push(fromPt);
         if (!plottedCodes.has(leg.fromCode)) {
           plottedCodes.add(leg.fromCode);
           window.L.circleMarker(fromPt, { radius: 6, fillColor: '#166970', color: '#fff', weight: 2, fillOpacity: 1 })
@@ -437,7 +435,7 @@
         }
       }
       if (toPt) {
-        routePoints.push(toPt);
+        allBounds.push(toPt);
         if (!plottedCodes.has(leg.toCode)) {
           plottedCodes.add(leg.toCode);
           window.L.circleMarker(toPt, { radius: 6, fillColor: '#166970', color: '#fff', weight: 2, fillOpacity: 1 })
@@ -445,36 +443,50 @@
             .addTo(routeLayer);
         }
       }
+      if (fromPt && toPt) {
+        window.L.polyline([fromPt, toPt], { color: '#166970', weight: 2.5, dashArray: '6, 8', opacity: 0.8 }).addTo(routeLayer);
+      }
     });
-
-    if (routePoints.length >= 2) {
-      window.L.polyline(routePoints, { color: '#166970', weight: 2.5, dashArray: '6, 8', opacity: 0.75 }).addTo(routeLayer);
-      flightMap.fitBounds(routePoints, { padding: [32, 32], maxZoom: 6 });
-    }
 
     let activePlanes = 0;
     dirLegs.forEach((leg) => {
       const lv = leg.liveStatus;
       if (lv && lv.active && lv.lat && lv.lon) {
         activePlanes++;
+        const pt = [Number(lv.lat), Number(lv.lon)];
+        allBounds.push(pt);
         const deg = lv.track || 0;
         const icon = window.L.divIcon({
           className: 'plane-marker',
-          html: `<div style="transform:rotate(${deg}deg);font-size:24px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">✈</div>`,
+          html: `<div style="transform:rotate(${deg}deg);font-size:26px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.45));">✈</div>`,
           iconSize: [28, 28],
           iconAnchor: [14, 14]
         });
-        window.L.marker([Number(lv.lat), Number(lv.lon)], { icon })
+        window.L.marker(pt, { icon })
           .bindPopup(
             `<strong>${escapeHtml(leg.flightNumber)} (${escapeHtml(getIcaoCallsign(leg.flightNumber))})</strong><br/>` +
             `${lv.reg ? `${escapeHtml(lv.reg)} · ` : ''}${lv.onGround ? 'No solo' : `${lv.altFt || '--'} ft · ${lv.speedKmh || '--'} km/h`}`
           )
           .addTo(planeLayer);
-        flightMap.setView([Number(lv.lat), Number(lv.lon)], 6);
       }
     });
 
-    const routeLabel = dirLegs.length ? [dirLegs[0].fromCode, ...dirLegs.map((l) => l.toCode)].join(' → ') : 'Sem rota';
+    if (allBounds.length >= 2) {
+      flightMap.fitBounds(allBounds, { padding: [32, 32], maxZoom: 6 });
+    } else if (allBounds.length === 1) {
+      flightMap.setView(allBounds[0], 6);
+    }
+
+    // Build smart route label: only repeat origin if next leg starts at a different airport
+    const routeParts = [];
+    dirLegs.forEach((leg, i) => {
+      if (i === 0 || leg.fromCode !== dirLegs[i - 1].toCode) {
+        routeParts.push(leg.fromCode);
+      }
+      routeParts.push(leg.toCode);
+    });
+    const routeLabel = routeParts.length ? routeParts.join(' → ') : 'Sem rota';
+
     const statusEl = document.getElementById('map-live-status');
     if (statusEl) {
       statusEl.textContent = activePlanes > 0
@@ -1035,11 +1047,13 @@
     if (!leg) return;
     let lookedUp = null;
 
+    const defaultIso = leg.dateIso || (isOut ? '2026-11-28' : '2026-12-08');
+
     openModal(`Alterar Voo ${leg.flightNumber}`, `
       <form id="f-leg" class="form-grid">
         <div class="form-grid form-grid-2">
           <div><label class="field-label">Nº do Voo (ex: AC 811)</label><input id="l-num" class="input mono" value="${escapeHtml(leg.flightNumber)}" required /></div>
-          <div><label class="field-label">Data da Viagem</label><input id="l-date" class="input" value="${escapeHtml(dirObj.dateLabel)}" /></div>
+          <div><label class="field-label">Data do Voo</label><input id="l-date" type="date" class="input mono" value="${escapeHtml(defaultIso)}" required /></div>
         </div>
         <div style="display:flex;justify-content:flex-start;">
           <button type="button" class="btn btn-sm" id="btn-auto-route">🔍 Preencher Companhia &amp; Rota</button>
@@ -1081,6 +1095,7 @@
       const newNum = document.getElementById('l-num').value.trim().toUpperCase();
       const newFrom = document.getElementById('l-from').value.trim().toUpperCase();
       const newTo = document.getElementById('l-to').value.trim().toUpperCase();
+      const isoDate = document.getElementById('l-date').value;
 
       const validFlight = /^([A-Z]{2}|[A-Z]\d|\d[A-Z]|[A-Z]{3})\s?\d{1,4}[A-Z]?$/;
       const validIata = /^[A-Z]{3}$/;
@@ -1090,31 +1105,35 @@
         return;
       }
       if (!validIata.test(newFrom) || !validIata.test(newTo)) {
-        showToast('Origem e Destino devem ser códigos de 3 letras (ex: LIS, YYZ, CUN).');
+        showToast('Origem e Destino devem ser códigos de 3 letras (ex: LIS, BOS, CUN).');
         return;
       }
 
-      dirObj.dateLabel = document.getElementById('l-date').value.trim() || dirObj.dateLabel;
+      if (isoDate) {
+        leg.dateIso = isoDate;
+        try {
+          const dt = new Date(`${isoDate}T12:00:00Z`);
+          dirObj.dateLabel = new Intl.DateTimeFormat('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(dt);
+        } catch {}
+      }
       if (newNum !== leg.flightNumber) {
         leg.flightNumber = newNum;
         leg.liveStatus = null;
       }
       leg.airline = document.getElementById('l-air').value.trim() || leg.airline;
-      if (newFrom !== leg.fromCode) {
-        leg.fromCode = newFrom;
-        leg.fromCity = (lookedUp && lookedUp.fromCode === newFrom && lookedUp.fromCity) ? lookedUp.fromCity : newFrom;
-        leg.fromCoords = (lookedUp && lookedUp.fromCode === newFrom && lookedUp.fromCoords) ? lookedUp.fromCoords : (KNOWN_AIRPORTS[newFrom] || null);
-      }
-      if (newTo !== leg.toCode) {
-        leg.toCode = newTo;
-        leg.toCity = (lookedUp && lookedUp.toCode === newTo && lookedUp.toCity) ? lookedUp.toCity : newTo;
-        leg.toCoords = (lookedUp && lookedUp.toCode === newTo && lookedUp.toCoords) ? lookedUp.toCoords : (KNOWN_AIRPORTS[newTo] || null);
-      }
+      leg.fromCode = newFrom;
+      leg.fromCity = (lookedUp && lookedUp.fromCode === newFrom && lookedUp.fromCity) ? lookedUp.fromCity : (leg.fromCity || newFrom);
+      leg.fromCoords = (lookedUp && lookedUp.fromCode === newFrom && lookedUp.fromCoords) ? lookedUp.fromCoords : (KNOWN_AIRPORTS[newFrom] || leg.fromCoords || null);
+      leg.toCode = newTo;
+      leg.toCity = (lookedUp && lookedUp.toCode === newTo && lookedUp.toCity) ? lookedUp.toCity : (leg.toCity || newTo);
+      leg.toCoords = (lookedUp && lookedUp.toCode === newTo && lookedUp.toCoords) ? lookedUp.toCoords : (KNOWN_AIRPORTS[newTo] || leg.toCoords || null);
+
       leg.depTime = document.getElementById('l-dep').value.trim() || leg.depTime;
       leg.arrTime = document.getElementById('l-arr').value.trim() || leg.arrTime;
       leg.gate = document.getElementById('l-gate').value.trim() || 'A definir';
       leg.seat = document.getElementById('l-seat').value.trim() || 'A definir';
-      saveState(); renderFlights(); renderSettings(); renderOverview(); closeModal(); showToast(`Voo ${leg.flightNumber} atualizado!`);
+      saveState(); renderFlights(); renderSettings(); renderOverview(); closeModal();
+      fetchAdsbLive(leg.id);
     });
   }
 
