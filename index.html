@@ -1,514 +1,186 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Platinum Yucatán Princess — 10-Day Riviera Maya Travel &amp; Stay Companion</title>
-  <meta
-    name="description"
-    content="Personal travel companion for Platinum Yucatán Princess (28 Nov – 8 Dec): Air Canada flights AC 811, AC 1812, AC 1373 & AC 810, dining & swim-up bar guide, 10-day planner, packing list, and MXN/EUR toolkit."
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Viagem México — Platinum Yucatán Princess (28 Nov – 8 Dez)</title>
+  <meta name="description" content="Informações de voos e do resort Platinum Yucatán Princess (28 Nov – 8 Dez)." />
   <meta name="theme-color" content="#124e54" />
   <link rel="icon" type="image/svg+xml" href="./assets/icon.svg" />
-  <link rel="apple-touch-icon" href="./assets/icon.svg" />
   <link rel="manifest" href="./manifest.webmanifest" />
-
-  <!-- Editorial & Tabular Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
-
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <!-- Sticky Top Header & Live Multi-Timezone Clocks -->
-  <header class="topbar" role="banner">
-    <div class="topbar-inner">
-      <a href="#overview" class="brand" id="brand-home-link">
-        <img src="./assets/icon.svg" alt="" class="brand-mark" width="36" height="36" />
-        <div class="brand-text">
-          <span class="brand-title">Platinum Yucatán Princess</span>
-          <span class="brand-subtitle">Riviera Maya · 28 Nov – 8 Dec (10 Nights)</span>
+  <main class="wrap">
+    <!-- Cabeçalho -->
+    <header class="hero">
+      <img src="./assets/resort-hero.jpg" alt="Platinum Yucatán Princess, Riviera Maya" />
+      <div class="hero-body">
+        <div>
+          <p class="kicker">Riviera Maya · Playa del Carmen · Adults Only 5★</p>
+          <h1>Platinum Yucatán Princess</h1>
+          <p class="hero-dates">28 de Novembro – 8 de Dezembro · 10 Noites</p>
         </div>
-      </a>
-
-      <div class="topbar-right">
-        <div class="tz-strip" aria-label="Live World Clocks for Journey">
-          <span class="tz-item" title="Lisbon Time (WET)">
-            <span class="tz-code">LIS</span>
-            <span class="tz-time" id="clock-lis">--:--</span>
-          </span>
-          <span class="tz-divider" aria-hidden="true"></span>
-          <span class="tz-item" title="Toronto Transit Time (EST)">
-            <span class="tz-code">YYZ</span>
-            <span class="tz-time" id="clock-yyz">--:--</span>
-          </span>
-          <span class="tz-divider" aria-hidden="true"></span>
-          <span class="tz-item" title="Cancún / Riviera Maya Local Time (EST)">
-            <span class="tz-code">CUN</span>
-            <span class="tz-time" id="clock-cun">--:--</span>
-          </span>
-        </div>
-
-        <button type="button" class="btn btn-primary btn-sm" id="btn-open-wallet">
-          Travel Wallet
+        <button type="button" class="share-btn" id="btn-share">
+          Partilhar Link / Resumo
         </button>
       </div>
-    </div>
+    </header>
 
-    <!-- Desktop Primary Navigation -->
-    <nav class="desktop-nav" aria-label="Primary Sections">
-      <button type="button" class="nav-tab is-active" data-view-target="overview" id="nav-tab-overview">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5z"/></svg>
-        Overview
-      </button>
-      <button type="button" class="nav-tab" data-view-target="flights" id="nav-tab-flights">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-        Flights &amp; Transit
-      </button>
-      <button type="button" class="nav-tab" data-view-target="planner" id="nav-tab-planner">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-        10-Day Plan
-      </button>
-      <button type="button" class="nav-tab" data-view-target="resort" id="nav-tab-resort">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v20M4.93 10.93a10 10 0 0 1 14.14 0M2 15h20M8 19h8"/></svg>
-        Resort &amp; Dining
-      </button>
-      <button type="button" class="nav-tab" data-view-target="toolkit" id="nav-tab-toolkit">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-        Packing &amp; Toolkit
-      </button>
-    </nav>
-  </header>
-
-  <!-- Main Content -->
-  <main class="app-shell" id="main-content">
-    <!-- ====================================================================
-         VIEW 1: OVERVIEW
-         ==================================================================== -->
-    <section class="view-panel is-active" id="view-overview" aria-labelledby="hero-main-heading">
-      <article class="hero-card">
-        <img
-          src="./assets/resort-hero.jpg"
-          alt="Infinity pool and Caribbean beachfront palapas at Platinum Yucatán Princess in Riviera Maya"
-          class="hero-media"
-        />
-        <div class="hero-scrim" aria-hidden="true"></div>
-
-        <div class="hero-content">
-          <div>
-            <p class="hero-kicker" id="hero-status-kicker">Playa del Carmen · Adults-Only 5★ All-Inclusive</p>
-            <h1 class="hero-headline" id="hero-main-heading">Ten sun-drenched days on the Mayan Caribbean.</h1>
+    <!-- 1. Voos -->
+    <section aria-labelledby="sec-voos">
+      <h2 id="sec-voos">Voos Air Canada</h2>
+      <div class="grid-2">
+        <div class="card">
+          <div class="flight-box-label">Ida · Sábado, 28 de Novembro</div>
+          <div class="flight-leg">
+            <div><span class="flight-code">AC 811</span> <span class="flight-route">Lisboa (LIS) → Toronto (YYZ)</span></div>
+            <div class="flight-sub">Terminal 1 → Terminal 1 · Escala internacional em Toronto</div>
           </div>
-
-          <div class="hero-meta-row">
-            <div class="hero-stats">
-              <div>
-                <div class="hero-stat-label" id="countdown-label">Countdown</div>
-                <div class="hero-stat-value mono" id="countdown-value">--</div>
-              </div>
-              <div>
-                <div class="hero-stat-label">Outbound · 28 Nov</div>
-                <div class="hero-stat-value mono">AC 811 → AC 1812</div>
-              </div>
-              <div>
-                <div class="hero-stat-label">Return · 8 Dec</div>
-                <div class="hero-stat-value mono">AC 1373 → AC 810</div>
-              </div>
-              <div>
-                <div class="hero-stat-label">Packing Ready</div>
-                <div class="hero-stat-value mono" id="hero-pack-progress">0 / 16</div>
-              </div>
-            </div>
-
-            <div class="hero-actions">
-              <button type="button" class="btn btn-ghost-light" id="hero-btn-flights">
-                View Boarding Route
-              </button>
-              <button type="button" class="btn btn-primary" id="hero-btn-planner">
-                Open 10-Day Plan
-              </button>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <!-- Journey & Live Open Venues Ribbon -->
-      <div class="journey-ribbon">
-        <div class="surface">
-          <div class="section-header" style="margin-bottom: 8px;">
-            <div>
-              <h2 class="section-title">Flight &amp; Document Readiness</h2>
-              <p class="section-subtitle" id="wallet-summary-line">Lisbon → Toronto Pearson → Cancún</p>
-            </div>
-            <button type="button" class="btn btn-sm" id="overview-edit-wallet-btn">Edit Codes</button>
-          </div>
-
-          <div id="overview-flight-summary"></div>
-
-          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px;" id="overview-doc-badges"></div>
-        </div>
-
-        <div class="surface">
-          <div class="section-header" style="margin-bottom: 10px;">
-            <div>
-              <h2 class="section-title">Open Right Now at Resort</h2>
-              <p class="section-subtitle">Live status in Cancún (<span class="mono" id="overview-cun-time">--:--</span>)</p>
-            </div>
-            <button type="button" class="btn btn-sm" id="overview-all-dining-btn">All Venues</button>
-          </div>
-          <div class="open-now-list" id="overview-open-venues"></div>
-        </div>
-      </div>
-
-      <!-- High-Value Insider Resort Perks -->
-      <div class="section-block">
-        <div class="section-header">
-          <div>
-            <h2 class="section-title">Platinum Yucatán Insider Essentials</h2>
-            <p class="section-subtitle">Key resort rules and perks worth knowing before you land on 28 November</p>
+          <div class="flight-leg">
+            <div><span class="flight-code">AC 1812</span> <span class="flight-route">Toronto (YYZ) → Cancún (CUN)</span></div>
+            <div class="flight-sub">Terminal 1 → Terminal 3 · Transfer ~45–50 min até ao resort</div>
           </div>
         </div>
 
-        <div class="perk-list">
-          <div class="perk-item">
-            <span class="perk-title">First-24h Spa Deal: 50% Off Massages</span>
-            <p class="perk-desc">Book your massage at the Princess Spa desk on Sunday 29 Nov (within 24 hours of check-in) to unlock the 50% welcome discount. Water circuit is 500 MXN.</p>
+        <div class="card">
+          <div class="flight-box-label">Regresso · Terça, 8 de Dezembro</div>
+          <div class="flight-leg">
+            <div><span class="flight-code">AC 1373</span> <span class="flight-route">Cancún (CUN) → Toronto (YYZ)</span></div>
+            <div class="flight-sub">Terminal 3 → Terminal 1 · Escala internacional em Toronto</div>
           </div>
-          <div class="perk-item">
-            <span class="perk-title">À La Carte Evening Dress Code</span>
-            <p class="perk-desc">Kotatsu, Bruschetta, Rodeo Grill (dinner), and Aroma require men to wear <strong>long trousers, closed-toe shoes, and sleeved shirts</strong>. Shorts are welcome at Yucatán Buffet.</p>
-          </div>
-          <div class="perk-item">
-            <span class="perk-title">Late Arrival Covered on 28 Nov</span>
-            <p class="perk-desc">AC 1812 lands at CUN at 20:10 (~21:45 resort arrival). Yucatán Buffet serves late snacks 22:30–07:00, Plaza Bar is open 24h, and 24/7 Room Service is free.</p>
-          </div>
-          <div class="perk-item">
-            <span class="perk-title">"Stay at 1, Play at 3" Access</span>
-            <p class="perk-desc">Your Platinum wristband grants access to neighboring Grand Riviera &amp; Grand Sunset Princess restaurants, bars, and pools via the 15-minute internal shuttle train.</p>
+          <div class="flight-leg">
+            <div><span class="flight-code">AC 810</span> <span class="flight-route">Toronto (YYZ) → Lisboa (LIS)</span></div>
+            <div class="flight-sub">Voo noturno · Chegada a Lisboa na manhã de 9 de Dezembro</div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ====================================================================
-         VIEW 2: FLIGHTS & TRANSIT
-         ==================================================================== -->
-    <section class="view-panel" id="view-flights" aria-labelledby="flights-heading">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title" id="flights-heading">Air Canada Flights &amp; Airport Transit</h2>
-          <p class="section-subtitle">Tap any flight card to update your gate, seat number, or schedule adjustments</p>
-        </div>
-
-        <div class="direction-toggle" role="tablist" aria-label="Flight Direction">
-          <button type="button" class="direction-btn is-active" data-flight-dir="outbound" id="btn-dir-outbound">
-            Outbound · 28 Nov
-          </button>
-          <button type="button" class="direction-btn" data-flight-dir="inbound" id="btn-dir-inbound">
-            Return · 8 Dec
-          </button>
-        </div>
-      </div>
-
-      <div id="flights-container" class="flight-timeline"></div>
-    </section>
-
-    <!-- ====================================================================
-         VIEW 3: 10-DAY STAY PLANNER
-         ==================================================================== -->
-    <section class="view-panel" id="view-planner" aria-labelledby="planner-heading">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title" id="planner-heading">10-Night Stay Planner (28 Nov – 8 Dec)</h2>
-          <p class="section-subtitle">Curated day-by-day rhythm balancing Caribbean relaxation, specialty dining, and Mayan excursions</p>
-        </div>
-      </div>
-
-      <div class="day-selector-strip" id="day-selector-strip" role="tablist" aria-label="Select Trip Day"></div>
-
-      <div class="planner-layout">
-        <div class="surface">
-          <div class="section-header" style="margin-bottom: 8px;">
-            <div>
-              <span class="tag tag-cenote" id="planner-day-badge">Day 1</span>
-              <h3 class="section-title" id="planner-day-title" style="margin-top: 6px;">Saturday, 28 Nov</h3>
+    <!-- 2. Restaurantes do Resort -->
+    <section aria-labelledby="sec-restaurantes">
+      <h2 id="sec-restaurantes">Restaurantes &amp; Horários Oficiais</h2>
+      <div class="card">
+        <div class="row-list">
+          <div class="row-item">
+            <div class="row-head">
+              <span class="row-title">Yucatán Buffet (Internacional)</span>
+              <span class="row-hours">07:00–10:30 · 12:00–15:00 · 18:00–22:00</span>
             </div>
-            <button type="button" class="btn btn-primary btn-sm" id="btn-add-agenda-item">
-              + Add Activity
-            </button>
+            <div class="row-desc">Tudo incluído · Sem reserva · Serve também snacks noturnos das 22:30 às 07:00 (útil à chegada).</div>
           </div>
 
-          <div class="agenda-list" id="planner-agenda-list"></div>
+          <div class="row-item">
+            <div class="row-head">
+              <span class="row-title">Rodeo Grill (Grelhados &amp; Tex-Mex)</span>
+              <span class="row-hours">07:00–10:00 · 12:00–15:00 · Jantar 18:00–22:00</span>
+            </div>
+            <div class="row-desc">Tudo incluído · Sem reserva (mesas sobre a água "Canopy" marcadas no concierge).</div>
+          </div>
+
+          <div class="row-item">
+            <div class="row-head">
+              <span class="row-title">Kotatsu (Asiático &amp; Teppanyaki)</span>
+              <span class="row-hours">Jantar 18:00–22:00</span>
+            </div>
+            <div class="row-desc">Tudo incluído · Requer reserva prévia no concierge para as mesas de Teppanyaki.</div>
+          </div>
+
+          <div class="row-item">
+            <div class="row-head">
+              <span class="row-title">La Bruschetta (Italiano À La Carte)</span>
+              <span class="row-hours">Jantar 18:00–22:00</span>
+            </div>
+            <div class="row-desc">Tudo incluído · Sem reserva.</div>
+          </div>
+
+          <div class="row-item">
+            <div class="row-head">
+              <span class="row-title">Aroma (Gourmet Internacional)</span>
+              <span class="row-hours">Jantar 18:00–22:00</span>
+            </div>
+            <div class="row-desc">Tudo incluído · Sem reserva.</div>
+          </div>
+
+          <div class="row-item">
+            <div class="row-head">
+              <span class="row-title">Skylights (Terraço Mediterrânico)</span>
+              <span class="row-hours">Jantar (Custo extra)</span>
+            </div>
+            <div class="row-desc">Único restaurante não incluído no pacote base · Requer reserva.</div>
+          </div>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: 16px;">
-          <div class="surface">
-            <label class="field-label" for="planner-dinner-select">Evening Dining Plan</label>
-            <select class="select" id="planner-dinner-select">
-              <option value="Yucatán Buffet Late Snacks / 24h Room Service">Yucatán Buffet Late Snacks / 24h Room Service</option>
-              <option value="Kotatsu (Sushi & Teppanyaki)">Kotatsu (Sushi &amp; Teppanyaki — Book ahead)</option>
-              <option value="La Bruschetta (Italian)">La Bruschetta (Italian À La Carte)</option>
-              <option value="Rodeo Grill (Canopy Terrace)">Rodeo Grill (Steakhouse / Canopy Terrace)</option>
-              <option value="Aroma (International Gourmet)">Aroma (International Gourmet)</option>
-              <option value="Yucatán Buffet Theme Night">Yucatán Buffet Theme Night</option>
-              <option value="La Hacienda (Mexican at Grand Riviera)">La Hacienda (Mexican · Sister Resort)</option>
-              <option value="La Fondue (Swiss) or Las Olas (Seafood)">La Fondue / Las Olas (Sister Resort)</option>
-              <option value="Farewell Dinner (Kotatsu / Skylights)">Farewell Dinner (Kotatsu / Skylights)</option>
-              <option value="In-Flight / Toronto Pearson T1">In-Flight / Toronto Pearson T1</option>
-            </select>
-
-            <div style="margin-top: 14px;">
-              <label class="field-label" for="planner-day-notes">Daily Notes, Confirmations &amp; Memories</label>
-              <textarea
-                id="planner-day-notes"
-                class="textarea"
-                rows="4"
-                placeholder="Jot down spa appointment times, excursion pickup, or favorite dishes..."
-              ></textarea>
-            </div>
-          </div>
-
-          <div class="surface">
-            <h3 style="font-size: 1.05rem; margin-bottom: 6px;">Playa del Carmen Weather Profile</h3>
-            <p style="font-size: 0.83rem; color: var(--ink-secondary);">
-              Late November &amp; early December starts Riviera Maya's dry winter season: expect warm highs around <strong>28°C (82°F)</strong>, gentle evenings near <strong>22°C (72°F)</strong>, and <strong>27°C</strong> Caribbean water. Sunset is early (~17:15 EST), so schedule beach &amp; cenote outings in the morning!
-            </p>
-          </div>
+        <div class="notice">
+          <strong>Dress Code ao jantar nos à la carte:</strong> Homens devem usar <strong>calças compridas, sapatos fechados e camisa/polo/t-shirt com mangas</strong>. Senhoras: casual elegante. No buffet principal são permitidos calções.
         </div>
       </div>
     </section>
 
-    <!-- ====================================================================
-         VIEW 4: RESORT & DINING GUIDE
-         ==================================================================== -->
-    <section class="view-panel" id="view-resort" aria-labelledby="resort-heading">
-      <div class="editorial-banner">
-        <img
-          src="./assets/resort-dining.jpg"
-          alt="Candlelit over-water terrace dining at twilight at Platinum Yucatán Princess"
-          class="editorial-img"
-        />
-        <div class="editorial-copy">
-          <span class="tag tag-cenote" style="align-self: flex-start;">6 Restaurants · 10 Bars · Sister Resort Access</span>
-          <h2 class="section-title" id="resort-heading">Gastronomy, Swim-Up Bars &amp; Amenities</h2>
-          <p style="font-size: 0.86rem; color: var(--ink-secondary);">
-            No reservations are needed at Bruschetta, Rodeo Grill, Aroma, or Yucatán Buffet—only <strong>Kotatsu Teppanyaki</strong> and sister-resort specialty restaurants require booking with the concierge.
-          </p>
-          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px;">
-            <label for="resort-time-sim" style="font-size: 0.78rem; font-weight: 600; color: var(--ink-secondary);">
-              Check What's Open At:
-            </label>
-            <select id="resort-time-sim" class="select" style="width: auto; padding: 5px 10px; font-size: 0.8rem;">
-              <option value="live">Live Cancún Time</option>
-              <option value="08:30">08:30 · Morning Breakfast</option>
-              <option value="13:00">13:00 · Poolside &amp; Lunch</option>
-              <option value="17:00">17:00 · Gelato &amp; Sunset</option>
-              <option value="19:30">19:30 · À La Carte Dinner</option>
-              <option value="23:15">23:15 · Late Arrival / Nightlife</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div class="filter-bar">
-        <div class="chip-group" id="venue-category-chips" role="tablist" aria-label="Filter Resort Venues">
-          <button type="button" class="chip is-active" data-venue-cat="all" id="chip-cat-all">All Venues</button>
-          <button type="button" class="chip" data-venue-cat="open" id="chip-cat-open">Open Now</button>
-          <button type="button" class="chip" data-venue-cat="alacarte" id="chip-cat-alacarte">À La Carte Dinner</button>
-          <button type="button" class="chip" data-venue-cat="buffet" id="chip-cat-buffet">Buffet &amp; Daytime</button>
-          <button type="button" class="chip" data-venue-cat="bars" id="chip-cat-bars">Bars, Cafe &amp; Nightlife</button>
-          <button type="button" class="chip" data-venue-cat="wellness" id="chip-cat-wellness">Spa &amp; Sports</button>
-          <button type="button" class="chip" data-venue-cat="sister" id="chip-cat-sister">Sister Resorts</button>
-        </div>
-      </div>
-
-      <div class="grid-3" id="venue-cards-grid"></div>
-    </section>
-
-    <!-- ====================================================================
-         VIEW 5: PACKING & RIVIERA MAYA TOOLKIT
-         ==================================================================== -->
-    <section class="view-panel" id="view-toolkit" aria-labelledby="toolkit-heading">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title" id="toolkit-heading">Packing Checklist &amp; Riviera Maya Toolkit</h2>
-          <p class="section-subtitle">Tailored for departing Lisbon → transiting Canada → 10 days in Playa del Carmen</p>
-        </div>
-      </div>
-
-      <!-- Packing Checklist -->
-      <div class="surface">
-        <div class="section-header" style="margin-bottom: 4px;">
-          <div>
-            <h3 style="font-size: 1.18rem;">Smart Pre-Departure Packing List</h3>
-            <p class="section-subtitle" id="packing-status-text">0 of 16 essentials packed</p>
-          </div>
-
-          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <select id="packing-filter-select" class="select" style="width: auto; padding: 6px 12px; font-size: 0.8rem;">
-              <option value="all">All Categories</option>
-              <option value="Documents & Transit">Documents &amp; Transit</option>
-              <option value="À La Carte Dress Code">À La Carte Dress Code</option>
-              <option value="Electronics & 110V Power">Electronics &amp; 110V Power</option>
-              <option value="Beach, Pool & Cenotes">Beach, Pool &amp; Cenotes</option>
-              <option value="Health & Money">Health &amp; Money</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="progress-track" aria-hidden="true">
-          <div class="progress-fill" id="packing-progress-bar" style="width: 0%;"></div>
-        </div>
-
-        <div class="pack-list" id="packing-items-container"></div>
-
-        <form id="form-add-pack-item" style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
-          <input
-            type="text"
-            id="input-new-pack-item"
-            class="input"
-            style="flex: 1; min-width: 200px;"
-            placeholder="Add a custom item (e.g., GoPro, snorkel mask, book)..."
-            required
-          />
-          <select id="select-new-pack-cat" class="select" style="width: auto;">
-            <option value="Beach, Pool & Cenotes">Beach, Pool &amp; Cenotes</option>
-            <option value="Documents & Transit">Documents &amp; Transit</option>
-            <option value="À La Carte Dress Code">À La Carte Dress Code</option>
-            <option value="Electronics & 110V Power">Electronics &amp; 110V Power</option>
-            <option value="Health & Money">Health &amp; Money</option>
-          </select>
-          <button type="submit" class="btn btn-primary" id="btn-submit-pack-item">Add Item</button>
-        </form>
-      </div>
-
-      <!-- Currency & Expense Tracker Grid -->
-      <div class="grid-2 section-block">
-        <div class="surface">
-          <h3 style="font-size: 1.15rem;">Currency &amp; Resort Tipping Converter</h3>
-          <p class="section-subtitle" style="margin-bottom: 14px;">Type in any currency box to convert instantly across EUR, MXN, USD &amp; CAD</p>
-
-          <div class="currency-grid">
-            <div>
-              <label class="field-label" for="conv-mxn">Mexican Peso (MXN)</label>
-              <input type="number" step="any" class="input mono" id="conv-mxn" value="400" />
-            </div>
-            <div>
-              <label class="field-label" for="conv-eur">Euro (EUR)</label>
-              <input type="number" step="any" class="input mono" id="conv-eur" />
-            </div>
-            <div>
-              <label class="field-label" for="conv-usd">US Dollar (USD)</label>
-              <input type="number" step="any" class="input mono" id="conv-usd" />
-            </div>
-            <div>
-              <label class="field-label" for="conv-cad">Canadian Dollar (CAD)</label>
-              <input type="number" step="any" class="input mono" id="conv-cad" />
-            </div>
-          </div>
-
-          <div class="preset-grid" aria-label="Common Resort Tipping & Taxi Presets">
-            <button type="button" class="btn btn-sm" data-mxn-preset="40" id="preset-drink">Pool Drink Tip · 40 MXN</button>
-            <button type="button" class="btn btn-sm" data-mxn-preset="100" id="preset-maid">Housekeeping · 100 MXN</button>
-            <button type="button" class="btn btn-sm" data-mxn-preset="150" id="preset-dinner">À La Carte Tip · 150 MXN</button>
-            <button type="button" class="btn btn-sm" data-mxn-preset="400" id="preset-taxi">5th Ave Taxi · 400 MXN</button>
-            <button type="button" class="btn btn-sm" data-mxn-preset="500" id="preset-spa">Spa Circuit · 500 MXN</button>
-          </div>
-        </div>
-
-        <div class="surface">
-          <div class="section-header" style="margin-bottom: 10px;">
-            <div>
-              <h3 style="font-size: 1.15rem;">Extras &amp; Tip Tracker</h3>
-              <p class="section-subtitle">Total logged: <strong class="mono" id="expenses-total-eur">€0.00</strong></p>
-            </div>
-          </div>
-
-          <form id="form-add-expense" class="expense-form-grid">
-            <input type="text" id="exp-label" class="input" placeholder="Excursion, taxi, tip..." required />
-            <input type="number" step="any" id="exp-amount" class="input mono" placeholder="Amt" required />
-            <select id="exp-currency" class="select mono">
-              <option value="MXN">MXN</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-            </select>
-            <button type="submit" class="btn btn-primary btn-sm" id="btn-add-expense">Add</button>
-          </form>
-
-          <div id="expenses-list" style="display: flex; flex-direction: column; gap: 7px; max-height: 210px; overflow-y: auto;"></div>
-        </div>
-      </div>
-
-      <!-- Spanish Phrasebook & Offline Backup -->
-      <div class="section-block surface">
-        <div class="section-header">
-          <div>
-            <h3 style="font-size: 1.15rem;">Helpful Resort Spanish (Tap to Copy)</h3>
-            <p class="section-subtitle">Staff speak English well, and a warm Spanish greeting always brings big smiles</p>
-          </div>
-        </div>
-        <div class="phrase-grid" id="phrases-container"></div>
-      </div>
-
-      <div class="section-block surface" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;">
-        <div>
-          <h3 style="font-size: 1.05rem;"> Resort Contact &amp; Offline Trip Backup</h3>
-          <p class="section-subtitle">
-            Platinum Yucatán Princess · Calle Quinta Avenida MZ 20 LT 006, Playa del Carmen, Q.R. · Tel: <span class="mono">+52 984 877 3500</span> · Emergency: <span class="mono">911</span>
-          </p>
-        </div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <button type="button" class="btn btn-sm" id="btn-export-data">Export JSON Backup</button>
-          <label class="btn btn-sm" for="input-import-data" style="margin: 0;">Import JSON</label>
-          <input type="file" id="input-import-data" accept="application/json" style="display: none;" />
-          <button type="button" class="btn btn-sm" id="btn-reset-data">Reset Defaults</button>
-        </div>
+    <!-- 3. Bares & Serviços -->
+    <section aria-labelledby="sec-servicos">
+      <h2 id="sec-servicos">Bares, Piscinas &amp; O Que Está Incluído</h2>
+      <div class="card">
+        <ul class="info-list">
+          <li><strong>Room Service 24h incluído</strong> + minibar no quarto reposto todos os dias gratuitamente.</li>
+          <li><strong>Bares de Piscina &amp; Praia (09:00–18:00):</strong> Platinum Pool Bar (swim-up), Main Pool Bar (swim-up) e Beach Bar na praia.</li>
+          <li><strong>Gelato &amp; Coffee House (16:00–20:00):</strong> Gelados, crepes e cafés especiais em frente ao Kotatsu/Bruschetta.</li>
+          <li><strong>Noite &amp; Convívio:</strong> Lobby Bar (08:00–22:00), Bar de Espera (18:00–22:00), <strong>Plaza Bar (aberto 24h)</strong>, Teatro Bar (22:00–23:00) e Discoteca Salsa (22:00–01:00).</li>
+          <li><strong>Acesso aos Hotéis Vizinhos (Grand Riviera &amp; Grand Sunset Princess):</strong> Sim, incluído! Estão ligados por porta interna e comboio gratuito. Podem reservar jantar nos à la carte deles — <em>La Hacienda</em> (Mexicano), <em>Sumauma</em> (Rodízio Brasileiro), <em>La Vaquería</em> (Grelhados), <em>Hikari Nikkei</em> (Japonês-Peruano), <em>La Volta</em> (Italiano), <em>Wok</em> (Asiático) e <em>Galerie</em> (Gourmet) — além dos buffets, snacks de praia e <em>Sports Bar 24h</em>. <em>(Exceções: restaurante UMA Chill Out pago à parte e zonas exclusivas Villas/Family Club).</em></li>
+          <li><strong>Desporto &amp; Spa:</strong> Campos de ténis/padel, raquetes, prática de golfe e desportos náuticos sem motor gratuitos. Spa pago à parte (50% de desconto em massagens nas primeiras 24h após chegada).</li>
+        </ul>
       </div>
     </section>
+
+    <!-- 4. Notas Práticas da Viagem -->
+    <section aria-labelledby="sec-essenciais">
+      <h2 id="sec-essenciais">Notas Práticas Essenciais</h2>
+      <div class="card">
+        <ul class="info-list">
+          <li><strong>Escala em Toronto (YYZ):</strong> É obrigatório ter o <strong>eTA do Canadá</strong> aprovado para ambos os passageiros, mesmo sendo apenas escala internacional no Terminal 1.</li>
+          <li><strong>Tomadas no Quarto:</strong> Corrente de <strong>110V com fichas americanas (Tipo A/B)</strong> — levar adaptador de tomada europeia.</li>
+          <li><strong>Fuso Horário:</strong> Cancún/Playa del Carmen está a <strong>-5 horas</strong> de Lisboa (em novembro/dezembro tem exatamente a mesma hora que Toronto).</li>
+          <li><strong>Taxa Visitax (Quintana Roo):</strong> Taxa turística estadual obrigatória do estado de Quintana Roo (guardar comprovativo QR no telemóvel para o regresso no aeroporto).</li>
+          <li><strong>Playa del Carmen (Quinta Avenida):</strong> Fica a ~10 km do hotel (~400 pesos de táxi oficial a partir do lobby).</li>
+        </ul>
+      </div>
+    </section>
+
+    <p class="footer-note">
+      Platinum Yucatán Princess · Prolongación 5ta Avenida MZ 20 LT 006, Playa del Carmen · Tel: +52 984 877 3500
+    </p>
   </main>
 
-  <!-- Mobile Thumb-Friendly Bottom Dock -->
-  <nav class="mobile-dock" aria-label="Mobile Navigation">
-    <button type="button" class="dock-btn is-active" data-view-target="overview" id="dock-btn-overview">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5z"/></svg>
-      <span>Overview</span>
-    </button>
-    <button type="button" class="dock-btn" data-view-target="flights" id="dock-btn-flights">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-      <span>Flights</span>
-    </button>
-    <button type="button" class="dock-btn" data-view-target="planner" id="dock-btn-planner">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-      <span>10-Day</span>
-    </button>
-    <button type="button" class="dock-btn" data-view-target="resort" id="dock-btn-resort">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v20M4.93 10.93a10 10 0 0 1 14.14 0M2 15h20M8 19h8"/></svg>
-      <span>Dining</span>
-    </button>
-    <button type="button" class="dock-btn" data-view-target="toolkit" id="dock-btn-toolkit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      <span>Toolkit</span>
-    </button>
-  </nav>
+  <script>
+    document.getElementById('btn-share')?.addEventListener('click', async () => {
+      const shareData = {
+        title: 'Viagem México — Platinum Yucatán Princess (28 Nov – 8 Dez)',
+        text: 'Guia rápido dos nossos voos (AC 811/1812 e AC 1373/810) e informações do resort Platinum Yucatán Princess:',
+        url: window.location.href
+      };
+      if (navigator.share && window.location.protocol.startsWith('http')) {
+        try {
+          await navigator.share(shareData);
+          return;
+        } catch {}
+      }
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(window.location.href);
+        const btn = document.getElementById('btn-share');
+        const prev = btn.textContent;
+        btn.textContent = 'Link copiado!';
+        setTimeout(() => { btn.textContent = prev; }, 2000);
+      }
+    });
 
-  <!-- Modal Backdrop for Wallet, Flight Editing & Adding Itinerary Activities -->
-  <div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-    <div class="modal-sheet">
-      <div class="modal-header">
-        <h3 id="modal-title" style="font-size: 1.2rem;">Edit Details</h3>
-        <button type="button" class="btn btn-sm" id="btn-close-modal">Close</button>
-      </div>
-      <div id="modal-body"></div>
-    </div>
-  </div>
-
-  <div class="toast" id="toast-message" role="status" aria-live="polite"></div>
-
-  <script src="./data.js"></script>
-  <script src="./app.js"></script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>
