@@ -2353,6 +2353,30 @@
   }
   function closeModal() { document.getElementById('modal-backdrop').classList.remove('is-open'); }
 
+  function openConfirmModal({ title, message, previewHtml = '', confirmLabel = 'Apagar definitivamente', onConfirm }) {
+    openModal(title, `
+      <div class="form-grid">
+        ${previewHtml ? `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--bg-canvas);border:1px solid var(--line-soft);">${previewHtml}</div>` : ''}
+        <p style="font-size:0.9rem;color:var(--ink-secondary);line-height:1.5;">${escapeHtml(message)}</p>
+        <p style="font-size:0.8rem;color:var(--terracotta-600);font-weight:600;">Esta ação não pode ser anulada.</p>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px;">
+          <button type="button" class="btn" id="btn-confirm-cancel">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="btn-confirm-ok">${escapeHtml(confirmLabel)}</button>
+        </div>
+      </div>
+    `);
+    document.getElementById('btn-confirm-cancel')?.addEventListener('click', closeModal);
+    document.getElementById('btn-confirm-ok')?.addEventListener('click', async () => {
+      const okBtn = document.getElementById('btn-confirm-ok');
+      if (okBtn) { okBtn.disabled = true; okBtn.textContent = 'A apagar...'; }
+      try {
+        await onConfirm();
+      } finally {
+        closeModal();
+      }
+    });
+  }
+
   function openWalletModal() {
     const w = state.wallet;
     if (!Array.isArray(w.documents)) w.documents = [];
@@ -2795,9 +2819,27 @@
 
     grid.querySelectorAll('[data-del-ck]').forEach((b) =>
       b.addEventListener('click', () => {
-        state.cocktails = (state.cocktails || []).filter((x) => x.id !== b.getAttribute('data-del-ck'));
-        saveState();
-        renderCocktails();
+        const id = b.getAttribute('data-del-ck');
+        const ck = (state.cocktails || []).find((x) => x.id === id);
+        if (!ck) return;
+        const previewHtml = `
+          ${ck.photoUrl ? `<img src="${escapeHtml(ck.photoUrl)}" alt="" style="width:54px;height:54px;object-fit:cover;border-radius:8px;flex-shrink:0;" />` : `<span style="font-size:1.8rem;">🍹</span>`}
+          <div>
+            <div style="font-weight:700;font-size:0.95rem;">${escapeHtml(ck.name)}</div>
+            <div style="font-size:0.8rem;color:var(--ink-secondary);">${escapeHtml(ck.bar || '')}</div>
+          </div>`;
+        openConfirmModal({
+          title: 'Apagar Avaliação de Cocktail?',
+          message: `Tem a certeza que quer apagar a review de "${ck.name}" do ranking?`,
+          previewHtml,
+          confirmLabel: 'Apagar Avaliação',
+          onConfirm: () => {
+            state.cocktails = (state.cocktails || []).filter((x) => x.id !== id);
+            saveState();
+            renderCocktails();
+            showToast('Avaliação removida');
+          }
+        });
       })
     );
   }
@@ -3207,7 +3249,7 @@
             </button>
             ${row.caption || sbUser ? `<figcaption class="photo-caption">
               <span>${escapeHtml(row.caption || '')}</span>
-              ${sbUser ? `<button type="button" class="icon-btn" data-del-photo="${escapeHtml(row.id)}" data-del-path="${escapeHtml(row.storage_path)}" title="Apagar foto">✕</button>` : ''}
+              ${sbUser ? `<button type="button" class="icon-btn" data-del-photo="${escapeHtml(row.id)}" data-del-path="${escapeHtml(row.storage_path)}" data-del-url="${escapeHtml(imgUrl)}" data-del-caption="${escapeHtml(row.caption || `Dia ${day}`)}" title="Apagar foto">✕</button>` : ''}
             </figcaption>` : ''}
           </figure>`;
       }).join('');
@@ -3225,14 +3267,29 @@
       b.addEventListener('click', () => openLightbox(Number(b.getAttribute('data-photo-index'))))
     );
     grid.querySelectorAll('[data-del-photo]').forEach((b) =>
-      b.addEventListener('click', async () => {
-        if (!window.confirm('Apagar esta fotografia?')) return;
+      b.addEventListener('click', () => {
         const id = b.getAttribute('data-del-photo');
         const path = b.getAttribute('data-del-path');
-        await sbClient.storage.from('trip-photos').remove([path]);
-        await sbClient.from('trip_photos').delete().eq('id', id);
-        showToast('Foto removida');
-        loadPhotosGallery();
+        const url = b.getAttribute('data-del-url') || '';
+        const cap = b.getAttribute('data-del-caption') || 'Fotografia da viagem';
+        const previewHtml = `
+          ${url ? `<img src="${escapeHtml(url)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:10px;flex-shrink:0;" />` : ''}
+          <div>
+            <div style="font-weight:700;font-size:0.92rem;">${escapeHtml(cap)}</div>
+            <div style="font-size:0.78rem;color:var(--ink-secondary);">Será removida da galeria pública e do armazenamento.</div>
+          </div>`;
+        openConfirmModal({
+          title: 'Apagar Fotografia?',
+          message: 'Tem a certeza que quer apagar esta fotografia permanentemente?',
+          previewHtml,
+          confirmLabel: 'Apagar Fotografia',
+          onConfirm: async () => {
+            await sbClient.storage.from('trip-photos').remove([path]);
+            await sbClient.from('trip_photos').delete().eq('id', id);
+            showToast('Foto removida');
+            loadPhotosGallery();
+          }
+        });
       })
     );
   }

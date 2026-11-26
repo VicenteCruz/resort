@@ -245,6 +245,8 @@ button { cursor: pointer; }
 .btn:hover { background: var(--bg-subtle); transform: translateY(-1px); }
 .btn-primary { background: var(--cenote-700); border-color: var(--cenote-700); color: var(--ink-on-dark); }
 .btn-primary:hover { background: var(--cenote-600); border-color: var(--cenote-600); }
+.btn-danger { background: var(--terracotta-600); border-color: var(--terracotta-600); color: #fff; }
+.btn-danger:hover { background: hsl(18, 66%, 38%); border-color: hsl(18, 66%, 38%); }
 .btn-ghost-light { background: hsla(38, 45%, 98%, 0.16); border-color: hsla(38, 45%, 98%, 0.32); color: var(--ink-on-dark); backdrop-filter: blur(8px); }
 .btn-ghost-light:hover { background: hsla(38, 45%, 98%, 0.26); }
 .btn-sm { padding: 5px 11px; font-size: 0.77rem; }
