@@ -3938,6 +3938,11 @@
     ];
   }
 
+  function ckNorm(s) {
+    return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  }
+  document.getElementById('ck-search')?.addEventListener('input', () => renderCocktails());
+
   function renderCocktails() {
     const grid = document.getElementById('cocktails-list-grid');
     const badge = document.getElementById('cocktails-count-badge');
@@ -3953,7 +3958,10 @@
       tabSub.textContent = list.length > 0 ? `${list.length} no ranking · ${totalReviews} ${totalReviews === 1 ? 'nota' : 'notas'}` : 'Notas de Prova';
     }
 
-    const sorted = [...list].sort((a, b) => getCocktailAvg(b) - getCocktailAvg(a));
+    const q = ckNorm(document.getElementById('ck-search')?.value || '');
+    const sorted = [...list]
+      .filter((c) => !q || ckNorm(c.name).includes(q))
+      .sort((a, b) => getCocktailAvg(b) - getCocktailAvg(a));
 
     if (!sorted.length) {
       grid.innerHTML = `
@@ -4226,6 +4234,29 @@
     `);
 
     bindStarPickerEvents(criteria);
+
+    const nameInput = document.getElementById('ck-name');
+    if (nameInput) {
+      const box = document.createElement('div');
+      box.style.cssText = 'display:none;margin-top:6px;border:1px solid var(--border,#ddd);border-radius:10px;overflow:hidden;background:var(--surface,#fff);';
+      nameInput.insertAdjacentElement('afterend', box);
+      nameInput.setAttribute('autocomplete', 'off');
+      nameInput.addEventListener('input', () => {
+        const q = ckNorm(nameInput.value);
+        const matches = q ? (state.cocktails || []).filter((c) => ckNorm(c.name).includes(q)).slice(0, 6) : [];
+        if (!matches.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+        box.innerHTML =
+          `<div style="padding:6px 10px;font-size:0.72rem;color:var(--ink-muted);font-weight:700;text-transform:uppercase;">Já existe na lista — toque para usar</div>` +
+          matches.map((c) => `<button type="button" data-ck-suggest="${escapeHtml(c.name)}" style="display:block;width:100%;text-align:left;padding:8px 10px;border:0;border-top:1px solid var(--border,#eee);background:transparent;cursor:pointer;font:inherit;">${escapeHtml(c.name)}</button>`).join('');
+        box.style.display = 'block';
+      });
+      box.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-ck-suggest]');
+        if (!b) return;
+        nameInput.value = b.getAttribute('data-ck-suggest');
+        box.style.display = 'none';
+      });
+    }
 
     document.getElementById('form-add-cocktail').addEventListener('submit', async (e) => {
       e.preventDefault();
