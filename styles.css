@@ -464,28 +464,112 @@ button { cursor: pointer; }
 }
 .now-public-note strong { color: var(--cenote-700); }
 
-.now-local-clock {
-  margin-top: 12px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: hsla(38, 45%, 99%, 0.72);
-  border: 1px solid var(--line-soft);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px 12px;
-  font-size: 0.92rem;
+/* Flight progress visual fill (left-to-right on card body & header) */
+.boarding-pass.is-upcoming {
+  border-color: var(--line-soft);
 }
-.now-local-clock-time {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 1.08rem;
+.boarding-pass.is-flying {
+  border: 2px solid var(--cenote-600);
+}
+.boarding-pass.is-flying .bp-body {
+  background: linear-gradient(
+    90deg,
+    hsla(182, 58%, 42%, 0.14) 0%,
+    hsla(182, 58%, 42%, 0.14) var(--flight-pct, 0%),
+    transparent var(--flight-pct, 0%),
+    transparent 100%
+  );
+}
+.boarding-pass.is-done {
+  border-color: hsla(154, 45%, 35%, 0.35);
+}
+.boarding-pass.is-done .bp-header {
+  background: var(--agave-700);
+}
+.boarding-pass.is-done .bp-body {
+  background: hsla(152, 42%, 91%, 0.55);
+}
+
+.simple-flight.is-flying {
+  border: 2px solid var(--cenote-600);
+  background: linear-gradient(
+    90deg,
+    hsla(182, 58%, 42%, 0.16) 0%,
+    hsla(182, 58%, 42%, 0.16) var(--flight-pct, 0%),
+    var(--bg-surface) var(--flight-pct, 0%),
+    var(--bg-surface) 100%
+  );
+}
+.simple-flight.is-done {
+  border-color: hsla(154, 45%, 35%, 0.35);
+  background: hsla(152, 42%, 91%, 0.65);
+}
+
+.bp-progress-rail {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--cenote-100);
+  overflow: visible;
+}
+.bp-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--cenote-600);
+  transition: width 300ms var(--ease-out);
+}
+.boarding-pass.is-done .bp-progress-fill {
+  background: var(--agave-700);
+}
+.bp-progress-dot {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.95rem;
+  line-height: 1;
   color: var(--cenote-700);
+  text-shadow: 0 1px 2px rgba(255,255,255,0.9);
 }
-.now-local-clock-diff {
-  font-size: 0.86rem;
-  color: var(--ink-secondary);
+
+/* High-visibility radar aircraft beacon on map */
+.plane-radar-wrap {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.plane-radar-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(217, 72, 15, 0.32);
+  animation: radarPulse 2s ease-out infinite;
+}
+.plane-radar-badge {
+  position: relative;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #d9480f;
+  border: 3px solid #ffffff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.plane-radar-badge svg {
+  width: 20px;
+  height: 20px;
+  fill: #ffffff;
+  display: block;
+}
+@keyframes radarPulse {
+  0% { transform: scale(0.75); opacity: 0.9; }
+  100% { transform: scale(1.65); opacity: 0; }
 }
 
 /* Integrated multi-leg trip chain: visually links consecutive flights */

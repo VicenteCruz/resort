@@ -864,21 +864,37 @@
 
   function isLegActiveWindow(tObj, now = Date.now()) {
     if (!tObj || tObj.dep == null || tObj.arr == null) return false;
-    const preMs = 3 * 3600000;  // 3h before departure
-    const postMs = 4 * 3600000; // 4h after arrival (covers delays)
+    const preMs = 3 * 3600000;   // 3h before departure
+    const postMs = 12 * 3600000; // 12h after scheduled arrival (covers long delays)
     return now >= (tObj.dep - preMs) && now <= (tObj.arr + postMs);
   }
 
-  function findLegTiming(legId) {
-    const all = [...getLegTimes('outbound'), ...getLegTimes('inbound')];
-    return all.find((t) => t.leg.id === legId) || null;
+  function getLegProgress(tObj, now = Date.now()) {
+    if (!tObj || tObj.dep == null || tObj.arr == null || tObj.arr <= tObj.dep) {
+      return { cls: 'is-upcoming', pct: 0, label: 'Por partir' };
+    }
+    if (now < tObj.dep) {
+      return { cls: 'is-upcoming', pct: 0, label: 'Por partir' };
+    }
+    if (now >= tObj.arr) {
+      return { cls: 'is-done', pct: 100, label: '✓ Concluído' };
+    }
+    const pct = Math.min(99, Math.max(2, Math.round(((now - tObj.dep) / (tObj.arr - tObj.dep)) * 100)));
+    return { cls: 'is-flying', pct, label: `✈ Em Voo · ${pct}%` };
   }
 
-  function formatStatusBadge(live, inWindow) {
-    if (!inWindow || !live) return `<span class="tag">Programado</span>`;
-    if (live.active && live.onGround) return `<span class="tag tag-soon">No Solo / Taxi</span>`;
-    if (live.active) return `<span class="tag tag-open">✈ Em Voo (ADS-B)</span>`;
-    return `<span class="tag">Sem sinal ADS-B agora</span>`;
+  function formatStatusBadge(live, inWindow, prog) {
+    if (inWindow && live && live.active) {
+      if (live.onGround) return `<span class="tag tag-soon">No Solo / Taxi</span>`;
+      const pctTxt = prog && prog.cls === 'is-flying' ? ` · ${prog.pct}%` : '';
+      return `<span class="tag tag-open">✈ Em Voo (ADS-B${pctTxt})</span>`;
+    }
+    if (prog) {
+      if (prog.cls === 'is-done') return `<span class="tag tag-open">✓ Concluído</span>`;
+      if (prog.cls === 'is-flying') return `<span class="tag tag-cenote">✈ Em Voo · ${prog.pct}%</span>`;
+      return `<span class="tag">⏳ Por partir</span>`;
+    }
+    return `<span class="tag">Programado</span>`;
   }
 
   async function fetchAdsbLive(legId, opts = {}) {
@@ -1030,18 +1046,6 @@
       text = `O último voo aterrou em ${escapeHtml(to(t))} ${escapeHtml(homeDayLong(t.arr))}, às ${homeTime(t.arr)}.`;
     }
 
-    // Local destination clock comparison
-    const destCity = tCfg.destCity || tCfg.destination || 'Destino';
-    const destTz = tCfg.destTz || 'Europe/Lisbon';
-    const homeTz = tCfg.homeTz || 'Europe/Lisbon';
-    const destNowStr = formatTzTime(destTz);
-    const diffStr = getTimezoneDiffText(homeTz, destTz);
-    const localClockHtml = `
-      <div class="now-local-clock">
-        <span>🕒 Agora em <strong>${escapeHtml(destCity)}</strong> são <span class="now-local-clock-time">${escapeHtml(destNowStr)}</span></span>
-        <span class="now-local-clock-diff">${escapeHtml(diffStr)}</span>
-      </div>`;
-
     const publicNoteHtml = tCfg.publicNote
       ? `<div class="now-public-note">💬 <strong>Nota recente:</strong> ${escapeHtml(tCfg.publicNote)}</div>`
       : '';
@@ -1055,7 +1059,6 @@
         <p class="now-text">${text}</p>
         ${extra}
         ${publicNoteHtml}
-        ${localClockHtml}
       </div>`;
   }
 
@@ -1099,25 +1102,22 @@
       const leg = t.leg;
       const fromName = cityName(leg.fromCode, leg.fromCity);
       const toName = cityName(leg.toCode, leg.toCity);
-      let status = { cls: 'is-upcoming', label: 'Por partir' };
-      if (t.dep != null && t.arr != null) {
-        if (now >= t.arr) status = { cls: 'is-done', label: '✓ Já aterrou' };
-        else if (now >= t.dep) status = { cls: 'is-flying', label: '✈ A voar agora' };
-      }
+      const prog = getLegProgress(t, now);
+      const statusLabel = prog.cls === 'is-done' ? '✓ Já aterrou' : prog.cls === 'is-flying' ? `✈ A voar · ${prog.pct}%` : '⏳ Por partir';
       const inWin = isLegActiveWindow(t, now);
       const lv = inWin ? leg.liveStatus : null;
       let liveLine = '';
-      if (status.cls === 'is-flying' && lv && lv.active && !lv.onGround) {
+      if (prog.cls === 'is-flying' && lv && lv.active && !lv.onGround) {
         const altM = lv.altFt ? Math.round((lv.altFt * 0.3048) / 100) * 100 : null;
         liveLine = `<p class="sf-live">✈ O avião aparece no mapa${altM ? `, a ${altM.toLocaleString('pt-PT')} metros de altitude` : ''}${lv.speedKmh ? ` e a ${lv.speedKmh.toLocaleString('pt-PT')} km/h` : ''}.</p>`;
       }
       const durText = leg.duration && leg.duration !== '--' ? leg.duration : formatDurationMs(t.arr - t.dep);
 
       blocks.push(`
-        <article class="simple-flight ${status.cls}">
+        <article class="simple-flight ${prog.cls}" style="--flight-pct:${prog.pct}%;">
           <div class="sf-top">
             <span class="sf-step">${times.length === 1 ? 'Voo Direto' : `Voo ${i + 1} de ${times.length}`}</span>
-            <span class="sf-status">${status.label}</span>
+            <span class="sf-status">${statusLabel}</span>
           </div>
           <h3 class="sf-route">${escapeHtml(fromName)} <span class="sf-arrow" aria-label="para">→</span> ${escapeHtml(toName)}</h3>
           <div class="sf-times">
@@ -1160,19 +1160,20 @@
       const iata = getFlightIata(leg.flightNumber).toLowerCase();
       const icao = getIcaoCallsign(leg.flightNumber);
       const tObj = times[idx];
+      const prog = getLegProgress(tObj, now);
       const inWin = isLegActiveWindow(tObj, now);
       const live = inWin ? leg.liveStatus : null;
       const durText = leg.duration && leg.duration !== '--' ? leg.duration : formatDurationMs(tObj ? tObj.arr - tObj.dep : null);
       const stepLabel = legs.length === 1 ? 'Voo Direto' : `Voo ${idx + 1} de ${legs.length}`;
 
       blocks.push(`
-        <article class="boarding-pass">
+        <article class="boarding-pass ${prog.cls}" style="--flight-pct:${prog.pct}%;">
           <div class="bp-header">
             <div class="bp-flight-badge">
               <span class="bp-step-pill">${stepLabel}</span>
               <span class="bp-flight-num">${escapeHtml(leg.flightNumber)}</span>
               <span>${escapeHtml(leg.airline || 'Companhia')} · Callsign <strong class="mono">${escapeHtml(icao)}</strong></span>
-              ${formatStatusBadge(live, inWin)}
+              ${formatStatusBadge(live, inWin, prog)}
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
               <button type="button" class="btn btn-ghost-light btn-sm" data-edit-leg="${escapeHtml(leg.id)}">✎ Editar</button>
@@ -1187,8 +1188,11 @@
                 <div class="bp-time">${escapeHtml(leg.depTime)} <span style="font-size:0.74rem;color:var(--ink-muted);">${escapeHtml(leg.depTz)}</span></div>
               </div>
               <div class="bp-duration-track">
-                <span class="mono" style="font-size:0.76rem;color:var(--ink-muted);">${escapeHtml(durText)}</span>
-                <div class="bp-duration-line"></div>
+                <span class="mono" style="font-size:0.76rem;color:var(--ink-muted);">${escapeHtml(durText)}${prog.cls === 'is-flying' ? ` · ${prog.pct}%` : ''}</span>
+                <div class="bp-progress-rail">
+                  <div class="bp-progress-fill" style="width:${prog.pct}%;"></div>
+                  ${prog.cls === 'is-flying' ? `<span class="bp-progress-dot" style="left:${prog.pct}%;">✈</span>` : ''}
+                </div>
               </div>
               <div class="bp-endpoint-right">
                 <div class="bp-city-code">${escapeHtml(leg.toCode)}</div>
@@ -1316,7 +1320,6 @@
     });
 
     let activePlanes = 0;
-    const planeSize = publicMode ? 36 : 28;
     dirTimes.forEach((tObj) => {
       const leg = tObj.leg;
       const lv = isLegActiveWindow(tObj, now) ? leg.liveStatus : null;
@@ -1327,11 +1330,18 @@
         const deg = lv.track || 0;
         const icon = window.L.divIcon({
           className: 'plane-marker',
-          html: `<div style="transform:rotate(${deg}deg);font-size:${planeSize - 2}px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.45));">✈</div>`,
-          iconSize: [planeSize, planeSize],
-          iconAnchor: [planeSize / 2, planeSize / 2]
+          html: `<div class="plane-radar-wrap">
+            <span class="plane-radar-pulse"></span>
+            <span class="plane-radar-badge">
+              <svg viewBox="0 0 24 24" style="transform:rotate(${deg}deg);" aria-hidden="true">
+                <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+              </svg>
+            </span>
+          </div>`,
+          iconSize: [44, 44],
+          iconAnchor: [22, 22]
         });
-        window.L.marker(pt, { icon })
+        window.L.marker(pt, { icon, zIndexOffset: 1000 })
           .bindPopup(
             `<strong>${escapeHtml(leg.flightNumber)} (${escapeHtml(getIcaoCallsign(leg.flightNumber))})</strong><br/>` +
             `${lv.reg ? `${escapeHtml(lv.reg)} · ` : ''}${lv.onGround ? 'No solo' : `${lv.altFt || '--'} ft · ${lv.speedKmh || '--'} km/h`}`
