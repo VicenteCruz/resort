@@ -4279,7 +4279,8 @@
 
         <div>
           <label class="field-label" for="ck-rating">⭐ Nota geral: <strong id="ck-rating-out">${prevRating}</strong>/5</label>
-          <input type="range" id="ck-rating" min="0" max="5" step="0.5" value="${prevRating}" style="width:100%;" />
+          <input type="hidden" id="ck-rating" value="${prevRating}" />
+          <div id="ck-rating-stars" style="display:flex;gap:6px;font-size:2rem;line-height:1;">${[1,2,3,4,5].map((n) => `<button type="button" data-ck-star="${n}" aria-label="${n} estrelas" style="background:none;border:0;padding:0;cursor:pointer;font-size:inherit;color:${n <= Math.round(prevRating) ? '#f5b301' : '#ccc'};">★</button>`).join('')}</div>
         </div>
         <div class="field-label" style="margin-top:6px;">Perfil de sabor <span style="font-weight:400;color:var(--ink-muted);">(não é bom/mau — só como é)</span></div>
         ${CK_PROFILE.map((p) => `
@@ -4305,6 +4306,16 @@
       </form>
     `);
 
+    document.getElementById('ck-rating-stars')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-ck-star]');
+      if (!btn) return;
+      const v = Number(btn.getAttribute('data-ck-star'));
+      document.getElementById('ck-rating').value = String(v);
+      document.getElementById('ck-rating-out').textContent = String(v);
+      document.querySelectorAll('#ck-rating-stars [data-ck-star]').forEach((x) => {
+        x.style.color = Number(x.getAttribute('data-ck-star')) <= v ? '#f5b301' : '#ccc';
+      });
+    });
     ['ck-rating', ...CK_PROFILE.map((p) => `ck-p-${p.key}`)].forEach((id) => {
       const el = document.getElementById(id);
       el?.addEventListener('input', () => { document.getElementById(`${id}-out`).textContent = el.value; });
