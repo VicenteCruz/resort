@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yucatan-companion-pt-v22';
+const CACHE_NAME = 'yucatan-companion-pt-v23';
 const ASSETS = [
   './',
   './index.html',
@@ -30,7 +30,17 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const reqUrl = new URL(event.request.url);
   if (reqUrl.origin !== self.location.origin) return;
+
+  // Network-first: always gets fresh app.js/styles.css when online, falls back to cache offline
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((response) => {
+        if (response && response.status === 200) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
