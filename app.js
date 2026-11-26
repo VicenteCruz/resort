@@ -1805,6 +1805,10 @@
         </div>
         <div class="ck-reviews-list">${reviewsHtml}</div>
       </div>
+
+      <div style="display:flex;justify-content:flex-end;margin-top:18px;">
+        <button type="button" class="btn btn-sm" id="btn-detail-delete-rest" style="color:var(--terracotta-600);border-color:hsla(18,62%,44%,0.35);">Apagar Restaurante</button>
+      </div>
     `;
 
     document.getElementById('btn-back-restaurants')?.addEventListener('click', () => {
@@ -1815,6 +1819,27 @@
     document.getElementById('btn-detail-sched')?.addEventListener('click', () => openSchedModal(v.id));
     document.getElementById('btn-detail-review')?.addEventListener('click', () => openRateVenueModal(v.id));
     document.getElementById('btn-detail-review-2')?.addEventListener('click', () => openRateVenueModal(v.id));
+    document.getElementById('btn-detail-delete-rest')?.addEventListener('click', () => {
+      const previewHtml = `
+        ${v.photoUrl ? `<img src="${escapeHtml(v.photoUrl)}" alt="" style="width:54px;height:54px;object-fit:cover;border-radius:8px;flex-shrink:0;" />` : `<span style="font-size:1.8rem;">🍽️</span>`}
+        <div>
+          <div style="font-weight:700;font-size:0.95rem;">${escapeHtml(v.name)}</div>
+          <div style="font-size:0.8rem;color:var(--ink-secondary);">${escapeHtml(v.cuisine || '')}</div>
+        </div>`;
+      openConfirmModal({
+        title: 'Apagar Restaurante?',
+        message: `Tem a certeza que quer remover "${v.name}" e todas as suas reviews da lista?`,
+        previewHtml,
+        confirmLabel: 'Apagar Restaurante',
+        onConfirm: () => {
+          state.venues = state.venues.filter((x) => x.id !== v.id);
+          activeRestaurantId = null;
+          saveState();
+          renderAll();
+          showToast(`${v.name} removido!`);
+        }
+      });
+    });
 
     document.getElementById('img-rest-photo')?.addEventListener('click', () =>
       openSingleImageLightbox(v.photoUrl, v.name, 'Foto do Restaurante')
@@ -2131,24 +2156,54 @@
       );
     }
 
-    // 4. Custom / manageable venues list
+    // 4. All manageable restaurants & bars list (allows removing any venue)
     const venuesListEl = document.getElementById('settings-custom-venues-list');
     if (venuesListEl) {
-      const customVenues = state.venues.filter((v) => v.custom);
-      venuesListEl.innerHTML = customVenues.length
-        ? `<div style="font-size:0.75rem;font-weight:700;color:var(--ink-muted);margin-top:4px;">Locais adicionados (${customVenues.length})</div>` +
-          customVenues
-            .map((v) => `
-              <div class="open-venue-row">
-                <div><strong>${escapeHtml(v.name)}</strong> <span style="font-size:0.76rem;color:var(--ink-secondary);">· ${escapeHtml(v.cuisine)}</span></div>
-                <button type="button" class="icon-btn" data-del-venue="${escapeHtml(v.id)}" title="Remover">✕</button>
-              </div>`)
-            .join('')
-        : '';
+      const allVenues = state.venues || [];
+      venuesListEl.innerHTML = allVenues.length
+        ? `<div style="font-size:0.76rem;font-weight:700;color:var(--ink-muted);margin-top:8px;">Todos os Restaurantes &amp; Bares (${allVenues.length})</div>
+           <div style="display:flex;flex-direction:column;gap:8px;max-height:260px;overflow-y:auto;padding-right:2px;">` +
+          allVenues
+            .map((v) => {
+              const kind = v.category === 'bars' ? '🍹 Bar' : '🍽️ Restaurante';
+              return `
+                <div class="open-venue-row">
+                  <div style="min-width:0;">
+                    <div style="font-weight:600;font-size:0.86rem;">${escapeHtml(v.name)}</div>
+                    <div style="font-size:0.74rem;color:var(--ink-secondary);">${kind} · ${escapeHtml(v.cuisine || '')}</div>
+                  </div>
+                  <button type="button" class="icon-btn" data-del-venue="${escapeHtml(v.id)}" title="Remover">✕</button>
+                </div>`;
+            })
+            .join('') +
+          `</div>`
+        : `<p style="font-size:0.82rem;color:var(--ink-muted);margin-top:6px;">Sem restaurantes ou bares na lista.</p>`;
+
       venuesListEl.querySelectorAll('[data-del-venue]').forEach((b) =>
         b.addEventListener('click', () => {
-          state.venues = state.venues.filter((v) => v.id !== b.getAttribute('data-del-venue'));
-          saveState(); renderAll(); showToast('Local removido');
+          const id = b.getAttribute('data-del-venue');
+          const v = state.venues.find((x) => x.id === id);
+          if (!v) return;
+          const isBar = v.category === 'bars';
+          const previewHtml = `
+            ${v.photoUrl ? `<img src="${escapeHtml(v.photoUrl)}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;" />` : `<span style="font-size:1.6rem;">${isBar ? '🍹' : '🍽️'}</span>`}
+            <div>
+              <div style="font-weight:700;font-size:0.92rem;">${escapeHtml(v.name)}</div>
+              <div style="font-size:0.78rem;color:var(--ink-secondary);">${escapeHtml(v.cuisine || '')}</div>
+            </div>`;
+          openConfirmModal({
+            title: isBar ? 'Remover Bar?' : 'Remover Restaurante?',
+            message: `Tem a certeza que quer remover "${v.name}" da lista?`,
+            previewHtml,
+            confirmLabel: 'Remover',
+            onConfirm: () => {
+              state.venues = state.venues.filter((x) => x.id !== id);
+              if (activeRestaurantId === id) activeRestaurantId = null;
+              saveState();
+              renderAll();
+              showToast(`${v.name} removido!`);
+            }
+          });
         })
       );
     }
