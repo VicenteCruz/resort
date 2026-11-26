@@ -134,34 +134,39 @@
       ? `PNR Air Canada: ${state.wallet.airCanadaPnr}`
       : 'Guarde o vosso PNR e código de reserva na Carteira';
 
-    const o1 = state.flights.outbound.legs[0];
-    const o2 = state.flights.outbound.legs[1];
-    const i1 = state.flights.inbound.legs[0];
-    const i2 = state.flights.inbound.legs[1];
+    const outLegs = state.flights.outbound.legs;
+    const inLegs = state.flights.inbound.legs;
+    const fmtRouteCodes = (legs) => {
+      if (!legs.length) return '---';
+      const codes = [legs[0].fromCode, ...legs.map((l) => l.toCode)];
+      return codes.map((c) => `<span class="iata-code">${escapeHtml(c)}</span>`).join(' → ');
+    };
+    const fmtNums = (legs) => legs.map((l) => escapeHtml(l.flightNumber)).join(' · ');
+    const fmtTimes = (legs) => (legs.length ? `${escapeHtml(legs[0].depTime)} ${escapeHtml(legs[0].fromCode)} → ${escapeHtml(legs[legs.length - 1].arrTime)} ${escapeHtml(legs[legs.length - 1].toCode)}` : '');
 
     document.getElementById('overview-flight-summary').innerHTML = `
       <div class="flight-mini-route">
         <div>
-          <div style="font-size: 0.74rem; color: var(--ink-muted); font-weight: 600;">IDA · SÁB 28 NOV</div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
-            <span class="iata-code">${escapeHtml(o1.fromCode)}</span> → <span class="iata-code">${escapeHtml(o1.toCode)}</span> → <span class="iata-code">${escapeHtml(o2.toCode)}</span>
+          <div style="font-size: 0.74rem; color: var(--ink-muted); font-weight: 600;">IDA · ${escapeHtml(state.flights.outbound.dateLabel)}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:2px;flex-wrap:wrap;">
+            ${fmtRouteCodes(outLegs)}
           </div>
         </div>
         <div style="text-align: right;">
-          <div class="mono" style="font-weight: 700; font-size: 0.86rem;">${escapeHtml(o1.flightNumber)} · ${escapeHtml(o2.flightNumber)}</div>
-          <div class="mono" style="font-size: 0.78rem; color: var(--ink-secondary);">${escapeHtml(o1.depTime)} LIS → ${escapeHtml(o2.arrTime)} CUN</div>
+          <div class="mono" style="font-weight: 700; font-size: 0.86rem;">${fmtNums(outLegs)}</div>
+          <div class="mono" style="font-size: 0.78rem; color: var(--ink-secondary);">${fmtTimes(outLegs)}</div>
         </div>
       </div>
       <div class="flight-mini-route">
         <div>
-          <div style="font-size: 0.74rem; color: var(--ink-muted); font-weight: 600;">REGRESSO · TER 8 DEZ</div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
-            <span class="iata-code">${escapeHtml(i1.fromCode)}</span> → <span class="iata-code">${escapeHtml(i1.toCode)}</span> → <span class="iata-code">${escapeHtml(i2.toCode)}</span>
+          <div style="font-size: 0.74rem; color: var(--ink-muted); font-weight: 600;">REGRESSO · ${escapeHtml(state.flights.inbound.dateLabel)}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:2px;flex-wrap:wrap;">
+            ${fmtRouteCodes(inLegs)}
           </div>
         </div>
         <div style="text-align: right;">
-          <div class="mono" style="font-weight: 700; font-size: 0.86rem;">${escapeHtml(i1.flightNumber)} · ${escapeHtml(i2.flightNumber)}</div>
-          <div class="mono" style="font-size: 0.78rem; color: var(--ink-secondary);">${escapeHtml(i1.depTime)} CUN → ${escapeHtml(i2.arrTime)} LIS</div>
+          <div class="mono" style="font-weight: 700; font-size: 0.86rem;">${fmtNums(inLegs)}</div>
+          <div class="mono" style="font-size: 0.78rem; color: var(--ink-secondary);">${fmtTimes(inLegs)}</div>
         </div>
       </div>
     `;
@@ -604,25 +609,82 @@
   function renderSettings() {
     const flList = document.getElementById('settings-flights-list');
     if (flList) {
-      const allLegs = [
-        ...state.flights.outbound.legs.map((l) => ({ ...l, dirLabel: 'Ida · 28 Nov' })),
-        ...state.flights.inbound.legs.map((l) => ({ ...l, dirLabel: 'Regresso · 8 Dez' }))
-      ];
-      flList.innerHTML = allLegs
-        .map(
-          (l) => `
-          <div class="open-venue-row">
-            <div>
-              <div style="font-size:0.72rem;color:var(--ink-muted);font-weight:600;">${escapeHtml(l.dirLabel)}</div>
-              <div><strong class="mono">${escapeHtml(l.flightNumber)}</strong> · ${escapeHtml(l.fromCode)} → ${escapeHtml(l.toCode)} <span class="mono" style="font-size:0.78rem;color:var(--ink-secondary);">(${escapeHtml(l.depTime)} – ${escapeHtml(l.arrTime)})</span></div>
-            </div>
-            <button type="button" class="btn btn-sm" data-set-edit-leg="${escapeHtml(l.id)}">Alterar</button>
-          </div>`
-        )
-        .join('');
+      const renderGroup = (dirKey, label) => {
+        const legs = state.flights[dirKey].legs;
+        return `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+            <strong style="font-size:0.8rem;color:var(--cenote-700);">${label} (${legs.length} voo${legs.length === 1 ? '' : 's'})</strong>
+            <button type="button" class="btn btn-sm" data-add-leg-dir="${dirKey}">+ Adicionar Voo</button>
+          </div>
+          ${legs
+            .map(
+              (l) => `
+              <div class="open-venue-row">
+                <div>
+                  <strong class="mono">${escapeHtml(l.flightNumber)}</strong> · ${escapeHtml(l.fromCode)} → ${escapeHtml(l.toCode)}
+                  <span class="mono" style="font-size:0.78rem;color:var(--ink-secondary);">(${escapeHtml(l.depTime)} – ${escapeHtml(l.arrTime)})</span>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <button type="button" class="btn btn-sm" data-set-edit-leg="${escapeHtml(l.id)}">Alterar</button>
+                  ${legs.length > 1 ? `<button type="button" class="icon-btn" data-del-leg-dir="${dirKey}" data-del-leg-id="${escapeHtml(l.id)}" title="Remover voo">✕</button>` : ''}
+                </div>
+              </div>`
+            )
+            .join('')}
+        `;
+      };
+
+      flList.innerHTML = renderGroup('outbound', 'Ida') + renderGroup('inbound', 'Regresso');
 
       flList.querySelectorAll('[data-set-edit-leg]').forEach((b) =>
         b.addEventListener('click', () => openLegModal(b.getAttribute('data-set-edit-leg')))
+      );
+
+      flList.querySelectorAll('[data-add-leg-dir]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const dirKey = b.getAttribute('data-add-leg-dir');
+          const legs = state.flights[dirKey].legs;
+          const prev = legs[legs.length - 1];
+          const newId = `leg-${Date.now()}`;
+          legs.push({
+            id: newId,
+            flightNumber: 'AC 000',
+            airline: 'Air Canada',
+            aircraft: 'Voo Adicional',
+            fromCode: prev ? prev.toCode : 'LIS',
+            fromCity: prev ? prev.toCity : 'Origem',
+            fromTerminal: 'Terminal 1',
+            depTime: '12:00',
+            depTz: 'EST',
+            toCode: dirKey === 'outbound' ? 'CUN' : 'LIS',
+            toCity: dirKey === 'outbound' ? 'Cancún Internacional' : 'Lisboa',
+            toTerminal: 'Terminal 1',
+            arrTime: '15:00',
+            arrTz: 'EST',
+            duration: '--',
+            gate: 'A definir',
+            seat: 'A definir',
+            baggageNote: 'Voo adicionado manualmente.'
+          });
+          saveState();
+          renderFlights();
+          renderSettings();
+          renderOverview();
+          openLegModal(newId);
+        })
+      );
+
+      flList.querySelectorAll('[data-del-leg-id]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const dirKey = b.getAttribute('data-del-leg-dir');
+          const id = b.getAttribute('data-del-leg-id');
+          state.flights[dirKey].legs = state.flights[dirKey].legs.filter((l) => l.id !== id);
+          saveState();
+          renderFlights();
+          renderSettings();
+          renderOverview();
+          showToast('Voo removido');
+        })
       );
     }
   }
