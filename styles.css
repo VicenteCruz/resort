@@ -402,3 +402,125 @@ button { cursor: pointer; }
 .toast { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%) translateY(16px); background: var(--ink-primary); color: var(--ink-on-dark); padding: 9px 18px; border-radius: var(--radius-pill); font-size: 0.82rem; font-weight: 600; opacity: 0; pointer-events: none; transition: all 180ms ease; z-index: 95; }
 .toast.is-visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 @media (min-width: 900px) { .toast { bottom: 28px; } }
+
+/* ==========================================================================
+   Flights: status card, direction toggle, simple flight cards
+   ========================================================================== */
+.direction-toggle { display: grid; grid-template-columns: 1fr 1fr; width: 100%; margin: 14px 0 16px; }
+.direction-btn { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 10px 12px; border-radius: 14px; }
+.direction-btn-title { font-size: 1rem; font-weight: 700; }
+.direction-btn-date { font-size: 0.8rem; font-weight: 500; opacity: 0.85; }
+.direction-btn.is-active { background: var(--cenote-700); color: var(--ink-on-dark); }
+
+.map-surface { padding: 12px; margin-bottom: 16px; }
+.map-surface-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.map-surface-title { font-size: 0.95rem; }
+.flight-live-map { width: 100%; height: 300px; border-radius: 12px; z-index: 1; }
+.map-city-label { font-weight: 700; font-size: 13px; }
+
+.now-card { background: var(--bg-surface); border: 2px solid var(--cenote-200); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-sm); }
+.now-card.is-flying { border-color: var(--cenote-600); background: var(--cenote-100); }
+.now-card.is-good { border-color: hsl(152, 40%, 70%); background: var(--agave-100); }
+.now-card-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-secondary); }
+.now-card-head { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.now-icon { font-size: 2rem; line-height: 1; }
+.now-title { font-family: var(--font-sans); font-weight: 800; font-size: 1.4rem; line-height: 1.2; letter-spacing: -0.01em; }
+.now-text { margin-top: 8px; font-size: 1.05rem; line-height: 1.5; }
+.now-countdown { margin-top: 12px; font-size: 1.1rem; font-weight: 700; color: var(--cenote-700); }
+.now-progress { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: 14px; }
+.now-progress-city { font-weight: 700; font-size: 0.95rem; }
+.now-progress-track { position: relative; height: 10px; background: var(--bg-surface); border-radius: 999px; }
+.now-progress-fill { height: 100%; background: var(--cenote-600); border-radius: 999px; }
+.now-progress-plane { position: absolute; top: 50%; transform: translate(-50%, -55%); font-size: 1.5rem; color: var(--cenote-700); }
+
+.simple-flight { background: var(--bg-surface); border: 1px solid var(--line-strong); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-sm); }
+.simple-flight.is-flying { border: 2px solid var(--cenote-600); }
+.simple-flight.is-done { background: var(--bg-subtle); }
+.sf-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sf-step { font-size: 0.85rem; font-weight: 700; color: var(--ink-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+.sf-status { font-size: 0.9rem; font-weight: 700; padding: 4px 12px; border-radius: 999px; background: var(--bg-subtle); color: var(--ink-secondary); }
+.is-flying .sf-status { background: var(--cenote-700); color: var(--ink-on-dark); }
+.is-done .sf-status { background: var(--agave-100); color: var(--agave-700); }
+.sf-route { font-family: var(--font-sans); font-weight: 800; font-size: 1.5rem; margin-top: 10px; line-height: 1.2; letter-spacing: -0.01em; }
+.sf-arrow { color: var(--cenote-600); }
+.sf-times { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+.sf-time-row { display: grid; grid-template-columns: 4.2em 1fr; column-gap: 10px; align-items: baseline; }
+.sf-time-label { font-weight: 700; color: var(--ink-secondary); font-size: 1rem; grid-row: span 3; }
+.sf-time-main { font-family: var(--font-mono); font-size: 1.6rem; font-weight: 700; color: var(--ink-primary); line-height: 1.1; }
+.sf-time-sub { grid-column: 2; font-size: 0.95rem; color: var(--ink-secondary); }
+.sf-time-local { grid-column: 2; font-size: 0.9rem; color: var(--ink-secondary); }
+.sf-live { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--cenote-100); color: var(--cenote-700); font-weight: 600; }
+.sf-meta { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); font-size: 0.9rem; color: var(--ink-secondary); }
+.sf-layover { text-align: center; font-weight: 700; font-size: 1rem; color: var(--ink-secondary); padding: 4px 0; }
+
+/* ==========================================================================
+   Photos: day-grouped gallery and full-screen viewer
+   ========================================================================== */
+.photo-gallery { display: flex; flex-direction: column; gap: 28px; }
+.photo-day-title { font-family: var(--font-sans); font-weight: 800; font-size: 1.4rem; display: flex; flex-direction: column; letter-spacing: -0.01em; }
+.photo-day-date { font-size: 1rem; font-weight: 600; color: var(--ink-secondary); text-transform: capitalize; letter-spacing: 0; }
+.photo-day-count { font-size: 0.9rem; color: var(--ink-secondary); margin-top: 2px; }
+.photo-day-list { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 12px; }
+@media (min-width: 720px) { .photo-day-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.photo-item { margin: 0; background: var(--bg-surface); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm); border: 1px solid var(--line-soft); }
+.photo-open { display: block; width: 100%; padding: 0; border: none; background: var(--bg-subtle); cursor: zoom-in; }
+.photo-open img { display: block; width: 100%; height: auto; max-height: 75vh; object-fit: cover; }
+.photo-caption { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 14px; font-size: 1rem; font-weight: 600; }
+.photo-empty { font-size: 1rem; color: var(--ink-secondary); }
+.photo-empty-card { background: var(--bg-surface); border: 1px dashed var(--line-strong); border-radius: var(--radius-lg); padding: 32px 20px; text-align: center; font-size: 1.05rem; color: var(--ink-secondary); }
+.photo-empty-card span { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+
+.lightbox { position: fixed; inset: 0; z-index: 100; background: #000; color: #fff; display: flex; flex-direction: column; }
+.lightbox[hidden] { display: none; }
+html.lightbox-open, html.lightbox-open body { overflow: hidden; }
+.lightbox-top { display: flex; justify-content: space-between; align-items: center; padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px; }
+.lightbox-counter { font-size: 1.05rem; font-weight: 600; opacity: 0.85; }
+.lightbox-close { appearance: none; border: 2px solid #fff; background: transparent; color: #fff; font-size: 1.1rem; font-weight: 700; padding: 10px 18px; border-radius: 999px; min-height: 48px; }
+.lightbox-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.lightbox-stage img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.lightbox-bottom { padding: 10px 14px calc(14px + env(safe-area-inset-bottom, 0px)); }
+.lightbox-caption { display: flex; flex-direction: column; gap: 2px; font-size: 1.05rem; margin-bottom: 10px; }
+.lightbox-caption span { opacity: 0.8; font-size: 0.95rem; }
+.lightbox-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.lightbox-nav-btn { appearance: none; border: none; background: rgba(255,255,255,0.18); color: #fff; font-size: 1.15rem; font-weight: 700; padding: 14px; border-radius: 14px; min-height: 56px; }
+.lightbox-nav-btn:disabled { opacity: 0.3; }
+
+.public-footer { text-align: center; margin-top: 40px; }
+.public-login-link { appearance: none; border: none; background: transparent; color: var(--ink-muted); font-size: 0.85rem; text-decoration: underline; padding: 12px; }
+
+/* ==========================================================================
+   Public (not logged in) mode: large type, high contrast, only 2 options
+   ========================================================================== */
+html.is-public { font-size: 18px; }
+html.is-public body { font-size: 1rem; }
+html.is-public {
+  --ink-secondary: hsl(192, 22%, 26%);
+  --ink-muted: hsl(192, 14%, 38%);
+}
+html.is-public .tz-strip,
+html.is-public .desktop-nav,
+html.is-public #btn-header-auth { display: none !important; }
+html.is-public .topbar-inner { justify-content: center; }
+html.is-public .brand-title { font-size: 1.1rem; }
+html.is-public .brand-subtitle { font-size: 0.85rem; }
+html.is-public .section-title { font-family: var(--font-sans); font-weight: 800; font-size: 1.6rem; }
+html.is-public .section-subtitle { font-size: 1rem; }
+html.is-public .direction-btn { min-height: 64px; }
+html.is-public .direction-btn-title { font-size: 1.15rem; }
+html.is-public .direction-btn-date { font-size: 0.9rem; }
+html.is-public .tag { font-size: 0.85rem; padding: 4px 10px; }
+html.is-public .flight-live-map { height: 280px; }
+html.is-public .view-panel { animation: none; }
+
+/* Big two-button bottom bar (Voos / Fotos), always visible on any screen size */
+html.is-public body { padding-bottom: 110px; }
+html.is-public .mobile-dock { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line-strong); }
+html.is-public .dock-btn { flex-direction: row; justify-content: center; gap: 10px; min-height: 64px; font-size: 1.15rem; font-weight: 800; color: var(--ink-primary); background: var(--bg-subtle); border-radius: 16px; }
+html.is-public .dock-btn svg { width: 28px; height: 28px; }
+html.is-public .dock-btn.is-active { background: var(--cenote-700); color: var(--ink-on-dark); }
+html.is-public .toast { bottom: 110px; font-size: 1rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .view-panel { animation: none; }
+  .btn:hover { transform: none; }
+}

@@ -25,9 +25,80 @@
   let activeFlightDir = 'outbound';
   let activeDayIndex = 0;
   let activeVenueCategory = 'all';
+  // Simple, large-type mode for visitors who are not logged in (family following the trip).
+  let publicMode = true;
 
   function saveState() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+  }
+
+  // ---------- Flight schedule helpers (used by the simple public view) ----------
+  const TZ_OFFSETS = { WET: 0, WEST: 1, GMT: 0, UTC: 0, BST: 1, CET: 1, CEST: 2, EST: -5, EDT: -4, CST: -6, CDT: -5, MST: -7, MDT: -6, PST: -8, PDT: -7 };
+  const DIR_BASE_DATE = { outbound: '2026-11-28', inbound: '2026-12-08' };
+  const CITY_NAMES = {
+    LIS: 'Lisboa', OPO: 'Porto', FAO: 'Faro', MAD: 'Madrid', BCN: 'Barcelona', LHR: 'Londres', CDG: 'Paris', ORY: 'Paris',
+    FRA: 'Frankfurt', AMS: 'Amesterdão', ZRH: 'Zurique', DUB: 'Dublin', YYZ: 'Toronto', YUL: 'Montreal', YVR: 'Vancouver',
+    BOS: 'Boston', JFK: 'Nova Iorque', EWR: 'Nova Iorque', MIA: 'Miami', MCO: 'Orlando', ATL: 'Atlanta', ORD: 'Chicago',
+    DFW: 'Dallas', IAD: 'Washington', CUN: 'Cancún', MEX: 'Cidade do México', PTY: 'Panamá'
+  };
+  const PT_TZ_CODES = new Set(['WET', 'WEST']);
+
+  function cityName(code, full) {
+    return CITY_NAMES[code] || String(full || code || '').split(/[\s(]/)[0] || code;
+  }
+
+  function hmToUtcMs(dateStr, hm, tz) {
+    const m = String(hm || '').match(/(\d{1,2}):(\d{2})/);
+    if (!m) return null;
+    const off = TZ_OFFSETS[String(tz || '').toUpperCase()] ?? 0;
+    return Date.parse(`${dateStr}T00:00:00Z`) + ((Number(m[1]) - off) * 60 + Number(m[2])) * 60000;
+  }
+
+  function getLegTimes(dirKey) {
+    const dir = state.flights[dirKey];
+    const base = DIR_BASE_DATE[dirKey];
+    let prevArr = null;
+    return dir.legs.map((leg) => {
+      let dep = hmToUtcMs(base, leg.depTime, leg.depTz);
+      if (dep != null && prevArr != null) while (dep < prevArr) dep += 86400000;
+      let arr = hmToUtcMs(base, leg.arrTime, leg.arrTz);
+      if (arr != null && dep != null) while (arr <= dep) arr += 86400000;
+      if (arr != null) prevArr = arr;
+      return { leg, dep, arr, dir: dirKey };
+    });
+  }
+
+  function fmtPortugal(ms, opts) {
+    return new Intl.DateTimeFormat('pt-PT', { timeZone: 'Europe/Lisbon', ...opts }).format(new Date(ms));
+  }
+  const ptTime = (ms) => fmtPortugal(ms, { hour: '2-digit', minute: '2-digit', hour12: false });
+  const ptDayLong = (ms) => fmtPortugal(ms, { weekday: 'long', day: 'numeric', month: 'long' });
+  const ptDateKey = (ms) => fmtPortugal(ms, { year: 'numeric', month: '2-digit', day: '2-digit' });
+  const localHm = (hm) => String(hm || '').replace(/\s*\+\d+$/, '').trim();
+
+  function humanDuration(ms) {
+    const mins = Math.max(0, Math.round(ms / 60000));
+    const d = Math.floor(mins / 1440);
+    const h = Math.floor((mins % 1440) / 60);
+    const m = mins % 60;
+    const parts = [];
+    if (d) parts.push(`${d} ${d === 1 ? 'dia' : 'dias'}`);
+    if (h) parts.push(`${h} ${h === 1 ? 'hora' : 'horas'}`);
+    if (!d && m) parts.push(`${m} ${m === 1 ? 'minuto' : 'minutos'}`);
+    return parts.join(' e ') || 'menos de 1 minuto';
+  }
+
+  function getTripPhase(now = Date.now()) {
+    const seq = [...getLegTimes('outbound'), ...getLegTimes('inbound')].filter((t) => t.dep != null && t.arr != null);
+    if (!seq.length) return null;
+    if (now < seq[0].dep) return { kind: 'before', next: seq[0] };
+    for (let i = 0; i < seq.length; i++) {
+      const t = seq[i];
+      if (now >= t.dep && now < t.arr) return { kind: 'flying', cur: t };
+      const n = seq[i + 1];
+      if (n && now >= t.arr && now < n.dep) return { kind: t.dir !== n.dir ? 'staying' : 'layover', last: t, next: n };
+    }
+    return { kind: 'home', last: seq[seq.length - 1] };
   }
 
   function escapeHtml(str) {
@@ -229,11 +300,13 @@
     return `<span class="tag">Sem sinal ADS-B agora</span>`;
   }
 
-  async function fetchAdsbLive(legId) {
+  async function fetchAdsbLive(legId, opts = {}) {
+    const silent = Boolean(opts.silent);
+    const toast = (msg) => { if (!silent) showToast(msg); };
     const allLegs = [...state.flights.outbound.legs, ...state.flights.inbound.legs];
     const targetLegs = legId ? allLegs.filter((l) => l.id === legId) : state.flights[activeFlightDir].legs;
 
-    showToast('A consultar radar ADS-B em direto...');
+    toast('A consultar radar ADS-B em direto...');
     let airborneCount = 0;
     const supaUrl = window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url ? window.SUPABASE_CONFIG.url : '';
     const proxyBase = supaUrl
@@ -248,7 +321,7 @@
           : `https://api.adsb.lol/v2/callsign/${encodeURIComponent(callsign)}`;
         const res = await fetch(endpoint);
         if (res.status === 404 && proxyBase) {
-          showToast('Ativa a Edge Function "adsb-proxy" no Supabase para o radar em direto.');
+          toast('Ativa a Edge Function "adsb-proxy" no Supabase para o radar em direto.');
           return;
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -282,21 +355,163 @@
         }
       } catch (err) {
         console.warn('ADS-B radar fetch error:', err);
-        showToast('Erro de rede ao contactar o radar ADS-B.');
+        toast('Erro de rede ao contactar o radar ADS-B.');
         return;
       }
     }
 
     saveState();
     renderFlights();
-    showToast(
+    toast(
       airborneCount > 0
         ? `Avião detetado no radar ADS-B (${airborneCount})!`
         : 'Sem sinal ADS-B ativo agora (o avião ainda não descolou).'
     );
   }
 
+  // ---------- "Onde estão agora?" status card (shown to everyone) ----------
+  let lastAutoRadarMs = 0;
+
+  function renderFlightStatus() {
+    const el = document.getElementById('flight-now-status');
+    if (!el) return;
+    const phase = getTripPhase();
+    if (!phase) { el.innerHTML = ''; return; }
+    const now = Date.now();
+    const from = (t) => cityName(t.leg.fromCode, t.leg.fromCity);
+    const to = (t) => cityName(t.leg.toCode, t.leg.toCity);
+    let icon = '';
+    let title = '';
+    let text = '';
+    let extra = '';
+    let tone = '';
+
+    if (phase.kind === 'before') {
+      const t = phase.next;
+      icon = '🧳';
+      title = 'Ainda não partiram';
+      text = `O primeiro voo sai de ${escapeHtml(from(t))} ${escapeHtml(ptDayLong(t.dep))}, às <strong>${ptTime(t.dep)}</strong> (hora de Portugal).`;
+      extra = `<div class="now-countdown">Faltam ${humanDuration(t.dep - now)}</div>`;
+    } else if (phase.kind === 'flying') {
+      const t = phase.cur;
+      const pct = Math.min(100, Math.max(0, Math.round(((now - t.dep) / (t.arr - t.dep)) * 100)));
+      icon = '✈️';
+      tone = 'is-flying';
+      title = 'Estão a voar agora';
+      text = `De <strong>${escapeHtml(from(t))}</strong> para <strong>${escapeHtml(to(t))}</strong>. Devem aterrar às <strong>${ptTime(t.arr)}</strong> (hora de Portugal).`;
+      extra = `<div class="now-progress" role="img" aria-label="Viagem ${pct}% concluída">
+          <span class="now-progress-city">${escapeHtml(from(t))}</span>
+          <div class="now-progress-track"><div class="now-progress-fill" style="width:${pct}%"></div><span class="now-progress-plane" style="left:${pct}%">✈</span></div>
+          <span class="now-progress-city">${escapeHtml(to(t))}</span>
+        </div>
+        <div class="now-countdown">Faltam cerca de ${humanDuration(t.arr - now)}</div>`;
+      if (now - lastAutoRadarMs > 3 * 60000) {
+        lastAutoRadarMs = now;
+        fetchAdsbLive(t.leg.id, { silent: true });
+      }
+    } else if (phase.kind === 'layover') {
+      const t = phase.next;
+      icon = '⏳';
+      title = `Em escala em ${escapeHtml(from(t))}`;
+      text = `Já aterraram em ${escapeHtml(from(t))}. O próximo voo, para <strong>${escapeHtml(to(t))}</strong>, sai às <strong>${ptTime(t.dep)}</strong> (hora de Portugal).`;
+      extra = `<div class="now-countdown">Faltam ${humanDuration(t.dep - now)}</div>`;
+    } else if (phase.kind === 'staying') {
+      const t = phase.next;
+      icon = '🏝️';
+      tone = 'is-good';
+      title = `Já estão em ${escapeHtml(to(phase.last))}!`;
+      text = `Chegaram bem. O regresso começa ${escapeHtml(ptDayLong(t.dep))}, às <strong>${ptTime(t.dep)}</strong> (hora de Portugal).`;
+      extra = `<div class="now-countdown">Faltam ${humanDuration(t.dep - now)} para o regresso</div>`;
+    } else {
+      const t = phase.last;
+      icon = '🏠';
+      tone = 'is-good';
+      title = 'Já chegaram a casa!';
+      text = `O último voo aterrou em ${escapeHtml(to(t))} ${escapeHtml(ptDayLong(t.arr))}, às ${ptTime(t.arr)}.`;
+    }
+
+    el.innerHTML = `
+      <div class="now-card ${tone}">
+        <div class="now-card-label">Onde estão agora?</div>
+        <div class="now-card-head"><span class="now-icon" aria-hidden="true">${icon}</span><h3 class="now-title">${title}</h3></div>
+        <p class="now-text">${text}</p>
+        ${extra}
+      </div>`;
+  }
+
+  function chooseDefaultFlightDir() {
+    const phase = getTripPhase();
+    if (!phase) return;
+    const onReturn = phase.kind === 'staying' || phase.kind === 'home' ||
+      ((phase.kind === 'flying' && phase.cur.dir === 'inbound') || (phase.kind === 'layover' && phase.next.dir === 'inbound'));
+    activeFlightDir = onReturn ? 'inbound' : 'outbound';
+    document.querySelectorAll('[data-flight-dir]').forEach((x) => x.classList.toggle('is-active', x.getAttribute('data-flight-dir') === activeFlightDir));
+  }
+
+  function renderSimpleFlights() {
+    const times = getLegTimes(activeFlightDir);
+    const now = Date.now();
+    const firstDay = times[0] && times[0].dep != null ? ptDateKey(times[0].dep) : null;
+    const blocks = [];
+
+    const timeBlock = (label, ms, hm, tz, city) => {
+      if (ms == null) {
+        return `<div class="sf-time-row"><span class="sf-time-label">${label}</span><span class="sf-time-main">${escapeHtml(hm)}</span></div>`;
+      }
+      const otherDay = firstDay && ptDateKey(ms) !== firstDay;
+      const isPt = PT_TZ_CODES.has(String(tz || '').toUpperCase());
+      return `<div class="sf-time-row">
+          <span class="sf-time-label">${label}</span>
+          <span class="sf-time-main">${ptTime(ms)}</span>
+          <span class="sf-time-sub">hora de Portugal${otherDay ? ` · <strong>${escapeHtml(ptDayLong(ms))}</strong>` : ''}</span>
+          ${isPt ? '' : `<span class="sf-time-local">(${escapeHtml(localHm(hm))} em ${escapeHtml(city)})</span>`}
+        </div>`;
+    };
+
+    times.forEach((t, i) => {
+      const leg = t.leg;
+      const fromName = cityName(leg.fromCode, leg.fromCity);
+      const toName = cityName(leg.toCode, leg.toCity);
+      let status = { cls: 'is-upcoming', label: 'Por partir' };
+      if (t.dep != null && t.arr != null) {
+        if (now >= t.arr) status = { cls: 'is-done', label: '✓ Já aterrou' };
+        else if (now >= t.dep) status = { cls: 'is-flying', label: '✈ A voar agora' };
+      }
+      const lv = leg.liveStatus;
+      let liveLine = '';
+      if (status.cls === 'is-flying' && lv && lv.active && !lv.onGround) {
+        const altM = lv.altFt ? Math.round((lv.altFt * 0.3048) / 100) * 100 : null;
+        liveLine = `<p class="sf-live">✈ O avião aparece no mapa${altM ? `, a ${altM.toLocaleString('pt-PT')} metros de altitude` : ''}${lv.speedKmh ? ` e a ${lv.speedKmh.toLocaleString('pt-PT')} km/h` : ''}.</p>`;
+      }
+
+      blocks.push(`
+        <article class="simple-flight ${status.cls}">
+          <div class="sf-top">
+            <span class="sf-step">Voo ${i + 1} de ${times.length}</span>
+            <span class="sf-status">${status.label}</span>
+          </div>
+          <h3 class="sf-route">${escapeHtml(fromName)} <span class="sf-arrow" aria-label="para">→</span> ${escapeHtml(toName)}</h3>
+          <div class="sf-times">
+            ${timeBlock('Parte', t.dep, leg.depTime, leg.depTz, fromName)}
+            ${timeBlock('Chega', t.arr, leg.arrTime, leg.arrTz, toName)}
+          </div>
+          ${liveLine}
+          <p class="sf-meta">Duração ${escapeHtml(leg.duration || '')} · Voo ${escapeHtml(leg.flightNumber)}</p>
+        </article>`);
+
+      const next = times[i + 1];
+      if (next && t.arr != null && next.dep != null) {
+        blocks.push(`<div class="sf-layover"><span aria-hidden="true">⏳</span> Escala em ${escapeHtml(toName)} · ${humanDuration(next.dep - t.arr)}</div>`);
+      }
+    });
+
+    document.getElementById('flights-container').innerHTML = blocks.join('');
+    updateFlightMap();
+  }
+
   function renderFlights() {
+    renderFlightStatus();
+    if (publicMode) { renderSimpleFlights(); return; }
     const dir = state.flights[activeFlightDir];
     const dynSummary = dir.legs.length
       ? [dir.legs[0].fromCode, ...dir.legs.map((l) => l.toCode)].join(' → ')
@@ -432,7 +647,16 @@
       planeLayer = window.L.layerGroup().addTo(flightMap);
     }
 
-    setTimeout(() => flightMap && flightMap.invalidateSize(), 100);
+    // Public mode: static map so one-finger swipes scroll the page instead of panning the map.
+    ['dragging', 'touchZoom', 'doubleClickZoom', 'boxZoom', 'keyboard'].forEach((h) => {
+      if (flightMap[h]) publicMode ? flightMap[h].disable() : flightMap[h].enable();
+    });
+    if (flightMap.zoomControl) {
+      if (publicMode) flightMap.zoomControl.remove();
+      else flightMap.zoomControl.addTo(flightMap);
+    }
+    const label = (code, full) => (publicMode ? cityName(code, full) : code);
+
     routeLayer.clearLayers();
     planeLayer.clearLayers();
 
@@ -448,8 +672,8 @@
         allBounds.push(fromPt);
         if (!plottedCodes.has(leg.fromCode)) {
           plottedCodes.add(leg.fromCode);
-          window.L.circleMarker(fromPt, { radius: 6, fillColor: '#166970', color: '#fff', weight: 2, fillOpacity: 1 })
-            .bindTooltip(leg.fromCode, { permanent: true, direction: 'top', offset: [0, -6] })
+          window.L.circleMarker(fromPt, { radius: 7, fillColor: '#166970', color: '#fff', weight: 2, fillOpacity: 1 })
+            .bindTooltip(label(leg.fromCode, leg.fromCity), { permanent: true, direction: 'top', offset: [0, -6], className: 'map-city-label' })
             .addTo(routeLayer);
         }
       }
@@ -457,17 +681,18 @@
         allBounds.push(toPt);
         if (!plottedCodes.has(leg.toCode)) {
           plottedCodes.add(leg.toCode);
-          window.L.circleMarker(toPt, { radius: 6, fillColor: '#166970', color: '#fff', weight: 2, fillOpacity: 1 })
-            .bindTooltip(leg.toCode, { permanent: true, direction: 'top', offset: [0, -6] })
+          window.L.circleMarker(toPt, { radius: 7, fillColor: '#166970', color: '#fff', weight: 2, fillOpacity: 1 })
+            .bindTooltip(label(leg.toCode, leg.toCity), { permanent: true, direction: 'top', offset: [0, -6], className: 'map-city-label' })
             .addTo(routeLayer);
         }
       }
       if (fromPt && toPt) {
-        window.L.polyline([fromPt, toPt], { color: '#166970', weight: 2.5, dashArray: '6, 8', opacity: 0.8 }).addTo(routeLayer);
+        window.L.polyline([fromPt, toPt], { color: '#166970', weight: 3, dashArray: '6, 8', opacity: 0.85 }).addTo(routeLayer);
       }
     });
 
     let activePlanes = 0;
+    const planeSize = publicMode ? 36 : 28;
     dirLegs.forEach((leg) => {
       const lv = leg.liveStatus;
       if (lv && lv.active && lv.lat && lv.lon) {
@@ -477,9 +702,9 @@
         const deg = lv.track || 0;
         const icon = window.L.divIcon({
           className: 'plane-marker',
-          html: `<div style="transform:rotate(${deg}deg);font-size:26px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.45));">✈</div>`,
-          iconSize: [28, 28],
-          iconAnchor: [14, 14]
+          html: `<div style="transform:rotate(${deg}deg);font-size:${planeSize - 2}px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.45));">✈</div>`,
+          iconSize: [planeSize, planeSize],
+          iconAnchor: [planeSize / 2, planeSize / 2]
         });
         window.L.marker(pt, { icon })
           .bindPopup(
@@ -490,27 +715,35 @@
       }
     });
 
-    if (allBounds.length >= 2) {
-      flightMap.fitBounds(allBounds, { padding: [32, 32], maxZoom: 6 });
-    } else if (allBounds.length === 1) {
-      flightMap.setView(allBounds[0], 6);
-    }
+    const fitAll = () => {
+      if (allBounds.length >= 2) {
+        flightMap.fitBounds(allBounds, { padding: [36, 36], maxZoom: 6 });
+      } else if (allBounds.length === 1) {
+        flightMap.setView(allBounds[0], 6);
+      }
+    };
+    fitAll();
+    setTimeout(() => { if (flightMap) { flightMap.invalidateSize(); fitAll(); } }, 120);
 
     // Build smart route label: only repeat origin if next leg starts at a different airport
     const routeParts = [];
     dirLegs.forEach((leg, i) => {
       if (i === 0 || leg.fromCode !== dirLegs[i - 1].toCode) {
-        routeParts.push(leg.fromCode);
+        routeParts.push(label(leg.fromCode, leg.fromCity));
       }
-      routeParts.push(leg.toCode);
+      routeParts.push(label(leg.toCode, leg.toCity));
     });
     const routeLabel = routeParts.length ? routeParts.join(' → ') : 'Sem rota';
 
     const statusEl = document.getElementById('map-live-status');
     if (statusEl) {
-      statusEl.textContent = activePlanes > 0
-        ? `✈ ${activePlanes} avião ao vivo no mapa`
-        : `Rota ${routeLabel}`;
+      if (publicMode) {
+        statusEl.textContent = activePlanes > 0 ? '✈ O avião está no mapa' : routeLabel;
+      } else {
+        statusEl.textContent = activePlanes > 0
+          ? `✈ ${activePlanes} avião ao vivo no mapa`
+          : `Rota ${routeLabel}`;
+      }
     }
   }
 
@@ -1455,6 +1688,13 @@
     document.querySelectorAll('[data-private-only="true"]').forEach((el) => {
       el.style.display = isLoggedIn ? '' : 'none';
     });
+    document.querySelectorAll('[data-public-only="true"]').forEach((el) => {
+      el.style.display = isLoggedIn ? 'none' : '';
+    });
+
+    const modeChanged = publicMode === isLoggedIn;
+    publicMode = !isLoggedIn;
+    document.documentElement.classList.toggle('is-public', publicMode);
 
     const authBtn = document.getElementById('btn-header-auth');
     if (authBtn) {
@@ -1465,6 +1705,7 @@
     if (!isLoggedIn && !PUBLIC_VIEWS.has(activeView)) {
       switchView('flights');
     }
+    if (modeChanged) renderFlights();
     renderPhotosAndSync();
   }
 
@@ -1476,6 +1717,7 @@
       openLoginModal();
     }
   });
+  document.getElementById('btn-footer-login')?.addEventListener('click', openLoginModal);
 
   function initSupabase() {
     const cfg = window.SUPABASE_CONFIG || {};
@@ -1535,41 +1777,80 @@
     }
   }
 
+  // Photos in display order, used by the full-screen viewer for "Anterior / Seguinte".
+  let galleryPhotos = [];
+
+  function tripDayLabel(dayNumber) {
+    const d = (state.days || []).find((x) => Number(x.dayNumber) === Number(dayNumber));
+    const iso = d && d.date ? d.date : new Date(Date.parse('2026-11-28T12:00:00Z') + (Number(dayNumber) - 1) * 86400000).toISOString().slice(0, 10);
+    try {
+      return new Intl.DateTimeFormat('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${iso}T12:00:00Z`));
+    } catch {
+      return '';
+    }
+  }
+
   async function loadPhotosGallery() {
     const grid = document.getElementById('photos-gallery-grid');
     if (!grid || !sbClient) return;
-    grid.innerHTML = `<p style="font-size:0.85rem;color:var(--ink-secondary);">A carregar álbum de fotografias...</p>`;
+    grid.innerHTML = `<p class="photo-empty">A carregar as fotografias…</p>`;
 
     const { data: rows, error } = await sbClient
       .from('trip_photos')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: true });
 
     if (error || !rows || !rows.length) {
-      grid.innerHTML = `<div class="surface"><p style="font-size:0.86rem;color:var(--ink-secondary);">Ainda sem fotografias publicadas.</p></div>`;
+      galleryPhotos = [];
+      grid.innerHTML = `<div class="photo-empty-card"><span aria-hidden="true">📷</span><p>Ainda não há fotografias.<br/>Assim que forem publicadas, aparecem aqui.</p></div>`;
       return;
     }
 
-    const cards = [];
-    for (const row of rows) {
-      const { data: pub } = sbClient.storage.from('trip-photos').getPublicUrl(row.storage_path);
-      const imgUrl = pub?.publicUrl || '';
-      cards.push(`
-        <article class="venue-card" style="padding:12px;gap:10px;">
-          ${imgUrl ? `<img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(row.caption || 'Foto da viagem')}" style="width:100%;height:230px;object-fit:cover;border-radius:10px;" loading="lazy" />` : ''}
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-            <div>
-              <span class="tag tag-cenote">Dia ${row.day_number}</span>
-              <div style="font-size:0.85rem;font-weight:600;margin-top:4px;">${escapeHtml(row.caption || '')}</div>
-            </div>
-            ${sbUser ? `<button type="button" class="icon-btn" data-del-photo="${escapeHtml(row.id)}" data-del-path="${escapeHtml(row.storage_path)}" title="Apagar foto">✕</button>` : ''}
-          </div>
-        </article>
-      `);
-    }
-    grid.innerHTML = cards.join('');
+    // Group by trip day: newest day first, photos inside each day in the order they were taken.
+    const byDay = new Map();
+    rows.forEach((row) => {
+      const day = Number(row.day_number) || 1;
+      if (!byDay.has(day)) byDay.set(day, []);
+      byDay.get(day).push(row);
+    });
+    const days = [...byDay.keys()].sort((a, b) => b - a);
+
+    galleryPhotos = [];
+    const sections = days.map((day) => {
+      const dayLabel = tripDayLabel(day);
+      const items = byDay.get(day).map((row) => {
+        const { data: pub } = sbClient.storage.from('trip-photos').getPublicUrl(row.storage_path);
+        const imgUrl = pub?.publicUrl || '';
+        if (!imgUrl) return '';
+        const idx = galleryPhotos.length;
+        galleryPhotos.push({ url: imgUrl, caption: row.caption || '', dayLabel: `Dia ${day} · ${dayLabel}` });
+        return `
+          <figure class="photo-item">
+            <button type="button" class="photo-open" data-photo-index="${idx}" aria-label="Ver fotografia em grande${row.caption ? `: ${escapeHtml(row.caption)}` : ''}">
+              <img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(row.caption || `Fotografia do dia ${day}`)}" loading="lazy" />
+            </button>
+            ${row.caption || sbUser ? `<figcaption class="photo-caption">
+              <span>${escapeHtml(row.caption || '')}</span>
+              ${sbUser ? `<button type="button" class="icon-btn" data-del-photo="${escapeHtml(row.id)}" data-del-path="${escapeHtml(row.storage_path)}" title="Apagar foto">✕</button>` : ''}
+            </figcaption>` : ''}
+          </figure>`;
+      }).join('');
+      const count = byDay.get(day).length;
+      return `
+        <section class="photo-day">
+          <h3 class="photo-day-title">Dia ${day}<span class="photo-day-date">${escapeHtml(dayLabel)}</span></h3>
+          <p class="photo-day-count">${count} ${count === 1 ? 'fotografia' : 'fotografias'}</p>
+          <div class="photo-day-list">${items}</div>
+        </section>`;
+    });
+
+    grid.innerHTML = sections.join('');
+    grid.querySelectorAll('[data-photo-index]').forEach((b) =>
+      b.addEventListener('click', () => openLightbox(Number(b.getAttribute('data-photo-index'))))
+    );
     grid.querySelectorAll('[data-del-photo]').forEach((b) =>
       b.addEventListener('click', async () => {
+        if (!window.confirm('Apagar esta fotografia?')) return;
         const id = b.getAttribute('data-del-photo');
         const path = b.getAttribute('data-del-path');
         await sbClient.storage.from('trip-photos').remove([path]);
@@ -1579,6 +1860,85 @@
       })
     );
   }
+
+  // ---------- Full-screen photo viewer ----------
+  let lightboxIndex = 0;
+  let lightboxOpen = false;
+
+  function renderLightbox() {
+    const p = galleryPhotos[lightboxIndex];
+    if (!p) return;
+    const img = document.getElementById('lightbox-img');
+    img.src = p.url;
+    img.alt = p.caption || 'Fotografia da viagem';
+    document.getElementById('lightbox-caption').innerHTML =
+      `${p.caption ? `<strong>${escapeHtml(p.caption)}</strong>` : ''}<span>${escapeHtml(p.dayLabel)}</span>`;
+    document.getElementById('lightbox-counter').textContent = `${lightboxIndex + 1} de ${galleryPhotos.length}`;
+    document.getElementById('lightbox-prev').disabled = lightboxIndex === 0;
+    document.getElementById('lightbox-next').disabled = lightboxIndex >= galleryPhotos.length - 1;
+  }
+
+  function openLightbox(index) {
+    if (!galleryPhotos.length) return;
+    lightboxIndex = Math.max(0, Math.min(index, galleryPhotos.length - 1));
+    renderLightbox();
+    document.getElementById('photo-lightbox').hidden = false;
+    document.documentElement.classList.add('lightbox-open');
+    if (!lightboxOpen) {
+      // Lets the phone's "back" gesture/button close the photo instead of leaving the site.
+      try { history.pushState({ lightbox: true }, ''); } catch {}
+    }
+    lightboxOpen = true;
+    document.getElementById('lightbox-close').focus();
+  }
+
+  function hideLightbox() {
+    document.getElementById('photo-lightbox').hidden = true;
+    document.documentElement.classList.remove('lightbox-open');
+    lightboxOpen = false;
+  }
+
+  function closeLightbox() {
+    if (!lightboxOpen) return;
+    if (history.state && history.state.lightbox) history.back();
+    else hideLightbox();
+  }
+
+  function stepLightbox(delta) {
+    const next = lightboxIndex + delta;
+    if (next < 0 || next >= galleryPhotos.length) return;
+    lightboxIndex = next;
+    renderLightbox();
+  }
+
+  window.addEventListener('popstate', () => { if (lightboxOpen) hideLightbox(); });
+  document.getElementById('lightbox-close')?.addEventListener('click', closeLightbox);
+  document.getElementById('lightbox-prev')?.addEventListener('click', () => stepLightbox(-1));
+  document.getElementById('lightbox-next')?.addEventListener('click', () => stepLightbox(1));
+  document.addEventListener('keydown', (e) => {
+    if (!lightboxOpen) return;
+    if (e.key === 'Escape') closeLightbox();
+    else if (e.key === 'ArrowLeft') stepLightbox(-1);
+    else if (e.key === 'ArrowRight') stepLightbox(1);
+  });
+  (function setupLightboxSwipe() {
+    const stage = document.getElementById('lightbox-stage');
+    if (!stage) return;
+    let startX = null;
+    let startY = null;
+    stage.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) { startX = null; return; }
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+    stage.addEventListener('touchend', (e) => {
+      if (startX == null) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      startX = null;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) stepLightbox(dx < 0 ? 1 : -1);
+    });
+  })();
 
   function renderPhotosAndSync() {
     const panel = document.getElementById('supabase-auth-panel');
@@ -1647,6 +2007,7 @@
   activeView = 'flights';
   updateClocksAndCountdown();
   renderOverview();
+  chooseDefaultFlightDir();
   renderFlights();
   renderSettings();
   syncCustomBarsToCocktailSelect();
@@ -1658,6 +2019,7 @@
   renderExpenses();
   initSupabase();
   setInterval(updateClocksAndCountdown, 30000);
+  setInterval(() => { if (activeView === 'flights') renderFlightStatus(); }, 60000);
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
