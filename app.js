@@ -1270,7 +1270,10 @@
             ${timeBlock('Chega', t.arr, leg.arrTime, leg.arrTz, toName)}
           </div>
           ${liveLine}
-          <p class="sf-meta">Duração ${escapeHtml(durText)} · ${escapeHtml(leg.airline ? `${leg.airline} · ` : '')}Voo ${escapeHtml(leg.flightNumber)}</p>
+          <div class="sf-footer">
+            <p class="sf-meta">Duração ${escapeHtml(durText)} · ${escapeHtml(leg.airline ? `${leg.airline} · ` : '')}Voo ${escapeHtml(leg.flightNumber)}</p>
+            <a class="sf-fr24-link" href="https://www.flightradar24.com/data/flights/${encodeURIComponent(getFlightIata(leg.flightNumber).toLowerCase())}" target="_blank" rel="noopener noreferrer">✈ FlightRadar24 ↗</a>
+          </div>
         </article>`);
 
       const next = times[i + 1];
@@ -1314,15 +1317,19 @@
       blocks.push(`
         <article class="boarding-pass ${prog.cls}" style="--flight-pct:${prog.pct}%;">
           <div class="bp-header">
-            <div class="bp-flight-badge">
-              <span class="bp-step-pill">${stepLabel}</span>
-              <span class="bp-flight-num">${escapeHtml(leg.flightNumber)}</span>
-              <span>${escapeHtml(leg.airline || 'Companhia')} · Callsign <strong class="mono">${escapeHtml(icao)}</strong></span>
+            <div class="bp-header-row">
+              <div class="bp-flight-badge">
+                <span class="bp-step-pill">${stepLabel}</span>
+                <span class="bp-flight-num">${escapeHtml(leg.flightNumber)}</span>
+              </div>
               ${formatStatusBadge(live, inWin, prog)}
             </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">
-              <button type="button" class="btn btn-ghost-light btn-sm" data-edit-leg="${escapeHtml(leg.id)}">✎ Editar</button>
-              <button type="button" class="btn btn-ghost-light btn-sm" data-refresh-leg="${escapeHtml(leg.id)}">↻ Radar</button>
+            <div class="bp-header-sub">
+              <span class="bp-airline-meta">${escapeHtml(leg.airline || 'Companhia')} · <strong class="mono">${escapeHtml(icao)}</strong></span>
+              <div class="bp-header-actions">
+                <button type="button" class="btn btn-ghost-light bp-action-btn" data-edit-leg="${escapeHtml(leg.id)}">✎ Editar</button>
+                <button type="button" class="btn btn-ghost-light bp-action-btn" data-refresh-leg="${escapeHtml(leg.id)}">↻ Radar</button>
+              </div>
             </div>
           </div>
           <div class="bp-body">
