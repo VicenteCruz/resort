@@ -899,6 +899,37 @@
     });
   }
 
+  async function lookupFlightRoute(flightNumber) {
+    const clean = getFlightIata(flightNumber);
+    const callsign = getIcaoCallsign(clean);
+    const airlines = {
+      AC: 'Air Canada', TP: 'TAP Air Portugal', TS: 'Air Transat', WS: 'WestJet',
+      AM: 'Aeroméxico', UA: 'United Airlines', AA: 'American Airlines', DL: 'Delta Air Lines',
+      LH: 'Lufthansa', IB: 'Iberia', AF: 'Air France', BA: 'British Airways', KL: 'KLM'
+    };
+    const prefix = clean.slice(0, 2);
+    const result = { airline: airlines[prefix] || '', fromCode: '', toCode: '' };
+
+    try {
+      const res = await fetch('https://api.adsb.lol/api/0/routeset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planes: [{ callsign, lat: 0, lng: 0 }] })
+      });
+      if (res.ok) {
+        const arr = await res.json();
+        const entry = Array.isArray(arr) && arr[0];
+        if (entry && Array.isArray(entry._airports) && entry._airports.length >= 2) {
+          result.fromCode = (entry._airports[0].iata || '').toUpperCase();
+          result.toCode = (entry._airports[entry._airports.length - 1].iata || '').toUpperCase();
+        }
+      }
+    } catch (err) {
+      console.warn('routeset lookup failed:', err);
+    }
+    return result;
+  }
+
   function openLegModal(id) {
     const isOut = state.flights.outbound.legs.some((l) => l.id === id);
     const dirObj = isOut ? state.flights.outbound : state.flights.inbound;
@@ -906,14 +937,21 @@
     if (!leg) return;
     openModal(`Alterar Voo ${leg.flightNumber}`, `
       <form id="f-leg" class="form-grid">
-        <div><label class="field-label">Data da Viagem</label><input id="l-date" class="input" value="${escapeHtml(dirObj.dateLabel)}" /></div>
         <div class="form-grid form-grid-2">
           <div><label class="field-label">Nº do Voo (ex: AC 811)</label><input id="l-num" class="input mono" value="${escapeHtml(leg.flightNumber)}" required /></div>
-          <div><label class="field-label">Companhia Aérea</label><input id="l-air" class="input" value="${escapeHtml(leg.airline)}" /></div>
+          <div><label class="field-label">Data da Viagem</label><input id="l-date" class="input" value="${escapeHtml(dirObj.dateLabel)}" /></div>
+        </div>
+        <div style="display:flex;justify-content:flex-start;">
+          <button type="button" class="btn btn-sm" id="btn-auto-route">🔍 Preencher Companhia &amp; Rota (adsb.lol)</button>
         </div>
         <div class="form-grid form-grid-2">
-          <div><label class="field-label">Origem (Código IATA)</label><input id="l-from" class="input mono" value="${escapeHtml(leg.fromCode)}" maxlength="4" /></div>
-          <div><label class="field-label">Destino (Código IATA)</label><input id="l-to" class="input mono" value="${escapeHtml(leg.toCode)}" maxlength="4" /></div>
+          <div><label class="field-label">Companhia Aérea</label><input id="l-air" class="input" value="${escapeHtml(leg.airline)}" /></div>
+          <div><label class="field-label">Origem → Destino (IATA)</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+              <input id="l-from" class="input mono" value="${escapeHtml(leg.fromCode)}" maxlength="3" placeholder="LIS" />
+              <input id="l-to" class="input mono" value="${escapeHtml(leg.toCode)}" maxlength="3" placeholder="YYZ" />
+            </div>
+          </div>
         </div>
         <div class="form-grid form-grid-2">
           <div><label class="field-label">Hora Partida</label><input id="l-dep" class="input mono" value="${escapeHtml(leg.depTime)}" /></div>
@@ -926,6 +964,18 @@
         <div style="display:flex;justify-content:flex-end;margin-top:6px;"><button type="submit" class="btn btn-primary">Guardar Alterações</button></div>
       </form>
     `);
+
+    document.getElementById('btn-auto-route').addEventListener('click', async () => {
+      const num = document.getElementById('l-num').value.trim().toUpperCase();
+      if (!num) return;
+      showToast('A procurar rota na adsb.lol...');
+      const info = await lookupFlightRoute(num);
+      if (info.airline) document.getElementById('l-air').value = info.airline;
+      if (info.fromCode) document.getElementById('l-from').value = info.fromCode;
+      if (info.toCode) document.getElementById('l-to').value = info.toCode;
+      showToast(info.fromCode && info.toCode ? `Rota encontrada: ${info.fromCode} → ${info.toCode}!` : 'Companhia preenchida (rota não disponível na adsb.lol).');
+    });
+
     document.getElementById('f-leg').addEventListener('submit', (e) => {
       e.preventDefault();
       const newNum = document.getElementById('l-num').value.trim().toUpperCase();
