@@ -1630,7 +1630,187 @@
     }
   }
 
-  // ---------- Restaurants: Ranking Postcards + Dedicated Page (Photo, Menu, Dishes & Reviews) ----------
+  // ---------- Reviews & Gastronomy: Shared Visual Helpers + Restaurants ----------
+  const UI_ICONS = {
+    trophy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>`,
+    pin: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`,
+    calendar: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>`,
+    clock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    camera: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>`,
+    doc: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" x2="16" y1="13" y2="13"/><line x1="8" x2="16" y1="17" y2="17"/></svg>`,
+    shirt: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>`
+  };
+
+  const RATING_WORD_LABELS = {
+    1: 'Fraco · 1★',
+    2: 'Razoável · 2★',
+    3: 'Bom · 3★',
+    4: 'Muito bom · 4★',
+    5: 'Incrível · 5★'
+  };
+
+  function describeOverallScore(avg) {
+    if (avg >= 4.7) return 'Favorito absoluto da viagem';
+    if (avg >= 4.2) return 'Experiência excelente';
+    if (avg >= 3.5) return 'Muito bom, recomendamos';
+    if (avg >= 2.6) return 'Razoável';
+    return 'Abaixo do esperado';
+  }
+
+  function getReviewerTone(name) {
+    const s = String(name || 'V').trim().toLowerCase();
+    let hash = 0;
+    for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+    return hash % 4;
+  }
+
+  function getReviewerInitials(name) {
+    const parts = String(name || 'V').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return 'V';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  function renderAvatarHtml(name) {
+    const tone = getReviewerTone(name);
+    return `<span class="reviewer-avatar tone-${tone}" title="${escapeHtml(name)}">${escapeHtml(getReviewerInitials(name))}</span>`;
+  }
+
+  function parseDishList(dishesStr) {
+    if (!dishesStr) return [];
+    return String(dishesStr)
+      .split(/[,;·•]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  function renderSensoryMeters(items, isGold = false) {
+    return `
+      <div class="sensory-meters is-4col ${isGold ? 'is-gold' : ''}">
+        ${items
+          .map((it) => {
+            const val = Math.max(0, Math.min(5, Number(it.value || 0)));
+            const pct = Math.round((val / 5) * 100);
+            return `
+              <div class="sensory-meter">
+                <div class="sensory-meter-top">
+                  <span class="sensory-meter-label">${escapeHtml(it.label)}</span>
+                  <span class="sensory-meter-val">${val.toFixed(1)}</span>
+                </div>
+                <div class="sensory-meter-track">
+                  <div class="sensory-meter-fill" style="width: ${pct}%;"></div>
+                </div>
+              </div>`;
+          })
+          .join('')}
+      </div>`;
+  }
+
+  function renderStarPickerMarkup(criteria, initialVals) {
+    const initAvg =
+      criteria.reduce((sum, c) => sum + (Number(initialVals[c.key]) || 4), 0) / Math.max(1, criteria.length);
+    return `
+      <div class="live-rating-banner">
+        <div>
+          <div class="live-rating-banner-label">Nota Final Calculada</div>
+          <div class="live-rating-banner-sub" id="live-rating-desc">${escapeHtml(describeOverallScore(initAvg))}</div>
+        </div>
+        <div class="live-rating-banner-score">
+          <span id="live-rating-val">${initAvg.toFixed(1)}</span>
+          <span style="font-size:1.05rem;">★</span>
+        </div>
+      </div>
+      <div class="star-criteria-list" id="star-criteria-container">
+        ${criteria
+          .map((c) => {
+            const cur = Math.max(1, Math.min(5, Math.round(Number(initialVals[c.key]) || 4)));
+            return `
+              <div class="star-criterion-row" data-criterion-row="${escapeHtml(c.key)}">
+                <input type="hidden" id="${escapeHtml(c.inputId)}" value="${cur}" />
+                <div class="star-criterion-info">
+                  <span class="star-criterion-title">${escapeHtml(c.label)}</span>
+                  <span class="star-criterion-word" data-criterion-word="${escapeHtml(c.key)}">${escapeHtml(RATING_WORD_LABELS[cur])}</span>
+                </div>
+                <div class="star-buttons-group" role="radiogroup" aria-label="${escapeHtml(c.label)}">
+                  ${[1, 2, 3, 4, 5]
+                    .map(
+                      (n) => `
+                        <button type="button" class="star-tap-btn ${n <= cur ? 'is-lit' : ''}" data-star-val="${n}" aria-label="${n} estrelas">★</button>`
+                    )
+                    .join('')}
+                </div>
+              </div>`;
+          })
+          .join('')}
+      </div>`;
+  }
+
+  function bindStarPickerEvents(criteria) {
+    const container = document.getElementById('star-criteria-container');
+    if (!container) return;
+    const updateOverall = () => {
+      const vals = criteria.map((c) => Number(document.getElementById(c.inputId)?.value) || 4);
+      const avg = vals.reduce((a, b) => a + b, 0) / Math.max(1, vals.length);
+      const valEl = document.getElementById('live-rating-val');
+      const descEl = document.getElementById('live-rating-desc');
+      if (valEl) valEl.textContent = avg.toFixed(1);
+      if (descEl) descEl.textContent = describeOverallScore(avg);
+    };
+
+    criteria.forEach((c) => {
+      const row = container.querySelector(`[data-criterion-row="${c.key}"]`);
+      const hidden = document.getElementById(c.inputId);
+      const wordEl = container.querySelector(`[data-criterion-word="${c.key}"]`);
+      if (!row || !hidden) return;
+      const btns = Array.from(row.querySelectorAll('.star-tap-btn'));
+      btns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const picked = Number(btn.getAttribute('data-star-val')) || 4;
+          hidden.value = String(picked);
+          btns.forEach((b) => b.classList.toggle('is-lit', Number(b.getAttribute('data-star-val')) <= picked));
+          if (wordEl) wordEl.textContent = RATING_WORD_LABELS[picked] || `${picked}★`;
+          updateOverall();
+        });
+      });
+    });
+  }
+
+  function getRestaurantVisualTheme(v) {
+    const hay = `${v.name || ''} ${v.cuisine || ''}`.toLowerCase();
+    let mood = 'mood-buffet';
+    let svg = `<svg class="rest-card-watermark" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 46h40M16 46a16 16 0 0 1 32 0M32 22v6M10 52h44"/></svg>`;
+
+    if (/asiát|teppan|nikkei|wok|jap|orient|sushi/.test(hay)) {
+      mood = 'mood-asian';
+      svg = `<svg class="rest-card-watermark" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 34h36a18 18 0 0 1-36 0Z"/><path d="M12 22l40-8M12 28l40-4"/><path d="M24 52h16"/></svg>`;
+    } else if (/itali|bruschetta|volta|massa|pizza|risot/.test(hay)) {
+      mood = 'mood-italian';
+      svg = `<svg class="rest-card-watermark" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12v16a8 8 0 0 0 16 0V12M28 12v40"/><path d="M46 14c-6 8-6 18 0 24v14"/></svg>`;
+    } else if (/steak|grill|rodízio|grelhad|carne|vaquer|rodeo|sumauma/.test(hay)) {
+      mood = 'mood-grill';
+      svg = `<svg class="rest-card-watermark" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2"><path d="M32 12c8 10 14 16 14 26a14 14 0 0 1-28 0c0-7 4-13 9-18 0 5 3 8 5 8 1-5 0-11 0-16Z"/></svg>`;
+    } else if (/mexic|hacienda|taco|tequila/.test(hay)) {
+      mood = 'mood-mexican';
+      svg = `<svg class="rest-card-watermark" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2"><path d="M32 50V18M32 46c-8-4-15-12-17-22 7 2 13 8 17 16M32 46c8-4 15-12 17-22-7 2-13 8-17 16"/><path d="M18 50h28"/></svg>`;
+    } else if (/gourmet|exclusiv|skylight|aroma|chill|galerie/.test(hay) || v.category === 'extra') {
+      mood = 'mood-gourmet';
+      svg = `<svg class="rest-card-watermark" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2"><path d="M32 12l4.5 11.5L48 28l-11.5 4.5L32 44l-4.5-11.5L16 28l11.5-4.5L32 12Z"/><path d="M48 44l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z"/></svg>`;
+    }
+
+    const scopeLabel =
+      v.category === 'pyp'
+        ? 'No vosso hotel'
+        : v.category === 'sister'
+          ? 'Hotel vizinho'
+          : v.category === 'extra'
+            ? 'Pago à parte'
+            : 'Local';
+
+    const cleanCuisine = String(v.cuisine || 'Restaurante').replace(/\s*\([^)]*\)\s*/g, '').trim() || v.cuisine || 'Restaurante';
+
+    return { mood, svg, scopeLabel, cleanCuisine };
+  }
+
   function getVenueReviewAvg(r) {
     if (r?.aspects) {
       return (Number(r.aspects.food || 4) + Number(r.aspects.vibe || 4) + Number(r.aspects.service || 4) + Number(r.aspects.quality || 4)) / 4;
@@ -1646,6 +1826,26 @@
     const r = v.ratings;
     if (!r) return 0;
     return (Number(r.food || 0) + Number(r.vibe || 0) + Number(r.service || 0) + Number(r.quality || 0)) / 4;
+  }
+
+  function getVenueAspectAverages(v) {
+    const revs = Array.isArray(v.reviews) ? v.reviews : [];
+    if (!revs.length) return null;
+    const totals = { food: 0, vibe: 0, service: 0, quality: 0 };
+    revs.forEach((r) => {
+      const fallback = Number(r.rating || 4);
+      totals.food += Number(r.aspects?.food ?? fallback);
+      totals.vibe += Number(r.aspects?.vibe ?? fallback);
+      totals.service += Number(r.aspects?.service ?? fallback);
+      totals.quality += Number(r.aspects?.quality ?? fallback);
+    });
+    const n = revs.length;
+    return [
+      { label: 'Comida', value: totals.food / n },
+      { label: 'Ambiente', value: totals.vibe / n },
+      { label: 'Serviço', value: totals.service / n },
+      { label: 'Pratos', value: totals.quality / n }
+    ];
   }
 
   async function uploadVenueImage(file, folder) {
@@ -1703,7 +1903,15 @@
             </select>
           </div>
         </div>
-        <div><label class="field-label" for="er-cuisine">Tipo / Cozinha</label><input id="er-cuisine" class="input" value="${escapeHtml(v.cuisine || '')}" /></div>
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label" for="er-cuisine">Tipo / Cozinha</label><input id="er-cuisine" class="input" value="${escapeHtml(v.cuisine || '')}" /></div>
+          <div><label class="field-label" for="er-hours">Horário</label><input id="er-hours" class="input" value="${escapeHtml(v.hoursLabel || '')}" placeholder="Ex: Jantar 18:00–22:00" /></div>
+        </div>
+        <div><label class="field-label" for="er-dress">Dress Code (opcional)</label><input id="er-dress" class="input" value="${escapeHtml(v.dressCode || '')}" placeholder="Ex: Smart Casual, calças compridas..." /></div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.85rem;">
+          <input type="checkbox" id="er-res" class="check-circle" style="margin-top:0;" ${v.reservationRequired ? 'checked' : ''} />
+          <span>Exige reserva prévia</span>
+        </label>
         <div><label class="field-label" for="er-desc">Descrição / Notas</label><textarea id="er-desc" class="textarea" rows="3">${escapeHtml(v.description || '')}</textarea></div>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;"><button type="submit" class="btn btn-primary">Guardar Alterações</button></div>
       </form>
@@ -1713,6 +1921,9 @@
       v.name = document.getElementById('er-name').value.trim() || v.name;
       v.category = document.getElementById('er-cat').value;
       v.cuisine = document.getElementById('er-cuisine').value.trim() || v.cuisine;
+      v.hoursLabel = document.getElementById('er-hours').value.trim();
+      v.dressCode = document.getElementById('er-dress').value.trim();
+      v.reservationRequired = Boolean(document.getElementById('er-res')?.checked);
       v.description = document.getElementById('er-desc').value.trim();
       v.included = v.category !== 'extra';
       saveState();
@@ -1730,33 +1941,33 @@
     const editing = editReviewId
       ? v.reviews.find((r) => r.id === editReviewId)
       : v.reviews.find((r) => r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase());
-    const a = editing?.aspects || { food: 4, vibe: 4, service: 4, quality: 4 };
-    const opts = (val) =>
-      [5, 4, 3, 2, 1]
-        .map((n) => `<option value="${n}" ${Number(val) === n ? 'selected' : ''}>${'★'.repeat(n)}${'☆'.repeat(5 - n)} (${n})</option>`)
-        .join('');
+    const a = editing?.aspects || { food: 5, vibe: 4, service: 4, quality: 5 };
+
+    const criteria = [
+      { key: 'food', inputId: 'rv-food', label: '🍽️ Comida & Sabor' },
+      { key: 'vibe', inputId: 'rv-vibe', label: '✨ Ambiente & Espaço' },
+      { key: 'service', inputId: 'rv-serv', label: '🤝 Serviço & Simpatia' },
+      { key: 'quality', inputId: 'rv-qual', label: '👨‍🍳 Apresentação & Pratos' }
+    ];
 
     openModal(editing ? `Editar Review — ${v.name}` : `Avaliar ${v.name}`, `
       <form id="f-rate-venue" class="form-grid">
+        ${renderStarPickerMarkup(criteria, a)}
         <div>
-          <label class="field-label" for="rv-dishes">O que comeste?</label>
+          <label class="field-label" for="rv-dishes">O que comeram? (separe por vírgulas)</label>
           <input id="rv-dishes" class="input" value="${escapeHtml(editing?.dishes || '')}" placeholder="Ex: Bife Ribeye, Ceviche, Massa Trufada, Tiramisu..." required />
         </div>
-        <div class="form-grid form-grid-2">
-          <div><label class="field-label" for="rv-food">Comida</label><select id="rv-food" class="select">${opts(a.food)}</select></div>
-          <div><label class="field-label" for="rv-vibe">Ambiente</label><select id="rv-vibe" class="select">${opts(a.vibe)}</select></div>
-          <div><label class="field-label" for="rv-serv">Serviço</label><select id="rv-serv" class="select">${opts(a.service)}</select></div>
-          <div><label class="field-label" for="rv-qual">Qualidade / Pratos</label><select id="rv-qual" class="select">${opts(a.quality)}</select></div>
-        </div>
         <div>
-          <label class="field-label" for="rv-note">Comentário / Dica (opcional)</label>
-          <input id="rv-note" class="input" value="${escapeHtml(editing?.comment || '')}" placeholder="Ex: Pedir mesa lá fora, sobremesa incrível..." />
+          <label class="field-label" for="rv-note">Comentário ou dica rápida (opcional)</label>
+          <input id="rv-note" class="input" value="${escapeHtml(editing?.comment || '')}" placeholder="Ex: Pedir mesa sobre a água, sobremesa incrível..." />
         </div>
-        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
           <button type="submit" class="btn btn-primary">${editing ? 'Guardar Alterações' : '+ Guardar Review'}</button>
         </div>
       </form>
     `);
+
+    bindStarPickerEvents(criteria);
 
     document.getElementById('f-rate-venue').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -1806,12 +2017,19 @@
             </select>
           </div>
         </div>
-        <div><label class="field-label" for="nr-cuisine">Tipo / Cozinha</label><input id="nr-cuisine" class="input" placeholder="Ex: Italiano, Marisco, Steakhouse..." /></div>
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label" for="nr-cuisine">Tipo / Cozinha</label><input id="nr-cuisine" class="input" placeholder="Ex: Italiano, Marisco, Steakhouse..." /></div>
+          <div><label class="field-label" for="nr-hours">Horário (opcional)</label><input id="nr-hours" class="input" placeholder="Ex: Jantar 18:00–22:00" /></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.85rem;">
+          <input type="checkbox" id="nr-res" class="check-circle" style="margin-top:0;" />
+          <span>Exige reserva prévia</span>
+        </label>
         <div class="form-grid form-grid-2">
           <div><label class="field-label" for="nr-photo">Foto do Restaurante (opcional)</label><input type="file" id="nr-photo" accept="image/*" class="input" /></div>
           <div><label class="field-label" for="nr-menu">Foto do Menu (opcional)</label><input type="file" id="nr-menu" accept="image/*" class="input" /></div>
         </div>
-        <div><label class="field-label" for="nr-desc">Notas (opcional)</label><input id="nr-desc" class="input" placeholder="Ex: Pede reserva, dress code..." /></div>
+        <div><label class="field-label" for="nr-desc">Notas (opcional)</label><input id="nr-desc" class="input" placeholder="Ex: Junto à praia, dress code..." /></div>
         <div style="display:flex;justify-content:flex-end;margin-top:4px;"><button type="submit" class="btn btn-primary">+ Criar Restaurante</button></div>
       </form>
     `);
@@ -1821,6 +2039,8 @@
       const name = document.getElementById('nr-name').value.trim();
       const category = document.getElementById('nr-cat').value;
       const cuisine = document.getElementById('nr-cuisine').value.trim() || 'Restaurante';
+      const hoursLabel = document.getElementById('nr-hours')?.value.trim() || '';
+      const reservationRequired = Boolean(document.getElementById('nr-res')?.checked);
       const description = document.getElementById('nr-desc').value.trim();
       const photoFile = document.getElementById('nr-photo')?.files?.[0];
       const menuFile = document.getElementById('nr-menu')?.files?.[0];
@@ -1836,9 +2056,9 @@
         category,
         cuisine,
         included: category !== 'extra',
-        reservationRequired: false,
+        reservationRequired,
         dressCode: '',
-        hoursLabel: '',
+        hoursLabel,
         openIntervals: [{ start: '00:00', end: '24:00' }],
         description,
         photoUrl,
@@ -1866,60 +2086,113 @@
 
     const revs = Array.isArray(v.reviews) ? v.reviews : [];
     const avg = getVenueAvg(v);
+    const aspectAvgs = getVenueAspectAverages(v);
     const me = getCurrentReviewer();
     const myReview = revs.find((r) => r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase());
+    const theme = getRestaurantVisualTheme(v);
+    const liveStatus = evaluateVenueStatus(v, getDestMinutesNow());
+    const statusCls = liveStatus.state === 'open' ? 'tag-open' : liveStatus.state === 'soon' ? 'tag-soon' : 'tag-closed';
 
     const reviewsHtml = revs.length
       ? revs
           .map((r) => {
             const rAvg = getVenueReviewAvg(r).toFixed(1);
             const a = r.aspects;
+            const dishes = parseDishList(r.dishes);
             return `
-              <div class="ck-review-row">
-                <div class="ck-review-row-top">
-                  <span class="ck-review-author">${escapeHtml(r.by)}</span>
-                  <div style="display:flex;align-items:center;gap:4px;">
-                    <span class="ck-review-score">★ ${rAvg}</span>
-                    <button type="button" class="icon-btn" style="padding:2px 5px;font-size:0.78rem;" data-edit-v-rev="${escapeHtml(r.id)}" title="Editar esta review">✎</button>
-                    <button type="button" class="icon-btn" style="padding:2px 5px;font-size:0.75rem;" data-del-v-rev="${escapeHtml(r.id)}" title="Apagar esta review">✕</button>
+              <div class="tasting-note">
+                <div class="tasting-note-top">
+                  <div class="tasting-author-group">
+                    ${renderAvatarHtml(r.by)}
+                    <div class="tasting-author-meta">
+                      <span class="tasting-author-name">${escapeHtml(r.by)}</span>
+                      <span class="tasting-author-sub">${escapeHtml(describeOverallScore(Number(rAvg)))}</span>
+                    </div>
+                  </div>
+                  <div class="tasting-note-actions">
+                    <span class="tasting-score-pill">★ ${rAvg}</span>
+                    <button type="button" class="icon-btn" data-edit-v-rev="${escapeHtml(r.id)}" title="Editar esta review">✎</button>
+                    <button type="button" class="icon-btn" data-del-v-rev="${escapeHtml(r.id)}" title="Apagar esta review">✕</button>
                   </div>
                 </div>
-                ${r.dishes ? `<div class="rest-dishes-line">🍽️ <strong>Comeu:</strong> ${escapeHtml(r.dishes)}</div>` : ''}
-                ${a ? `
-                  <div class="ck-review-mini-metrics" style="margin-top:2px;">
-                    <span>Comida ${a.food}★</span>
-                    <span>Ambiente ${a.vibe}★</span>
-                    <span>Serviço ${a.service}★</span>
-                    <span>Qualidade ${a.quality}★</span>
+                ${dishes.length ? `
+                  <div class="dishes-pills-wrap">
+                    <span class="dishes-pills-kicker">Provou</span>
+                    ${dishes.map((d) => `<span class="dish-pill">🍽️ ${escapeHtml(d)}</span>`).join('')}
                   </div>` : ''}
-                ${r.comment ? `<p class="ck-postcard-quote">"${escapeHtml(r.comment)}"</p>` : ''}
+                ${r.comment ? `<p class="tasting-quote">“${escapeHtml(r.comment)}”</p>` : ''}
+                ${a ? `
+                  <div class="tasting-subscores">
+                    <span class="tasting-subpill">Comida <strong>${a.food}★</strong></span>
+                    <span class="tasting-subpill">Ambiente <strong>${a.vibe}★</strong></span>
+                    <span class="tasting-subpill">Serviço <strong>${a.service}★</strong></span>
+                    <span class="tasting-subpill">Pratos <strong>${a.quality}★</strong></span>
+                  </div>` : ''}
               </div>`;
           })
           .join('')
-      : `<p style="font-size:0.88rem;color:var(--ink-secondary);padding:8px 0;">Ainda sem reviews. Sejam os primeiros a dizer o que comeram e a dar a nota!</p>`;
+      : `<div class="reviews-empty-state" style="padding:28px 18px;">
+           <p style="font-size:0.9rem;color:var(--ink-secondary);">Ainda sem avaliações neste restaurante.<br/>Registem o que comeram e a vossa nota para entrar no ranking!</p>
+         </div>`;
 
     detailEl.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-        <button type="button" class="btn btn-sm" id="btn-back-restaurants">← Voltar aos Restaurantes</button>
+      <div class="rest-detail-topbar">
+        <button type="button" class="btn btn-sm" id="btn-back-restaurants">← Todos os Restaurantes</button>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button type="button" class="btn btn-sm" id="btn-detail-edit-rest">✎ Editar</button>
-          <button type="button" class="btn btn-sm" id="btn-detail-sched">+ Agendar no Plano</button>
-          <button type="button" class="btn btn-primary btn-sm" id="btn-detail-review">${myReview ? '✎ Editar a minha Review' : '+ Adicionar Review'}</button>
+          <button type="button" class="btn btn-sm" id="btn-detail-sched">📅 Agendar Jantar</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-detail-review">${myReview ? '✎ A minha Review' : '★ Avaliar'}</button>
         </div>
       </div>
 
-      <div class="surface" style="margin-bottom:18px;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
-          <div>
-            <h2 class="section-title">${escapeHtml(v.name)}</h2>
-            <div class="ck-postcard-bar" style="font-size:0.88rem;">${escapeHtml(v.cuisine)}</div>
+      <div class="rest-detail-hero">
+        <div class="rest-detail-hero-main">
+          <div style="min-width:0;flex:1;">
+            <div class="rest-detail-badges">
+              <span class="tag tag-cenote">${escapeHtml(theme.scopeLabel)}</span>
+              ${v.openIntervals?.length ? `<span class="tag ${statusCls}">● ${escapeHtml(liveStatus.label)}</span>` : ''}
+              ${v.reservationRequired
+                ? `<span class="tag tag-soon">📅 Pede reserva</span>`
+                : `<span class="tag tag-open">✓ Sem reserva</span>`}
+              ${v.included === false ? `<span class="tag" style="background:var(--terracotta-100);color:var(--terracotta-600);">💎 Pago à parte</span>` : ''}
+            </div>
+            <h2 class="rest-detail-title">${escapeHtml(v.name)}</h2>
+            <div class="rest-detail-cuisine">${escapeHtml(v.cuisine)}</div>
+            ${v.description ? `<p style="font-size:0.9rem;color:var(--ink-secondary);margin-top:10px;max-width:66ch;">${escapeHtml(v.description)}</p>` : ''}
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            ${avg > 0 ? `<span class="tag tag-cenote mono" style="font-size:0.88rem;">★ ${avg.toFixed(1)} / 5</span>` : `<span class="tag">Por avaliar</span>`}
-            <span class="tag">${revs.length} ${revs.length === 1 ? 'review' : 'reviews'}</span>
+          ${avg > 0 ? `
+            <div class="score-seal ${avg >= 4.5 ? 'is-top' : ''}">
+              <div class="score-seal-main" style="padding:8px 14px;border-radius:16px;">
+                <span class="score-seal-num" style="font-size:1.75rem;">${avg.toFixed(1)}</span>
+                <span class="score-seal-star" style="font-size:1.1rem;">★</span>
+              </div>
+              <span class="score-seal-sub">${revs.length} ${revs.length === 1 ? 'avaliação' : 'avaliações'}</span>
+            </div>
+          ` : `<span class="tag">Por avaliar</span>`}
+        </div>
+
+        ${aspectAvgs ? renderSensoryMeters(aspectAvgs, avg >= 4.5) : ''}
+
+        <div class="rest-detail-info-grid">
+          <div class="rest-info-tile">
+            <span class="rest-info-tile-kicker">Horário</span>
+            <span class="rest-info-tile-val">${escapeHtml(v.hoursLabel || 'Consultar no local')}</span>
+          </div>
+          <div class="rest-info-tile">
+            <span class="rest-info-tile-kicker">Reserva &amp; Acesso</span>
+            <span class="rest-info-tile-val">${
+              v.included === false
+                ? 'Restaurante exclusivo pago à parte (requer reserva)'
+                : v.reservationRequired
+                  ? 'Reserva obrigatória (WebApp do hotel / Concierge)'
+                  : 'Entrada direta sem marcação · Tudo Incluído'
+            }</span>
+          </div>
+          <div class="rest-info-tile">
+            <span class="rest-info-tile-kicker">Dress Code</span>
+            <span class="rest-info-tile-val">${escapeHtml(v.dressCode || 'Casual / Smart Casual')}</span>
           </div>
         </div>
-        ${v.description ? `<p style="font-size:0.86rem;color:var(--ink-secondary);margin-top:10px;">${escapeHtml(v.description)}</p>` : ''}
       </div>
 
       <div class="rest-detail-photos">
@@ -1927,10 +2200,10 @@
           <div class="rest-photo-stage">
             ${v.photoUrl
               ? `<img src="${escapeHtml(v.photoUrl)}" alt="Foto de ${escapeHtml(v.name)}" id="img-rest-photo" />`
-              : `<span style="font-size:2.4rem;">🍽️</span><span>Sem foto do restaurante</span>`}
+              : `<span style="font-size:2.2rem;">📷</span><span>Adicione uma foto do espaço ou dos pratos</span>`}
           </div>
           <div class="rest-photo-bar">
-            <strong style="font-size:0.84rem;">Foto do Restaurante</strong>
+            <strong style="font-size:0.84rem;">Fotografia do Espaço / Prato</strong>
             <label class="btn btn-sm" style="cursor:pointer;">
               📷 ${v.photoUrl ? 'Alterar' : 'Adicionar'}
               <input type="file" id="inp-rest-photo" accept="image/*" style="display:none;" />
@@ -1942,10 +2215,10 @@
           <div class="rest-photo-stage">
             ${v.menuPhotoUrl
               ? `<img src="${escapeHtml(v.menuPhotoUrl)}" alt="Menu de ${escapeHtml(v.name)}" id="img-rest-menu" />`
-              : `<span style="font-size:2.4rem;">📄</span><span>Sem foto do menu</span>`}
+              : `<span style="font-size:2.2rem;">📄</span><span>Fotografe a carta para consultar quando quiser</span>`}
           </div>
           <div class="rest-photo-bar">
-            <strong style="font-size:0.84rem;">Foto do Menu</strong>
+            <strong style="font-size:0.84rem;">Carta / Menu</strong>
             <label class="btn btn-sm" style="cursor:pointer;">
               📄 ${v.menuPhotoUrl ? 'Alterar' : 'Adicionar'}
               <input type="file" id="inp-rest-menu" accept="image/*" style="display:none;" />
@@ -1955,14 +2228,14 @@
       </div>
 
       <div class="surface">
-        <div class="section-header" style="margin-bottom:10px;">
+        <div class="section-header" style="margin-bottom:14px;">
           <div>
-            <h3 style="font-size:1.1rem;">Reviews &amp; O Que Comeram</h3>
-            <p class="section-subtitle">Cada pessoa pode registar os pratos que provou e a sua nota</p>
+            <h3 style="font-size:1.18rem;">Avaliações &amp; Pratos Provados</h3>
+            <p class="section-subtitle">As notas e escolhas de cada pessoa neste restaurante</p>
           </div>
           <button type="button" class="btn btn-primary btn-sm" id="btn-detail-review-2">${myReview ? '✎ Editar a minha' : '+ Adicionar Review'}</button>
         </div>
-        <div class="ck-reviews-list">${reviewsHtml}</div>
+        <div class="tasting-feed">${reviewsHtml}</div>
       </div>
 
       <div style="display:flex;justify-content:flex-end;margin-top:18px;">
@@ -2067,6 +2340,19 @@
     const detailView = document.getElementById('resort-detail-view');
     if (!listView || !detailView) return;
 
+    const restaurantsOnly = state.venues.filter((v) => v.category !== 'bars');
+    const ratedCount = restaurantsOnly.filter((v) => getVenueAvg(v) > 0).length;
+    const totalReviews = restaurantsOnly.reduce((s, v) => s + (Array.isArray(v.reviews) ? v.reviews.length : 0), 0);
+
+    const badge = document.getElementById('restaurants-count-badge');
+    if (badge) {
+      badge.textContent = `${restaurantsOnly.length} locais · ${totalReviews} ${totalReviews === 1 ? 'review' : 'reviews'}`;
+    }
+    const tabSub = document.getElementById('rev-tab-rest-sub');
+    if (tabSub) {
+      tabSub.textContent = ratedCount > 0 ? `${ratedCount} avaliados de ${restaurantsOnly.length}` : `${restaurantsOnly.length} locais no guia`;
+    }
+
     if (activeRestaurantId) {
       listView.style.display = 'none';
       detailView.style.display = 'block';
@@ -2076,13 +2362,6 @@
 
     listView.style.display = 'block';
     detailView.style.display = 'none';
-
-    const restaurantsOnly = state.venues.filter((v) => v.category !== 'bars');
-    const totalReviews = restaurantsOnly.reduce((s, v) => s + (Array.isArray(v.reviews) ? v.reviews.length : 0), 0);
-    const badge = document.getElementById('restaurants-count-badge');
-    if (badge) {
-      badge.textContent = `${restaurantsOnly.length} restaurante${restaurantsOnly.length === 1 ? '' : 's'} · ${totalReviews} review${totalReviews === 1 ? '' : 's'}`;
-    }
 
     let list = restaurantsOnly.filter((v) => {
       if (activeVenueCategory === 'all') return true;
@@ -2095,69 +2374,143 @@
 
     const grid = document.getElementById('venue-cards-grid');
     if (!list.length) {
-      grid.innerHTML = `<div class="surface" style="grid-column: 1 / -1; text-align: center; padding: 36px 20px;">
-        <div style="font-size: 2.2rem; margin-bottom: 8px;">🍽️</div>
-        <p style="font-size: 0.92rem; color: var(--ink-secondary);">${
-          activeVenueCategory === 'ranking'
-            ? 'Ainda nenhum restaurante avaliado. Toque num restaurante para abrir a página e registar o que comeram!'
-            : 'Sem restaurantes nesta categoria. Carregue em + Adicionar Restaurante no canto inferior direito.'
-        }</p>
-      </div>`;
+      grid.innerHTML = `
+        <div class="reviews-empty-state">
+          <div class="reviews-empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>
+          </div>
+          <h3 style="font-size:1.15rem;">${activeVenueCategory === 'ranking' ? 'Ainda sem restaurantes avaliados' : 'Sem restaurantes nesta categoria'}</h3>
+          <p style="font-size:0.9rem;color:var(--ink-secondary);max-width:44ch;">${
+            activeVenueCategory === 'ranking'
+              ? 'Carreguem em "★ Avaliar" num restaurante depois de jantar para começarem o vosso ranking da viagem!'
+              : 'Podem adicionar novos restaurantes a qualquer momento no botão + no canto inferior direito.'
+          }</p>
+        </div>`;
       return;
     }
 
-    const medals = ['🥇 #1', '🥈 #2', '🥉 #3'];
     const medalClasses = ['is-gold', 'is-silver', 'is-bronze'];
+    const nowMins = getDestMinutesNow();
+    const me = getCurrentReviewer();
     let ratedRank = 0;
 
     grid.innerHTML = list
       .map((v) => {
         const avg = getVenueAvg(v);
         const revs = Array.isArray(v.reviews) ? v.reviews : [];
+        const aspectAvgs = getVenueAspectAverages(v);
+        const theme = getRestaurantVisualTheme(v);
+        const myRev = revs.find((r) => r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase());
+
         let rankBadge = '';
+        const isGoldRank = avg > 0 && ratedRank === 0;
         if (avg > 0) {
-          const rankText = medals[ratedRank] || `#${ratedRank + 1}`;
+          const rankNum = ratedRank + 1;
           const rankCls = medalClasses[ratedRank] || '';
-          rankBadge = `<span class="ck-rank-badge ${rankCls}">${rankText}</span>`;
+          rankBadge = `<span class="rank-medallion ${rankCls}">${ratedRank < 3 ? UI_ICONS.trophy : ''}#${rankNum}</span>`;
           ratedRank++;
         }
 
-        const recentDishes = revs.map((r) => r.dishes).filter(Boolean).slice(0, 2);
+        const liveStatus = evaluateVenueStatus(v, nowMins);
+        const statusPillCls = liveStatus.state === 'open' ? 'is-open' : liveStatus.state === 'soon' ? 'is-soon' : 'is-closed';
+        const statusPillHtml = v.openIntervals?.length
+          ? `<span class="glass-pill ${statusPillCls}"><span class="status-dot"></span>${escapeHtml(liveStatus.label)}</span>`
+          : '';
+
+        const allDishes = [...new Set(revs.flatMap((r) => parseDishList(r.dishes)))].slice(0, 4);
+        const latestWithQuote = [...revs].reverse().find((r) => r.comment) || revs[revs.length - 1];
 
         return `
-          <article class="cocktail-postcard is-clickable" data-open-rest="${escapeHtml(v.id)}">
-            <div class="ck-postcard-media">
+          <article class="rest-card" data-open-rest="${escapeHtml(v.id)}">
+            <div class="rest-card-visual ${theme.mood} ${v.photoUrl ? 'has-photo' : ''}">
               ${v.photoUrl
-                ? `<img src="${escapeHtml(v.photoUrl)}" alt="${escapeHtml(v.name)}" loading="lazy" />`
-                : `<span class="ck-postcard-placeholder" aria-hidden="true">🍽️</span>`}
-              ${rankBadge}
+                ? `<img src="${escapeHtml(v.photoUrl)}" alt="${escapeHtml(v.name)}" class="rest-card-visual-img" loading="lazy" />`
+                : theme.svg}
+              <div class="rest-visual-row">
+                <div class="rest-visual-badges">
+                  ${rankBadge}
+                  <span class="rest-scope-pill">${escapeHtml(theme.scopeLabel)}</span>
+                </div>
+                ${statusPillHtml}
+              </div>
+              <div class="rest-visual-row" style="justify-content:flex-end;">
+                ${v.menuPhotoUrl ? `<span class="rest-scope-pill">${UI_ICONS.doc} Menu</span>` : ''}
+              </div>
             </div>
-            <div class="ck-postcard-body">
-              <div>
-                <div class="ck-postcard-head">
-                  <div style="min-width:0;">
-                    <h3 class="ck-postcard-title">${escapeHtml(v.name)}</h3>
-                    <div class="ck-postcard-bar">${escapeHtml(v.cuisine)}</div>
+
+            <div class="rest-card-body">
+              <div class="rest-card-head">
+                <div style="min-width:0;">
+                  <h3 class="rest-card-title">${escapeHtml(v.name)}</h3>
+                  <div class="rest-card-subtitle">${escapeHtml(v.cuisine)}</div>
+                </div>
+                ${avg > 0 ? `
+                  <div class="score-seal ${isGoldRank ? 'is-top' : ''}">
+                    <div class="score-seal-main">
+                      <span class="score-seal-num">${avg.toFixed(1)}</span>
+                      <span class="score-seal-star">★</span>
+                    </div>
+                    <span class="score-seal-sub">${revs.length} ${revs.length === 1 ? 'review' : 'reviews'}</span>
                   </div>
-                  ${avg > 0
-                    ? `<span class="tag tag-cenote mono">★ ${avg.toFixed(1)}</span>`
-                    : `<span class="tag">Por avaliar</span>`}
-                </div>
-                ${recentDishes.length
-                  ? `<div class="rest-dishes-line" style="margin-top:8px;">🍽️ ${escapeHtml(recentDishes.join(' · '))}</div>`
-                  : (v.description ? `<p class="ck-postcard-quote" style="margin-top:8px;font-style:normal;">${escapeHtml(v.description)}</p>` : '')}
+                ` : `<span class="tag" style="margin-top:2px;">Por avaliar</span>`}
               </div>
-              <div class="ck-postcard-footer">
-                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                  <span>${revs.length} ${revs.length === 1 ? 'review' : 'reviews'}</span>
-                  ${v.menuPhotoUrl ? `<span class="tag tag-open" style="padding:1px 7px;font-size:0.7rem;">📄 Menu</span>` : ''}
-                </div>
-                <span style="font-weight:700;color:var(--cenote-700);">Abrir página →</span>
+
+              <div class="rest-facts-row">
+                ${v.reservationRequired
+                  ? `<span class="fact-chip is-warn">${UI_ICONS.calendar} Pede reserva</span>`
+                  : `<span class="fact-chip is-easy">✓ Sem reserva</span>`}
+                ${v.included === false
+                  ? `<span class="fact-chip is-extra">◆ Pago à parte</span>`
+                  : `<span class="fact-chip is-cenote">✦ Tudo Incluído</span>`}
+                ${v.hoursLabel
+                  ? `<span class="fact-chip">${UI_ICONS.clock} ${escapeHtml(v.hoursLabel.split('·')[0].trim())}</span>`
+                  : ''}
               </div>
+
+              ${revs.length > 0 ? `
+                ${aspectAvgs ? renderSensoryMeters(aspectAvgs, isGoldRank) : ''}
+                ${allDishes.length ? `
+                  <div class="dishes-pills-wrap">
+                    <span class="dishes-pills-kicker">Provámos</span>
+                    ${allDishes.map((d) => `<span class="dish-pill">${escapeHtml(d)}</span>`).join('')}
+                  </div>` : ''}
+                ${latestWithQuote ? `
+                  <div class="rest-latest-quote">
+                    ${renderAvatarHtml(latestWithQuote.by)}
+                    <span class="rest-latest-quote-text">${
+                      latestWithQuote.comment
+                        ? `“${escapeHtml(latestWithQuote.comment)}”`
+                        : `Avaliado por ${escapeHtml(latestWithQuote.by)} (${getVenueReviewAvg(latestWithQuote).toFixed(1)}★)`
+                    }</span>
+                  </div>` : ''}
+              ` : `
+                ${v.description ? `<p class="rest-card-desc">${escapeHtml(v.description)}</p>` : ''}
+                ${v.dressCode ? `
+                  <div class="rest-practical-lines">
+                    <div class="rest-practical-line">
+                      <span class="rest-practical-label">${UI_ICONS.shirt} Dress Code:</span>
+                      <span>${escapeHtml(v.dressCode)}</span>
+                    </div>
+                  </div>` : ''}
+              `}
+            </div>
+
+            <div class="rest-card-footer">
+              <button type="button" class="btn btn-sm" data-quick-rate-rest="${escapeHtml(v.id)}">
+                ${myRev ? '✎ A minha nota' : '★ Avaliar'}
+              </button>
+              <span class="rest-open-cta">Detalhes &amp; Menu →</span>
             </div>
           </article>`;
       })
       .join('');
+
+    grid.querySelectorAll('[data-quick-rate-rest]').forEach((btn) =>
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openRateVenueModal(btn.getAttribute('data-quick-rate-rest'));
+      })
+    );
 
     grid.querySelectorAll('[data-open-rest]').forEach((card) =>
       card.addEventListener('click', () => {
@@ -3565,38 +3918,68 @@
     return revs.reduce((sum, r) => sum + getReviewAvg(r), 0) / revs.length;
   }
 
+  function getCocktailAspectAverages(c) {
+    const revs = Array.isArray(c.reviews) ? c.reviews : [];
+    if (!revs.length) return null;
+    const totals = { flavor: 0, fresh: 0, strength: 0, look: 0 };
+    revs.forEach((r) => {
+      const fb = Number(r.rating || 4);
+      totals.flavor += Number(r.aspects?.flavor ?? fb);
+      totals.fresh += Number(r.aspects?.fresh ?? fb);
+      totals.strength += Number(r.aspects?.strength ?? fb);
+      totals.look += Number(r.aspects?.look ?? fb);
+    });
+    const n = revs.length;
+    return [
+      { label: 'Sabor', value: totals.flavor / n },
+      { label: 'Frescura', value: totals.fresh / n },
+      { label: 'Álcool', value: totals.strength / n },
+      { label: 'Visual', value: totals.look / n }
+    ];
+  }
+
   function renderCocktails() {
     const grid = document.getElementById('cocktails-list-grid');
     const badge = document.getElementById('cocktails-count-badge');
+    const tabSub = document.getElementById('rev-tab-ck-sub');
     if (!grid) return;
 
     const list = (Array.isArray(state.cocktails) ? state.cocktails : []).filter((c) => Array.isArray(c.reviews) && c.reviews.length > 0);
     const totalReviews = list.reduce((s, c) => s + c.reviews.length, 0);
     if (badge) {
-      badge.textContent = `${list.length} cocktail${list.length === 1 ? '' : 's'} · ${totalReviews} review${totalReviews === 1 ? '' : 's'}`;
+      badge.textContent = `${list.length} ${list.length === 1 ? 'cocktail' : 'cocktails'} · ${totalReviews} ${totalReviews === 1 ? 'review' : 'reviews'}`;
+    }
+    if (tabSub) {
+      tabSub.textContent = list.length > 0 ? `${list.length} no ranking · ${totalReviews} ${totalReviews === 1 ? 'nota' : 'notas'}` : 'Notas de Prova';
     }
 
     const sorted = [...list].sort((a, b) => getCocktailAvg(b) - getCocktailAvg(a));
 
     if (!sorted.length) {
-      grid.innerHTML = `<div class="surface" style="grid-column: 1 / -1; text-align: center; padding: 36px 20px;">
-        <div style="font-size: 2.2rem; margin-bottom: 8px;">🍹</div>
-        <p style="font-size: 0.94rem; color: var(--ink-secondary);">Ainda nenhum cocktail no ranking.<br/>Carregue no botão <strong>+ Adicionar Cocktail</strong> no canto inferior direito para começar!</p>
-      </div>`;
+      grid.innerHTML = `
+        <div class="reviews-empty-state">
+          <div class="reviews-empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 22h8"/><path d="M12 15v7"/><path d="m19 3-7 8-7-8Z"/><path d="M5 3h14"/></svg>
+          </div>
+          <h3 style="font-size:1.15rem;">Ainda nenhum cocktail avaliado</h3>
+          <p style="font-size:0.9rem;color:var(--ink-secondary);max-width:44ch;">Registem o primeiro cocktail no botão <strong>+ Adicionar Cocktail</strong> para começarem o vosso guia de favoritos nos bares!</p>
+        </div>`;
       return;
     }
 
-    const me = getCurrentReviewer();
-    const medals = ['🥇 #1', '🥈 #2', '🥉 #3'];
     const medalClasses = ['is-gold', 'is-silver', 'is-bronze'];
+    const coupeWatermarkSvg = `<svg class="ck-banner-watermark" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14h36L32 34 14 14Z"/><path d="M32 34v18M22 52h20M40 10l6-4"/></svg>`;
 
     grid.innerHTML = sorted
       .map((c, idx) => {
-        const avg = getCocktailAvg(c).toFixed(1);
-        const rankText = medals[idx] || `#${idx + 1}`;
+        const avgNum = getCocktailAvg(c);
+        const avg = avgNum.toFixed(1);
+        const isGold = idx === 0;
         const rankCls = medalClasses[idx] || '';
+        const rankBadgeHtml = `<span class="rank-medallion ${rankCls}">${idx < 3 ? UI_ICONS.trophy : ''}#${idx + 1}</span>`;
         const uniqueBars = [...new Set(c.reviews.map((r) => r.bar || c.bar).filter(Boolean))];
-        const barsSubtitle = uniqueBars.join(' · ');
+        const uniqueAuthors = [...new Set(c.reviews.map((r) => r.by).filter(Boolean))];
+        const sensoryAvgs = getCocktailAspectAverages(c);
 
         const reviewsHtml = c.reviews
           .map((r) => {
@@ -3604,58 +3987,124 @@
             const a = r.aspects;
             const revBar = r.bar || c.bar || '';
             return `
-              <div class="ck-review-row">
-                <div class="ck-review-row-top">
-                  <div>
-                    <span class="ck-review-author">${escapeHtml(r.by)}</span>
-                    ${revBar ? `<span style="font-size:0.74rem;color:var(--cenote-700);font-weight:600;margin-left:6px;">· ${escapeHtml(revBar)}</span>` : ''}
+              <div class="tasting-note">
+                <div class="tasting-note-top">
+                  <div class="tasting-author-group">
+                    ${renderAvatarHtml(r.by)}
+                    <div class="tasting-author-meta">
+                      <span class="tasting-author-name">${escapeHtml(r.by)}</span>
+                      ${revBar ? `<span class="tasting-author-sub">${UI_ICONS.pin} ${escapeHtml(revBar)}</span>` : ''}
+                    </div>
                   </div>
-                  <div style="display:flex;align-items:center;gap:4px;">
-                    <span class="ck-review-score">★ ${rAvg}</span>
-                    <button type="button" class="icon-btn" style="padding:2px 5px;font-size:0.78rem;" data-edit-ck-rev="${escapeHtml(c.id)}::${escapeHtml(r.id)}" title="Editar esta review">✎</button>
-                    <button type="button" class="icon-btn" style="padding:2px 5px;font-size:0.75rem;" data-del-ck-rev="${escapeHtml(c.id)}::${escapeHtml(r.id)}" title="Apagar esta review">✕</button>
+                  <div class="tasting-note-actions">
+                    <span class="tasting-score-pill">★ ${rAvg}</span>
+                    <button type="button" class="icon-btn" data-edit-ck-rev="${escapeHtml(c.id)}::${escapeHtml(r.id)}" title="Editar esta review">✎</button>
+                    <button type="button" class="icon-btn" data-del-ck-rev="${escapeHtml(c.id)}::${escapeHtml(r.id)}" title="Apagar esta review">✕</button>
                   </div>
                 </div>
+                ${r.note ? `<p class="tasting-quote">“${escapeHtml(r.note)}”</p>` : ''}
                 ${a ? `
-                  <div class="ck-review-mini-metrics">
-                    <span>Sabor ${a.flavor}★</span>
-                    <span>Frescura ${a.fresh}★</span>
-                    <span>Álcool ${a.strength}★</span>
-                    <span>Visual ${a.look}★</span>
+                  <div class="tasting-subscores">
+                    <span class="tasting-subpill">Sabor <strong>${a.flavor}★</strong></span>
+                    <span class="tasting-subpill">Frescura <strong>${a.fresh}★</strong></span>
+                    <span class="tasting-subpill">Álcool <strong>${a.strength}★</strong></span>
+                    <span class="tasting-subpill">Visual <strong>${a.look}★</strong></span>
                   </div>` : ''}
-                ${r.note ? `<p class="ck-postcard-quote">"${escapeHtml(r.note)}"</p>` : ''}
               </div>`;
           })
           .join('');
 
         return `
-          <article class="cocktail-postcard">
-            <div class="ck-postcard-media">
-              ${c.photoUrl
-                ? `<img src="${escapeHtml(c.photoUrl)}" alt="${escapeHtml(c.name)}" loading="lazy" />`
-                : `<span class="ck-postcard-placeholder" aria-hidden="true">🍹</span>`}
-              <span class="ck-rank-badge ${rankCls}">${rankText}</span>
-            </div>
-            <div class="ck-postcard-body">
-              <div>
-                <div class="ck-postcard-head">
-                  <div style="min-width:0;">
-                    <h3 class="ck-postcard-title">${escapeHtml(c.name)}</h3>
-                    ${barsSubtitle ? `<div class="ck-postcard-bar">${escapeHtml(barsSubtitle)}</div>` : ''}
-                  </div>
-                  <span class="tag tag-cenote mono">★ ${avg}</span>
+          <article class="ck-card ${isGold ? 'is-gold-card' : ''}">
+            ${c.photoUrl ? `
+              <div class="ck-card-photo-stage">
+                <img src="${escapeHtml(c.photoUrl)}" alt="${escapeHtml(c.name)}" loading="lazy" data-zoom-ck="${escapeHtml(c.id)}" />
+                <div class="ck-photo-overlay-bar">
+                  ${rankBadgeHtml}
+                  <label class="ck-photo-upload-pill">
+                    ${UI_ICONS.camera} Alterar foto
+                    <input type="file" accept="image/*" style="display:none;" data-upload-ck-photo="${escapeHtml(c.id)}" />
+                  </label>
                 </div>
-                <div class="ck-reviews-list">${reviewsHtml}</div>
               </div>
-              <div class="ck-postcard-footer">
-                <span>${c.reviews.length} ${c.reviews.length === 1 ? 'review' : 'reviews'}</span>
-                <button type="button" class="btn btn-sm" data-review-ck="${escapeHtml(c.id)}">+ Adicionar Review</button>
+            ` : `
+              <div class="ck-card-banner">
+                ${coupeWatermarkSvg}
+                ${rankBadgeHtml}
+                <label class="ck-photo-upload-pill">
+                  ${UI_ICONS.camera} + Foto
+                  <input type="file" accept="image/*" style="display:none;" data-upload-ck-photo="${escapeHtml(c.id)}" />
+                </label>
               </div>
+            `}
+
+            <div class="ck-card-body">
+              <div class="ck-identity-row">
+                <div style="min-width:0;">
+                  <h3 class="ck-card-title">${escapeHtml(c.name)}</h3>
+                  ${uniqueBars.length ? `
+                    <div class="ck-bars-row">
+                      ${uniqueBars.map((b) => `<span class="ck-bar-pin">${UI_ICONS.pin} ${escapeHtml(b)}</span>`).join('')}
+                    </div>` : ''}
+                </div>
+                <div class="score-seal ${isGold ? 'is-top' : ''}">
+                  <div class="score-seal-main">
+                    <span class="score-seal-num">${avg}</span>
+                    <span class="score-seal-star">★</span>
+                  </div>
+                  <span class="score-seal-sub">${c.reviews.length} ${c.reviews.length === 1 ? 'review' : 'reviews'}</span>
+                </div>
+              </div>
+
+              ${sensoryAvgs ? renderSensoryMeters(sensoryAvgs, isGold) : ''}
+
+              <div class="tasting-feed">
+                <div class="tasting-feed-header">
+                  <span class="tasting-feed-kicker">Notas de Prova (${c.reviews.length})</span>
+                </div>
+                ${reviewsHtml}
+              </div>
+            </div>
+
+            <div class="ck-card-footer">
+              <div class="avatar-stack">
+                <div class="avatar-stack-circles">
+                  ${uniqueAuthors.slice(0, 4).map((a) => renderAvatarHtml(a)).join('')}
+                </div>
+                <span class="avatar-stack-label">${
+                  uniqueAuthors.length === 1
+                    ? `Provado por ${escapeHtml(uniqueAuthors[0])}`
+                    : `Provado por ${uniqueAuthors.length} pessoas`
+                }</span>
+              </div>
+              <button type="button" class="btn btn-sm" data-review-ck="${escapeHtml(c.id)}">+ Avaliar</button>
             </div>
           </article>
         `;
       })
       .join('');
+
+    grid.querySelectorAll('[data-zoom-ck]').forEach((img) =>
+      img.addEventListener('click', () => {
+        const ck = (state.cocktails || []).find((x) => x.id === img.getAttribute('data-zoom-ck'));
+        if (ck?.photoUrl) openSingleImageLightbox(ck.photoUrl, ck.name, ck.bar || 'Cocktail');
+      })
+    );
+
+    grid.querySelectorAll('[data-upload-ck-photo]').forEach((inp) =>
+      inp.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        const ck = (state.cocktails || []).find((x) => x.id === inp.getAttribute('data-upload-ck-photo'));
+        if (!file || !ck) return;
+        const url = await uploadVenueImage(file, 'cocktails');
+        if (url) {
+          ck.photoUrl = url;
+          saveState();
+          renderCocktails();
+          showToast(`Fotografia de ${ck.name} guardada!`);
+        }
+      })
+    );
 
     grid.querySelectorAll('[data-review-ck]').forEach((b) =>
       b.addEventListener('click', () => openCocktailReviewModal(b.getAttribute('data-review-ck'), null))
@@ -3720,13 +4169,14 @@
       .map((name) => `<option value="${escapeHtml(name)}" ${name === selectedBar ? 'selected' : ''}>${escapeHtml(name)}</option>`)
       .join('');
 
-    const starOpts = (selVal) =>
-      [5, 4, 3, 2, 1]
-        .map((n) => `<option value="${n}" ${Number(selVal) === n ? 'selected' : ''}>${'★'.repeat(n)}${'☆'.repeat(5 - n)} (${n})</option>`)
-        .join('');
+    const prevA = editingRev?.aspects || { flavor: 5, fresh: 5, strength: 4, look: 4 };
+    const criteria = [
+      { key: 'flavor', inputId: 'ck-flavor', label: '🍋 Sabor & Equilíbrio' },
+      { key: 'fresh', inputId: 'ck-fresh', label: '🧊 Frescura & Temperatura' },
+      { key: 'strength', inputId: 'ck-strength', label: '🥃 Força / Álcool' },
+      { key: 'look', inputId: 'ck-look', label: '🍹 Apresentação' }
+    ];
 
-    const prevA = editingRev?.aspects || { flavor: 4, fresh: 4, strength: 4, look: 4 };
-    const showPhotoField = !existing || !existing.photoUrl;
     const modalTitle = editingRev
       ? `Editar Review — ${existing.name}`
       : (existing ? `Avaliar ${existing.name}` : 'Adicionar Cocktail ao Ranking');
@@ -3747,8 +4197,8 @@
         ` : `
           <div class="form-grid form-grid-2" style="align-items:end;">
             <div>
-              <div style="font-size:0.78rem;color:var(--ink-muted);font-weight:600;">Cocktail</div>
-              <div style="font-size:1rem;font-weight:700;">${escapeHtml(existing.name)}</div>
+              <div style="font-size:0.74rem;color:var(--ink-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Cocktail</div>
+              <div style="font-family:var(--font-serif);font-size:1.18rem;font-weight:600;">${escapeHtml(existing.name)}</div>
             </div>
             <div>
               <label class="field-label" for="ck-bar">Local / Bar onde bebeu</label>
@@ -3756,27 +4206,26 @@
             </div>
           </div>
         `}
-        <div class="form-grid form-grid-2">
-          <div><label class="field-label" for="ck-flavor">Sabor &amp; Equilíbrio</label><select id="ck-flavor" class="select">${starOpts(prevA.flavor)}</select></div>
-          <div><label class="field-label" for="ck-fresh">Frescura / Temperatura</label><select id="ck-fresh" class="select">${starOpts(prevA.fresh)}</select></div>
-          <div><label class="field-label" for="ck-strength">Força / Álcool</label><select id="ck-strength" class="select">${starOpts(prevA.strength)}</select></div>
-          <div><label class="field-label" for="ck-look">Apresentação</label><select id="ck-look" class="select">${starOpts(prevA.look)}</select></div>
-        </div>
-        ${showPhotoField ? `
-          <div>
-            <label class="field-label" for="ck-photo">Foto do Cocktail (opcional)</label>
-            <input type="file" id="ck-photo" accept="image/*" class="input" />
-          </div>
-        ` : ''}
+
+        ${renderStarPickerMarkup(criteria, prevA)}
+
         <div>
-          <label class="field-label" for="ck-note">Notas / Review</label>
-          <input type="text" id="ck-note" class="input" value="${escapeHtml(editingRev?.note || '')}" placeholder="Ex: Pedir sem sal, bem fresco, muito doce..." />
+          <label class="field-label" for="ck-note">Notas de Prova / Dica (opcional)</label>
+          <input type="text" id="ck-note" class="input" value="${escapeHtml(editingRev?.note || '')}" placeholder="Ex: Pedir sem sal na borda, super refrescante..." />
         </div>
+
+        <div>
+          <label class="field-label" for="ck-photo">${existing?.photoUrl ? 'Substituir Foto do Cocktail (opcional)' : 'Foto do Cocktail (opcional)'}</label>
+          <input type="file" id="ck-photo" accept="image/*" class="input" />
+        </div>
+
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
           <button type="submit" class="btn btn-primary" id="btn-submit-cocktail">${editingRev ? 'Guardar Alterações' : '+ Guardar Review'}</button>
         </div>
       </form>
     `);
+
+    bindStarPickerEvents(criteria);
 
     document.getElementById('form-add-cocktail').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -3803,15 +4252,9 @@
         }
       }
 
-      if (photoFile && !target.photoUrl && sbClient && sbUser) {
-        showToast('A carregar foto do cocktail...');
-        const ext = (photoFile.name.split('.').pop() || 'jpg').toLowerCase();
-        const path = `cocktails/${Date.now()}.${ext}`;
-        const { error: upErr } = await sbClient.storage.from('trip-photos').upload(path, photoFile, { upsert: false });
-        if (!upErr) {
-          const { data: pub } = sbClient.storage.from('trip-photos').getPublicUrl(path);
-          target.photoUrl = pub?.publicUrl || '';
-        }
+      if (photoFile) {
+        const uploadedUrl = await uploadVenueImage(photoFile, 'cocktails');
+        if (uploadedUrl) target.photoUrl = uploadedUrl;
       }
 
       const existingRevIdx = editingRev

@@ -241,21 +241,33 @@
 
     <!-- SECÇÃO 4: REVIEWS (RESTAURANTES & COCKTAILS) -->
     <section class="view-panel" id="view-resort" aria-labelledby="resort-heading">
-      <div class="direction-toggle" id="reviews-category-toggle" role="tablist" aria-label="Categoria de Reviews" style="margin-top: 0;">
-        <button type="button" class="direction-btn is-active" data-reviews-tab="restaurants" id="btn-rev-tab-restaurants">
-          <span class="direction-btn-title">🍽️ Restaurantes</span>
+      <div class="reviews-switcher" id="reviews-category-toggle" role="tablist" aria-label="Categoria de Reviews">
+        <button type="button" class="reviews-switch-btn is-active" data-reviews-tab="restaurants" id="btn-rev-tab-restaurants">
+          <span class="reviews-switch-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>
+          </span>
+          <span class="reviews-switch-text">
+            <span class="reviews-switch-title">Restaurantes</span>
+            <span class="reviews-switch-sub" id="rev-tab-rest-sub">Guia &amp; Ranking</span>
+          </span>
         </button>
-        <button type="button" class="direction-btn" data-reviews-tab="cocktails" id="btn-rev-tab-cocktails">
-          <span class="direction-btn-title">🍹 Cocktails</span>
+        <button type="button" class="reviews-switch-btn" data-reviews-tab="cocktails" id="btn-rev-tab-cocktails">
+          <span class="reviews-switch-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 22h8"/><path d="M12 15v7"/><path d="m19 3-7 8-7-8Z"/><path d="M5 3h14"/></svg>
+          </span>
+          <span class="reviews-switch-text">
+            <span class="reviews-switch-title">Cocktails</span>
+            <span class="reviews-switch-sub" id="rev-tab-ck-sub">Notas de Prova</span>
+          </span>
         </button>
       </div>
 
       <div id="reviews-panel-restaurants">
         <div id="resort-list-view">
-          <div class="section-header">
+          <div class="section-header reviews-hero-header">
             <div>
-              <h2 class="section-title" id="resort-heading">Ranking de Restaurantes</h2>
-              <p class="section-subtitle">Toque num restaurante para abrir a página, ver o menu e registar o que comeram</p>
+              <h2 class="section-title" id="resort-heading">Guia &amp; Ranking de Restaurantes</h2>
+              <p class="section-subtitle">Veja de imediato horários, reservas e dress code — ou registe os vossos pratos e notas</p>
             </div>
             <span class="tag tag-cenote" id="restaurants-count-badge">0 restaurantes</span>
           </div>
@@ -268,7 +280,7 @@
             <button type="button" class="chip" data-venue-cat="extra">Fora / Pago à Parte</button>
           </div>
 
-          <div class="cocktail-postcards-list" id="venue-cards-grid"></div>
+          <div class="reviews-cards-grid rest-cards-grid" id="venue-cards-grid"></div>
 
           <button type="button" class="fab-add-btn" id="btn-fab-add-restaurant" aria-label="Adicionar novo restaurante">
             <span class="fab-plus" aria-hidden="true">+</span>
@@ -280,15 +292,15 @@
       </div>
 
       <div id="reviews-panel-cocktails" style="display: none;">
-        <div class="section-header">
+        <div class="section-header reviews-hero-header">
           <div>
-            <h2 class="section-title" id="cocktails-heading">Ranking de Cocktails</h2>
-            <p class="section-subtitle">Os vossos cocktails favoritos ordenados pela pontuação</p>
+            <h2 class="section-title" id="cocktails-heading">Ranking &amp; Prova de Cocktails</h2>
+            <p class="section-subtitle">Os vossos favoritos ordenados pela média, com perfil de sabor e notas de cada um</p>
           </div>
           <span class="tag tag-cenote" id="cocktails-count-badge">0 avaliados</span>
         </div>
 
-        <div class="cocktail-postcards-list" id="cocktails-list-grid"></div>
+        <div class="reviews-cards-grid ck-cards-grid" id="cocktails-list-grid"></div>
 
         <button type="button" class="fab-add-btn" id="btn-fab-add-cocktail" aria-label="Adicionar novo cocktail">
           <span class="fab-plus" aria-hidden="true">+</span>
