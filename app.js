@@ -3728,21 +3728,44 @@
     }
   }
 
+  function formatCommentTime(iso) {
+    if (!iso) return '';
+    try {
+      return new Intl.DateTimeFormat('pt-PT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+    } catch {
+      return '';
+    }
+  }
+
   async function loadPhotosGallery() {
     const grid = document.getElementById('photos-gallery-grid');
     if (!grid || !sbClient) return;
     grid.innerHTML = `<p class="photo-empty">A carregar as fotografias…</p>`;
 
-    const { data: rows, error } = await sbClient
-      .from('trip_photos')
-      .select('*')
-      .order('created_at', { ascending: true });
+    const [photosRes, commentsRes] = await Promise.all([
+      sbClient.from('trip_photos').select('*').order('created_at', { ascending: true }),
+      sbClient.from('trip_photo_comments').select('*').order('created_at', { ascending: true }).then((r) => r).catch(() => ({ data: [], error: true }))
+    ]);
 
+    const { data: rows, error } = photosRes;
     if (error || !rows || !rows.length) {
       galleryPhotos = [];
       grid.innerHTML = `<div class="photo-empty-card"><span aria-hidden="true">📷</span><p>Ainda não há fotografias.<br/>Assim que forem publicadas, aparecem aqui.</p></div>`;
       return;
     }
+
+    const commentsByPhoto = new Map();
+    if (commentsRes && Array.isArray(commentsRes.data)) {
+      commentsRes.data.forEach((cm) => {
+        const pid = String(cm.photo_id);
+        if (!commentsByPhoto.has(pid)) commentsByPhoto.set(pid, []);
+        commentsByPhoto.get(pid).push(cm);
+      });
+    }
+
+    let savedVisitorName = '';
+    try { savedVisitorName = localStorage.getItem('pyp_guest_comment_name') || ''; } catch {}
+    const defaultCommenterName = sbUser ? getCurrentReviewer().by : savedVisitorName;
 
     const byDay = new Map();
     rows.forEach((row) => {
@@ -3761,6 +3784,20 @@
         if (!imgUrl) return '';
         const idx = galleryPhotos.length;
         galleryPhotos.push({ url: imgUrl, caption: row.caption || '', dayLabel: `Dia ${day} · ${dayLabel}` });
+
+        const pid = String(row.id);
+        const cmList = commentsByPhoto.get(pid) || [];
+        const cmHtml = cmList
+          .map((cm) => `
+            <div class="photo-comment-item">
+              <div style="min-width:0;flex:1;">
+                <div><span class="photo-comment-author">${escapeHtml(cm.author_name)}</span><span class="photo-comment-time">${escapeHtml(formatCommentTime(cm.created_at))}</span></div>
+                <div>${escapeHtml(cm.message)}</div>
+              </div>
+              ${sbUser ? `<button type="button" class="icon-btn" style="padding:2px 5px;font-size:0.75rem;" data-del-comment="${escapeHtml(cm.id)}" data-del-comment-author="${escapeHtml(cm.author_name)}" title="Apagar comentário">✕</button>` : ''}
+            </div>`)
+          .join('');
+
         return `
           <figure class="photo-item">
             <button type="button" class="photo-open" data-photo-index="${idx}" aria-label="Ver fotografia em grande${row.caption ? `: ${escapeHtml(row.caption)}` : ''}">
@@ -3770,6 +3807,19 @@
               <span>${escapeHtml(row.caption || '')}</span>
               ${sbUser ? `<button type="button" class="icon-btn" data-del-photo="${escapeHtml(row.id)}" data-del-path="${escapeHtml(row.storage_path)}" data-del-url="${escapeHtml(imgUrl)}" data-del-caption="${escapeHtml(row.caption || `Dia ${day}`)}" title="Apagar foto">✕</button>` : ''}
             </figcaption>` : ''}
+            <div class="photo-comments">
+              ${cmList.length ? `<div class="photo-comments-list">${cmHtml}</div>` : ''}
+              <button type="button" class="btn btn-sm photo-comment-toggle" data-toggle-cm-form="${escapeHtml(pid)}">
+                💬 ${cmList.length ? `Comentar (${cmList.length})` : 'Deixar comentário'}
+              </button>
+              <form class="photo-comment-form" data-cm-form="${escapeHtml(pid)}" style="display:none;">
+                <input type="text" class="input" data-cm-name placeholder="O teu nome..." value="${escapeHtml(defaultCommenterName)}" maxlength="60" required />
+                <div class="photo-comment-form-row">
+                  <input type="text" class="input" data-cm-msg style="flex:1;min-width:160px;" placeholder="Escreve uma mensagem..." maxlength="500" required />
+                  <button type="submit" class="btn btn-primary btn-sm">Enviar</button>
+                </div>
+              </form>
+            </div>
           </figure>`;
       }).join('');
       const count = byDay.get(day).length;
@@ -3785,6 +3835,69 @@
     grid.querySelectorAll('[data-photo-index]').forEach((b) =>
       b.addEventListener('click', () => openLightbox(Number(b.getAttribute('data-photo-index'))))
     );
+
+    grid.querySelectorAll('[data-toggle-cm-form]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const pid = b.getAttribute('data-toggle-cm-form');
+        const form = grid.querySelector(`[data-cm-form="${CSS.escape(pid)}"]`);
+        if (!form) return;
+        const isOpen = form.style.display !== 'none';
+        form.style.display = isOpen ? 'none' : 'flex';
+        if (!isOpen) {
+          const nameInp = form.querySelector('[data-cm-name]');
+          const msgInp = form.querySelector('[data-cm-msg]');
+          if (nameInp && !nameInp.value.trim()) nameInp.focus();
+          else if (msgInp) msgInp.focus();
+        }
+      })
+    );
+
+    grid.querySelectorAll('[data-cm-form]').forEach((form) =>
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const pid = form.getAttribute('data-cm-form');
+        const nameVal = form.querySelector('[data-cm-name]')?.value.trim();
+        const msgVal = form.querySelector('[data-cm-msg]')?.value.trim();
+        if (!nameVal || !msgVal) return;
+
+        try { localStorage.setItem('pyp_guest_comment_name', nameVal); } catch {}
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'A enviar...'; }
+
+        const { error: insErr } = await sbClient.from('trip_photo_comments').insert({
+          photo_id: pid,
+          author_name: nameVal,
+          message: msgVal
+        });
+
+        if (insErr) {
+          showToast('Para ativar comentários, execute o SQL atualizado em supabase.sql no Supabase.');
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Enviar'; }
+          return;
+        }
+
+        showToast('Comentário publicado!');
+        loadPhotosGallery();
+      })
+    );
+
+    grid.querySelectorAll('[data-del-comment]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const cmId = b.getAttribute('data-del-comment');
+        const author = b.getAttribute('data-del-comment-author') || 'visitante';
+        openConfirmModal({
+          title: 'Apagar Comentário?',
+          message: `Tem a certeza que quer apagar este comentário de ${author}?`,
+          confirmLabel: 'Apagar Comentário',
+          onConfirm: async () => {
+            await sbClient.from('trip_photo_comments').delete().eq('id', cmId);
+            showToast('Comentário removido');
+            loadPhotosGallery();
+          }
+        });
+      })
+    );
+
     grid.querySelectorAll('[data-del-photo]').forEach((b) =>
       b.addEventListener('click', () => {
         const id = b.getAttribute('data-del-photo');

@@ -41,5 +41,32 @@ create policy "Public view trip photos"
   on storage.objects for select to anon, authenticated
   using (bucket_id = 'trip-photos');
 
--- 4. Garantir que trip_state (plano, carteira, PNR, despesas, restaurantes, cocktails, mala) fica 100% privado
+-- 4. Comentários públicos nas fotografias (qualquer pessoa pode ler e comentar com nome + mensagem; apagar é privado)
+create table if not exists public.trip_photo_comments (
+  id uuid primary key default gen_random_uuid(),
+  photo_id text not null,
+  author_name text not null check (char_length(trim(author_name)) between 1 and 60),
+  message text not null check (char_length(trim(message)) between 1 and 500),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_trip_photo_comments_photo_id
+  on public.trip_photo_comments (photo_id, created_at asc);
+
+alter table public.trip_photo_comments enable row level security;
+
+drop policy if exists "Public read trip_photo_comments" on public.trip_photo_comments;
+create policy "Public read trip_photo_comments"
+  on public.trip_photo_comments for select to anon, authenticated using (true);
+
+drop policy if exists "Public insert trip_photo_comments" on public.trip_photo_comments;
+create policy "Public insert trip_photo_comments"
+  on public.trip_photo_comments for insert to anon, authenticated
+  with check (char_length(trim(author_name)) >= 1 and char_length(trim(message)) >= 1);
+
+drop policy if exists "Auth delete trip_photo_comments" on public.trip_photo_comments;
+create policy "Auth delete trip_photo_comments"
+  on public.trip_photo_comments for delete to authenticated using (true);
+
+-- 5. Garantir que trip_state (plano, carteira, PNR, despesas, restaurantes, cocktails, mala) fica 100% privado
 drop policy if exists "Public read trip_state" on public.trip_state;

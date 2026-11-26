@@ -974,6 +974,56 @@ html.is-public .toast { bottom: 110px; font-size: 1rem; }
   margin-top: 2px;
 }
 
+/* Photo public comments */
+.photo-comments {
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--line-soft);
+  background: var(--bg-canvas);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.photo-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.photo-comment-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--line-soft);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+.photo-comment-author {
+  font-weight: 700;
+  color: var(--cenote-700);
+}
+.photo-comment-time {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  margin-left: 6px;
+}
+.photo-comment-toggle {
+  align-self: flex-start;
+}
+.photo-comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+}
+.photo-comment-form-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .view-panel { animation: none; }
   .btn:hover { transform: none; }
