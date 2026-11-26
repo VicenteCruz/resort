@@ -274,11 +274,14 @@
 
   function renderFlights() {
     const dir = state.flights[activeFlightDir];
+    const dynSummary = dir.legs.length
+      ? [dir.legs[0].fromCode, ...dir.legs.map((l) => l.toCode)].join(' → ')
+      : dir.summary;
     const blocks = [
       `<div class="surface" style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">
         <div>
           <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-muted);font-weight:700;">${escapeHtml(dir.dateLabel)}</div>
-          <div style="font-size:1.06rem;font-weight:700;margin-top:2px;">${escapeHtml(dir.summary)}</div>
+          <div style="font-size:1.06rem;font-weight:700;margin-top:2px;">${escapeHtml(dynSummary)}</div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
           <button type="button" class="btn btn-primary btn-sm" id="btn-refresh-all-flights">
@@ -376,17 +379,27 @@
   }
 
   let flightMap = null;
+  let routeLayer = null;
   let planeLayer = null;
+
+  const KNOWN_AIRPORTS = {
+    LIS: [38.7742, -9.1342],
+    OPO: [41.2481, -8.6814],
+    MAD: [40.4983, -3.5676],
+    YYZ: [43.6777, -79.6248],
+    YUL: [45.4706, -73.7408],
+    CUN: [21.0365, -86.8771],
+    MEX: [19.4363, -99.0721],
+    JFK: [40.6413, -73.7781],
+    MIA: [25.7959, -80.2870],
+    LHR: [51.4700, -0.4543],
+    CDG: [49.0097, 2.5479],
+    FRA: [50.0379, 8.5622]
+  };
 
   function updateFlightMap() {
     const mapEl = document.getElementById('flight-live-map');
     if (!mapEl || typeof window.L === 'undefined') return;
-
-    const airports = {
-      LIS: [38.7742, -9.1342],
-      YYZ: [43.6777, -79.6248],
-      CUN: [21.0365, -86.8771]
-    };
 
     if (!flightMap) {
       flightMap = window.L.map(mapEl, { scrollWheelZoom: false }).setView([36, -45], 3);
@@ -394,35 +407,47 @@
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 18
       }).addTo(flightMap);
-
-      window.L.polyline([airports.LIS, airports.YYZ, airports.CUN], {
-        color: '#166970',
-        weight: 2.5,
-        dashArray: '6, 8',
-        opacity: 0.75
-      }).addTo(flightMap);
-
-      Object.entries(airports).forEach(([code, coords]) => {
-        window.L.circleMarker(coords, {
-          radius: 6,
-          fillColor: '#166970',
-          color: '#ffffff',
-          weight: 2,
-          fillOpacity: 1
-        })
-          .bindTooltip(code, { permanent: true, direction: 'top', offset: [0, -6] })
-          .addTo(flightMap);
-      });
-
+      routeLayer = window.L.layerGroup().addTo(flightMap);
       planeLayer = window.L.layerGroup().addTo(flightMap);
     }
 
     setTimeout(() => flightMap && flightMap.invalidateSize(), 120);
+    routeLayer.clearLayers();
     planeLayer.clearLayers();
 
     const dirLegs = state.flights[activeFlightDir].legs;
-    let activePlanes = 0;
+    const routePoints = [];
+    const plottedCodes = new Set();
 
+    dirLegs.forEach((leg) => {
+      const fromPt = leg.fromCoords || KNOWN_AIRPORTS[leg.fromCode];
+      const toPt = leg.toCoords || KNOWN_AIRPORTS[leg.toCode];
+      if (fromPt) {
+        routePoints.push(fromPt);
+        if (!plottedCodes.has(leg.fromCode)) {
+          plottedCodes.add(leg.fromCode);
+          window.L.circleMarker(fromPt, { radius: 6, fillColor: '#166970', color: '#fff', weight: 2, fillOpacity: 1 })
+            .bindTooltip(leg.fromCode, { permanent: true, direction: 'top', offset: [0, -6] })
+            .addTo(routeLayer);
+        }
+      }
+      if (toPt) {
+        routePoints.push(toPt);
+        if (!plottedCodes.has(leg.toCode)) {
+          plottedCodes.add(leg.toCode);
+          window.L.circleMarker(toPt, { radius: 6, fillColor: '#166970', color: '#fff', weight: 2, fillOpacity: 1 })
+            .bindTooltip(leg.toCode, { permanent: true, direction: 'top', offset: [0, -6] })
+            .addTo(routeLayer);
+        }
+      }
+    });
+
+    if (routePoints.length >= 2) {
+      window.L.polyline(routePoints, { color: '#166970', weight: 2.5, dashArray: '6, 8', opacity: 0.75 }).addTo(routeLayer);
+      flightMap.fitBounds(routePoints, { padding: [32, 32], maxZoom: 6 });
+    }
+
+    let activePlanes = 0;
     dirLegs.forEach((leg) => {
       const lv = leg.liveStatus;
       if (lv && lv.active && lv.lat && lv.lon) {
@@ -444,11 +469,12 @@
       }
     });
 
+    const routeLabel = dirLegs.length ? [dirLegs[0].fromCode, ...dirLegs.map((l) => l.toCode)].join(' → ') : 'Sem rota';
     const statusEl = document.getElementById('map-live-status');
     if (statusEl) {
       statusEl.textContent = activePlanes > 0
         ? `✈ ${activePlanes} avião ao vivo no mapa`
-        : 'Rota LIS ↔ YYZ ↔ CUN (sem sinal ADS-B agora)';
+        : `Rota ${routeLabel}`;
     }
   }
 
@@ -970,7 +996,7 @@
       LH: 'Lufthansa', IB: 'Iberia', AF: 'Air France', BA: 'British Airways', KL: 'KLM'
     };
     const prefix = clean.slice(0, 2);
-    const result = { airline: airlines[prefix] || '', fromCode: '', toCode: '' };
+    const result = { airline: airlines[prefix] || '', fromCode: '', toCode: '', fromCity: '', toCity: '', fromCoords: null, toCoords: null };
 
     try {
       const res = await fetch(`https://api.adsbdb.com/v0/callsign/${encodeURIComponent(callsign)}`);
@@ -980,7 +1006,15 @@
         if (route) {
           if (route.airline?.name) result.airline = route.airline.name;
           if (route.origin?.iata_code) result.fromCode = route.origin.iata_code.toUpperCase();
+          if (route.origin?.municipality || route.origin?.name) result.fromCity = route.origin.municipality || route.origin.name;
+          if (typeof route.origin?.latitude === 'number' && typeof route.origin?.longitude === 'number') {
+            result.fromCoords = [route.origin.latitude, route.origin.longitude];
+          }
           if (route.destination?.iata_code) result.toCode = route.destination.iata_code.toUpperCase();
+          if (route.destination?.municipality || route.destination?.name) result.toCity = route.destination.municipality || route.destination.name;
+          if (typeof route.destination?.latitude === 'number' && typeof route.destination?.longitude === 'number') {
+            result.toCoords = [route.destination.latitude, route.destination.longitude];
+          }
         }
       }
     } catch (err) {
@@ -994,6 +1028,8 @@
     const dirObj = isOut ? state.flights.outbound : state.flights.inbound;
     const leg = dirObj.legs.find((l) => l.id === id);
     if (!leg) return;
+    let lookedUp = null;
+
     openModal(`Alterar Voo ${leg.flightNumber}`, `
       <form id="f-leg" class="form-grid">
         <div class="form-grid form-grid-2">
@@ -1001,7 +1037,7 @@
           <div><label class="field-label">Data da Viagem</label><input id="l-date" class="input" value="${escapeHtml(dirObj.dateLabel)}" /></div>
         </div>
         <div style="display:flex;justify-content:flex-start;">
-          <button type="button" class="btn btn-sm" id="btn-auto-route">🔍 Preencher Companhia &amp; Rota (adsb.lol)</button>
+          <button type="button" class="btn btn-sm" id="btn-auto-route">🔍 Preencher Companhia &amp; Rota</button>
         </div>
         <div class="form-grid form-grid-2">
           <div><label class="field-label">Companhia Aérea</label><input id="l-air" class="input" value="${escapeHtml(leg.airline)}" /></div>
@@ -1027,12 +1063,12 @@
     document.getElementById('btn-auto-route').addEventListener('click', async () => {
       const num = document.getElementById('l-num').value.trim().toUpperCase();
       if (!num) return;
-      showToast('A procurar rota na adsb.lol...');
-      const info = await lookupFlightRoute(num);
-      if (info.airline) document.getElementById('l-air').value = info.airline;
-      if (info.fromCode) document.getElementById('l-from').value = info.fromCode;
-      if (info.toCode) document.getElementById('l-to').value = info.toCode;
-      showToast(info.fromCode && info.toCode ? `Rota encontrada: ${info.fromCode} → ${info.toCode}!` : 'Companhia preenchida (rota não disponível na adsb.lol).');
+      showToast('A procurar rota...');
+      lookedUp = await lookupFlightRoute(num);
+      if (lookedUp.airline) document.getElementById('l-air').value = lookedUp.airline;
+      if (lookedUp.fromCode) document.getElementById('l-from').value = lookedUp.fromCode;
+      if (lookedUp.toCode) document.getElementById('l-to').value = lookedUp.toCode;
+      showToast(lookedUp.fromCode && lookedUp.toCode ? `Rota encontrada: ${lookedUp.fromCode} → ${lookedUp.toCode}!` : 'Companhia preenchida.');
     });
 
     document.getElementById('f-leg').addEventListener('submit', (e) => {
@@ -1059,8 +1095,16 @@
         leg.liveStatus = null;
       }
       leg.airline = document.getElementById('l-air').value.trim() || leg.airline;
-      leg.fromCode = newFrom;
-      leg.toCode = newTo;
+      if (newFrom !== leg.fromCode) {
+        leg.fromCode = newFrom;
+        leg.fromCity = (lookedUp && lookedUp.fromCode === newFrom && lookedUp.fromCity) ? lookedUp.fromCity : newFrom;
+        leg.fromCoords = (lookedUp && lookedUp.fromCode === newFrom && lookedUp.fromCoords) ? lookedUp.fromCoords : (KNOWN_AIRPORTS[newFrom] || null);
+      }
+      if (newTo !== leg.toCode) {
+        leg.toCode = newTo;
+        leg.toCity = (lookedUp && lookedUp.toCode === newTo && lookedUp.toCity) ? lookedUp.toCity : newTo;
+        leg.toCoords = (lookedUp && lookedUp.toCode === newTo && lookedUp.toCoords) ? lookedUp.toCoords : (KNOWN_AIRPORTS[newTo] || null);
+      }
       leg.depTime = document.getElementById('l-dep').value.trim() || leg.depTime;
       leg.arrTime = document.getElementById('l-arr').value.trim() || leg.arrTime;
       leg.gate = document.getElementById('l-gate').value.trim() || 'A definir';
