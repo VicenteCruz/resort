@@ -382,8 +382,8 @@
 
     if (!flightMap) {
       flightMap = window.L.map(mapEl, { scrollWheelZoom: false }).setView([36, -45], 3);
-      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap &copy; CARTO',
+      window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 18
       }).addTo(flightMap);
 
