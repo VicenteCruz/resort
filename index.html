@@ -38,43 +38,50 @@
           <span class="tz-item" title="Hora de Cancún"><span class="tz-code">CUN</span> <span class="tz-time" id="clock-cun">--:--</span></span>
         </div>
 
-        <button type="button" class="btn btn-primary btn-sm" id="btn-open-wallet">
-          Carteira &amp; Códigos
+        <button type="button" class="btn btn-sm" id="btn-open-wallet" data-private-only="true" style="display: none;">
+          Carteira
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-header-auth">
+          Entrar (Privado)
         </button>
       </div>
     </div>
 
     <nav class="desktop-nav" aria-label="Navegação Principal">
-      <button type="button" class="nav-tab is-active" data-view-target="overview" id="nav-tab-overview">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5z"/></svg>
-        Resumo
-      </button>
-      <button type="button" class="nav-tab" data-view-target="flights" id="nav-tab-flights">
+      <button type="button" class="nav-tab is-active" data-view-target="flights" id="nav-tab-flights">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-        Voos &amp; Escalas
-      </button>
-      <button type="button" class="nav-tab" data-view-target="planner" id="nav-tab-planner">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-        Plano 10 Dias
-      </button>
-      <button type="button" class="nav-tab" data-view-target="resort" id="nav-tab-resort">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M4.93 10.93a10 10 0 0 1 14.14 0M2 15h20M8 19h8"/></svg>
-        Restaurantes &amp; Resort
-      </button>
-      <button type="button" class="nav-tab" data-view-target="toolkit" id="nav-tab-toolkit">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-        Mala &amp; Câmbio
+        Voos &amp; Radar
       </button>
       <button type="button" class="nav-tab" data-view-target="photos" id="nav-tab-photos">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-        Fotos &amp; Sync
+        Fotos
+      </button>
+      <button type="button" class="nav-tab" data-view-target="overview" id="nav-tab-overview" data-private-only="true" style="display: none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5z"/></svg>
+        Resumo
+      </button>
+      <button type="button" class="nav-tab" data-view-target="planner" id="nav-tab-planner" data-private-only="true" style="display: none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Plano 10 Dias
+      </button>
+      <button type="button" class="nav-tab" data-view-target="resort" id="nav-tab-resort" data-private-only="true" style="display: none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M4.93 10.93a10 10 0 0 1 14.14 0M2 15h20M8 19h8"/></svg>
+        Restaurantes
+      </button>
+      <button type="button" class="nav-tab" data-view-target="cocktails" id="nav-tab-cocktails" data-private-only="true" style="display: none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 22h8M12 11v11M19 3l-7 8-7-8h14z"/></svg>
+        Cocktails
+      </button>
+      <button type="button" class="nav-tab" data-view-target="toolkit" id="nav-tab-toolkit" data-private-only="true" style="display: none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Mala &amp; Câmbio
       </button>
     </nav>
   </header>
 
   <main class="app-shell" id="main-content">
-    <!-- SECÇÃO 1: RESUMO -->
-    <section class="view-panel is-active" id="view-overview" aria-labelledby="hero-main-heading">
+    <!-- SECÇÃO 1 (PRIVADA): RESUMO -->
+    <section class="view-panel" id="view-overview" aria-labelledby="hero-main-heading">
       <article class="hero-card">
         <img src="./assets/resort-hero.jpg" alt="Platinum Yucatán Princess, Riviera Maya" class="hero-media" />
         <div class="hero-scrim" aria-hidden="true"></div>
@@ -167,8 +174,8 @@
       </div>
     </section>
 
-    <!-- SECÇÃO 2: VOOS -->
-    <section class="view-panel" id="view-flights" aria-labelledby="flights-heading">
+    <!-- SECÇÃO 2 (PÚBLICA): VOOS -->
+    <section class="view-panel is-active" id="view-flights" aria-labelledby="flights-heading">
       <div class="section-header">
         <div>
           <h2 class="section-title" id="flights-heading">Voos Air Canada &amp; Escalas</h2>
@@ -378,32 +385,91 @@
 
       <div class="grid-3" id="photos-gallery-grid"></div>
     </section>
+
+    <!-- SECÇÃO 7 (PRIVADA): AVALIAÇÃO DE COCKTAILS -->
+    <section class="view-panel" id="view-cocktails" aria-labelledby="cocktails-heading">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title" id="cocktails-heading">Ranking de Cocktails do Resort</h2>
+          <p class="section-subtitle">Avaliem os cocktails que forem provando nos bares da piscina, praia e praça</p>
+        </div>
+        <span class="tag tag-cenote" id="cocktails-count-badge">0 avaliados</span>
+      </div>
+
+      <div class="surface" style="margin-bottom: 18px;">
+        <h3 style="font-size: 1.08rem; margin-bottom: 10px;">Registar Novo Cocktail</h3>
+        <form id="form-add-cocktail" class="form-grid">
+          <div class="form-grid form-grid-2">
+            <div>
+              <label class="field-label" for="ck-name">Nome do Cocktail</label>
+              <input type="text" id="ck-name" class="input" placeholder="Ex: Mango Margarita, Miami Vice, Mojito..." required />
+            </div>
+            <div>
+              <label class="field-label" for="ck-bar">Bar onde beberam</label>
+              <select id="ck-bar" class="select">
+                <option value="Platinum Pool Bar (Swim-Up)">Platinum Pool Bar (Swim-Up)</option>
+                <option value="Main Pool Bar (Swim-Up)">Main Pool Bar (Swim-Up)</option>
+                <option value="Beach Bar (Praia)">Beach Bar (Praia)</option>
+                <option value="Plaza Bar (24h)">Plaza Bar (24h)</option>
+                <option value="Bar de Espera">Bar de Espera</option>
+                <option value="Lobby Bar">Lobby Bar</option>
+                <option value="Discoteca Salsa">Discoteca Salsa</option>
+                <option value="Hotel Vizinho (Grand Riviera / Sunset)">Hotel Vizinho (Grand Riviera / Sunset)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid form-grid-2">
+            <div>
+              <label class="field-label" for="ck-rating">Avaliação (1 a 5 Estrelas)</label>
+              <select id="ck-rating" class="select">
+                <option value="5">★★★★★ (5/5 — Espetacular!)</option>
+                <option value="4">★★★★☆ (4/5 — Muito Bom)</option>
+                <option value="3">★★★☆☆ (3/5 — Bom)</option>
+                <option value="2">★★☆☆☆ (2/5 — Razoável)</option>
+                <option value="1">★☆☆☆☆ (1/5 — Não repetir)</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" for="ck-note">Notas / Comentário</label>
+              <input type="text" id="ck-note" class="input" placeholder="Ex: Pedir sem sal, bem fresco..." />
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end;">
+            <button type="submit" class="btn btn-primary">+ Guardar Avaliação</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="grid-3" id="cocktails-list-grid"></div>
+    </section>
   </main>
 
-  <nav class="mobile-dock" style="grid-template-columns: repeat(6, 1fr);" aria-label="Menu Mobile">
-    <button type="button" class="dock-btn is-active" data-view-target="overview">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5z"/></svg>
-      <span>Resumo</span>
-    </button>
-    <button type="button" class="dock-btn" data-view-target="flights">
+  <nav class="mobile-dock" id="mobile-dock" style="display: flex; justify-content: space-around;" aria-label="Menu Mobile">
+    <button type="button" class="dock-btn is-active" data-view-target="flights">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
       <span>Voos</span>
-    </button>
-    <button type="button" class="dock-btn" data-view-target="planner">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-      <span>10 Dias</span>
-    </button>
-    <button type="button" class="dock-btn" data-view-target="resort">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M4.93 10.93a10 10 0 0 1 14.14 0M2 15h20M8 19h8"/></svg>
-      <span>Resort</span>
-    </button>
-    <button type="button" class="dock-btn" data-view-target="toolkit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      <span>Mala</span>
     </button>
     <button type="button" class="dock-btn" data-view-target="photos">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
       <span>Fotos</span>
+    </button>
+    <button type="button" class="dock-btn" data-view-target="planner" data-private-only="true" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span>10 Dias</span>
+    </button>
+    <button type="button" class="dock-btn" data-view-target="resort" data-private-only="true" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M4.93 10.93a10 10 0 0 1 14.14 0M2 15h20M8 19h8"/></svg>
+      <span>Resort</span>
+    </button>
+    <button type="button" class="dock-btn" data-view-target="cocktails" data-private-only="true" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 22h8M12 11v11M19 3l-7 8-7-8h14z"/></svg>
+      <span>Drinks</span>
+    </button>
+    <button type="button" class="dock-btn" data-view-target="toolkit" data-private-only="true" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>Mala</span>
     </button>
   </nav>
 

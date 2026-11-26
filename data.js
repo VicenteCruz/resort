@@ -376,5 +376,7 @@ window.DEFAULT_TRIP_DATA = {
     eurToCad: 1.48
   },
 
-  expenses: []
+  expenses: [],
+
+  cocktails: []
 };
