@@ -928,15 +928,30 @@
     `);
     document.getElementById('f-leg').addEventListener('submit', (e) => {
       e.preventDefault();
-      dirObj.dateLabel = document.getElementById('l-date').value.trim() || dirObj.dateLabel;
       const newNum = document.getElementById('l-num').value.trim().toUpperCase();
-      if (newNum && newNum !== leg.flightNumber) {
+      const newFrom = document.getElementById('l-from').value.trim().toUpperCase();
+      const newTo = document.getElementById('l-to').value.trim().toUpperCase();
+
+      const validFlight = /^([A-Z]{2}|[A-Z]\d|\d[A-Z]|[A-Z]{3})\s?\d{1,4}[A-Z]?$/;
+      const validIata = /^[A-Z]{3}$/;
+
+      if (!validFlight.test(newNum)) {
+        showToast('Nº de voo inválido! Use formato tipo AC 811, TP 257 ou ACA811.');
+        return;
+      }
+      if (!validIata.test(newFrom) || !validIata.test(newTo)) {
+        showToast('Origem e Destino devem ser códigos de 3 letras (ex: LIS, YYZ, CUN).');
+        return;
+      }
+
+      dirObj.dateLabel = document.getElementById('l-date').value.trim() || dirObj.dateLabel;
+      if (newNum !== leg.flightNumber) {
         leg.flightNumber = newNum;
         leg.liveStatus = null;
       }
       leg.airline = document.getElementById('l-air').value.trim() || leg.airline;
-      leg.fromCode = document.getElementById('l-from').value.trim().toUpperCase() || leg.fromCode;
-      leg.toCode = document.getElementById('l-to').value.trim().toUpperCase() || leg.toCode;
+      leg.fromCode = newFrom;
+      leg.toCode = newTo;
       leg.depTime = document.getElementById('l-dep').value.trim() || leg.depTime;
       leg.arrTime = document.getElementById('l-arr').value.trim() || leg.arrTime;
       leg.gate = document.getElementById('l-gate').value.trim() || 'A definir';
