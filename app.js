@@ -208,8 +208,16 @@
 
   function getIcaoCallsign(flightNumber) {
     const clean = getFlightIata(flightNumber);
-    const map = { AC: 'ACA', TP: 'TAP', TS: 'TSC', WS: 'WJA', AM: 'AMX', UA: 'UAL', AA: 'AAL', DL: 'DAL', LH: 'DLH', IB: 'IBE', AF: 'AFR' };
-    const m = clean.match(/^([A-Z]{2})(\d+.*)$/);
+    const map = {
+      AC: 'ACA', TP: 'TAP', TS: 'TSC', WS: 'WJA', AM: 'AMX', UA: 'UAL',
+      AA: 'AAL', DL: 'DAL', LH: 'DLH', IB: 'IBE', AF: 'AFR', EI: 'EIN',
+      BA: 'BAW', KL: 'KLM', LX: 'SWR', UX: 'AEA', FR: 'RYR', U2: 'EZY',
+      VY: 'VLG', S4: 'RZO', B6: 'JBU', WN: 'SWA', NK: 'NKS', F9: 'FFT',
+      Y4: 'VOI', VB: 'VIV', AV: 'AVA', CM: 'CMP', LA: 'LAN', OS: 'AUA',
+      SN: 'BEL', AZ: 'ITY', SK: 'SAS', AY: 'FIN', EK: 'UAE', QR: 'QTR',
+      TK: 'THY', VS: 'VIR', FI: 'ICE', PD: 'POE', WG: 'SWG', F8: 'FLE'
+    };
+    const m = clean.match(/^([A-Z0-9]{2})(\d+.*)$/);
     if (m && map[m[1]]) return map[m[1]] + m[2];
     return clean;
   }
