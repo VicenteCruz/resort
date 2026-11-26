@@ -1,11 +1,14 @@
-const CACHE_NAME = 'yucatan-guide-v2';
+const CACHE_NAME = 'yucatan-companion-pt-v3';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
+  './data.js',
+  './app.js',
   './manifest.webmanifest',
   './assets/icon.svg',
-  './assets/resort-hero.jpg'
+  './assets/resort-hero.jpg',
+  './assets/resort-dining.jpg'
 ];
 
 self.addEventListener('install', (event) => {
