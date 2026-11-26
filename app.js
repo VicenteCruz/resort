@@ -124,6 +124,11 @@
     activeView = viewName;
     document.querySelectorAll('.view-panel').forEach((p) => p.classList.toggle('is-active', p.id === `view-${viewName}`));
     document.querySelectorAll('[data-view-target]').forEach((b) => b.classList.toggle('is-active', b.getAttribute('data-view-target') === viewName));
+    if (viewName === 'flights') {
+      setTimeout(() => {
+        if (typeof updateFlightMap === 'function') updateFlightMap();
+      }, 60);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
