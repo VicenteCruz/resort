@@ -274,14 +274,17 @@
 
       <div id="restaurants-ranking-box" style="margin-bottom: 18px;"></div>
 
-      <div class="chip-group" id="venue-category-chips" role="tablist">
-        <button type="button" class="chip is-active" data-venue-cat="all">Todos</button>
-        <button type="button" class="chip" data-venue-cat="ranking">★ Top Ranking</button>
-        <button type="button" class="chip" data-venue-cat="open">Abertos Agora</button>
-        <button type="button" class="chip" data-venue-cat="pyp">No Vosso Hotel (Platinum)</button>
-        <button type="button" class="chip" data-venue-cat="sister">Hotéis Vizinhos (Incluídos)</button>
-        <button type="button" class="chip" data-venue-cat="bars">Bares &amp; Gelataria</button>
-        <button type="button" class="chip" data-venue-cat="extra">Pagos à Parte</button>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;">
+        <div class="chip-group" id="venue-category-chips" role="tablist" style="margin-bottom:0;">
+          <button type="button" class="chip is-active" data-venue-cat="all">Todos</button>
+          <button type="button" class="chip" data-venue-cat="ranking">★ Top Ranking</button>
+          <button type="button" class="chip" data-venue-cat="open">Abertos Agora</button>
+          <button type="button" class="chip" data-venue-cat="pyp">No Vosso Hotel (Platinum)</button>
+          <button type="button" class="chip" data-venue-cat="sister">Hotéis Vizinhos (Incluídos)</button>
+          <button type="button" class="chip" data-venue-cat="bars">Bares &amp; Gelataria</button>
+          <button type="button" class="chip" data-venue-cat="extra">Pagos à Parte</button>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-add-custom-venue">+ Adicionar Restaurante / Bar</button>
       </div>
 
       <div class="grid-3" id="venue-cards-grid"></div>

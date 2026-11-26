@@ -582,6 +582,93 @@
     });
   }
 
+  function syncCustomBarsToCocktailSelect() {
+    const sel = document.getElementById('ck-bar');
+    if (!sel) return;
+    const existing = new Set(Array.from(sel.options).map((o) => o.value));
+    state.venues
+      .filter((v) => v.custom && v.category === 'bars')
+      .forEach((v) => {
+        if (!existing.has(v.name)) {
+          const opt = document.createElement('option');
+          opt.value = v.name;
+          opt.textContent = v.name;
+          sel.appendChild(opt);
+        }
+      });
+  }
+
+  function openAddVenueModal() {
+    openModal('Adicionar Restaurante ou Bar', `
+      <form id="f-add-venue" class="form-grid">
+        <div class="form-grid form-grid-2">
+          <div>
+            <label class="field-label">Nome do Restaurante / Bar</label>
+            <input id="av-name" class="input" placeholder="Ex: Bar Tequila, Restaurante Praia..." required />
+          </div>
+          <div>
+            <label class="field-label">Categoria</label>
+            <select id="av-cat" class="select">
+              <option value="pyp">No Vosso Hotel (Platinum)</option>
+              <option value="sister">Hotel Vizinho (Grand Riviera / Sunset)</option>
+              <option value="bars">Bar / Café / Gelataria</option>
+              <option value="extra">Fora do Resort / Pago à Parte</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div>
+            <label class="field-label">Tipo / Especialidade</label>
+            <input id="av-cuisine" class="input" placeholder="Ex: Tacos, Marisco, Cocktails..." />
+          </div>
+          <div>
+            <label class="field-label">Horário (opcional)</label>
+            <input id="av-hours" class="input" placeholder="Ex: 18:00–22:00" />
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Notas / Descrição (opcional)</label>
+          <input id="av-desc" class="input" placeholder="Ex: Junto à praia, pede reserva..." />
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
+          <button type="submit" class="btn btn-primary">+ Adicionar</button>
+        </div>
+      </form>
+    `);
+
+    document.getElementById('f-add-venue').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('av-name').value.trim();
+      const category = document.getElementById('av-cat').value;
+      const cuisine = document.getElementById('av-cuisine').value.trim() || (category === 'bars' ? 'Bar / Bebidas' : 'Restaurante');
+      const hoursLabel = document.getElementById('av-hours').value.trim() || 'Consultar horário local';
+      const description = document.getElementById('av-desc').value.trim() || 'Adicionado manualmente.';
+      if (!name) return;
+
+      state.venues.push({
+        id: `custom-v-${Date.now()}`,
+        name,
+        category,
+        cuisine,
+        included: category !== 'extra',
+        reservationRequired: false,
+        dressCode: category === 'bars' ? 'Casual' : 'Smart Casual / Casual',
+        hoursLabel,
+        openIntervals: [{ start: '00:00', end: '24:00' }],
+        description,
+        visited: false,
+        custom: true
+      });
+      saveState();
+      syncCustomBarsToCocktailSelect();
+      renderResortVenues();
+      closeModal();
+      showToast(`${name} adicionado!`);
+    });
+  }
+
+  document.getElementById('btn-add-custom-venue')?.addEventListener('click', openAddVenueModal);
+
   function renderResortVenues() {
     const sim = document.getElementById('resort-time-sim').value;
     const nowMins = getCancunMinutesNow(sim);
