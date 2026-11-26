@@ -1292,9 +1292,14 @@
     const allBounds = [];
     const plottedCodes = new Set();
 
-    dirLegs.forEach((leg) => {
+    let activePlanes = 0;
+    dirTimes.forEach((tObj) => {
+      const leg = tObj.leg;
       const fromPt = leg.fromCoords || KNOWN_AIRPORTS[leg.fromCode];
       const toPt = leg.toCoords || KNOWN_AIRPORTS[leg.toCode];
+      const lv = isLegActiveWindow(tObj, now) ? leg.liveStatus : null;
+      const hasLivePlane = Boolean(lv && lv.active && lv.lat && lv.lon);
+      const planePt = hasLivePlane ? [Number(lv.lat), Number(lv.lon)] : null;
 
       if (fromPt) {
         allBounds.push(fromPt);
@@ -1314,19 +1319,17 @@
             .addTo(routeLayer);
         }
       }
-      if (fromPt && toPt) {
-        window.L.polyline([fromPt, toPt], { color: '#166970', weight: 3, dashArray: '6, 8', opacity: 0.85 }).addTo(routeLayer);
-      }
-    });
 
-    let activePlanes = 0;
-    dirTimes.forEach((tObj) => {
-      const leg = tObj.leg;
-      const lv = isLegActiveWindow(tObj, now) ? leg.liveStatus : null;
-      if (lv && lv.active && lv.lat && lv.lon) {
+      if (hasLivePlane && planePt) {
         activePlanes++;
-        const pt = [Number(lv.lat), Number(lv.lon)];
-        allBounds.push(pt);
+        allBounds.push(planePt);
+        if (fromPt) {
+          window.L.polyline([fromPt, planePt], { color: '#166970', weight: 3.5, opacity: 0.95 }).addTo(routeLayer);
+        }
+        if (toPt) {
+          window.L.polyline([planePt, toPt], { color: '#166970', weight: 3, dashArray: '6, 8', opacity: 0.75 }).addTo(routeLayer);
+        }
+
         const deg = lv.track || 0;
         const icon = window.L.divIcon({
           className: 'plane-marker',
@@ -1341,12 +1344,14 @@
           iconSize: [44, 44],
           iconAnchor: [22, 22]
         });
-        window.L.marker(pt, { icon, zIndexOffset: 1000 })
+        window.L.marker(planePt, { icon, zIndexOffset: 1000 })
           .bindPopup(
             `<strong>${escapeHtml(leg.flightNumber)} (${escapeHtml(getIcaoCallsign(leg.flightNumber))})</strong><br/>` +
             `${lv.reg ? `${escapeHtml(lv.reg)} · ` : ''}${lv.onGround ? 'No solo' : `${lv.altFt || '--'} ft · ${lv.speedKmh || '--'} km/h`}`
           )
           .addTo(planeLayer);
+      } else if (fromPt && toPt) {
+        window.L.polyline([fromPt, toPt], { color: '#166970', weight: 3, dashArray: '6, 8', opacity: 0.85 }).addTo(routeLayer);
       }
     });
 
