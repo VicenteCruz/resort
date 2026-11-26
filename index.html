@@ -272,6 +272,8 @@
         </div>
       </div>
 
+      <div id="restaurants-ranking-box" style="margin-bottom: 18px;"></div>
+
       <div class="chip-group" id="venue-category-chips" role="tablist">
         <button type="button" class="chip is-active" data-venue-cat="all">Todos</button>
         <button type="button" class="chip" data-venue-cat="ranking">★ Top Ranking</button>
@@ -407,6 +409,8 @@
         <span class="tag tag-cenote" id="cocktails-count-badge">0 avaliados</span>
       </div>
 
+      <div id="cocktails-ranking-box" style="margin-bottom: 18px;"></div>
+
       <div class="surface" style="margin-bottom: 18px;">
         <h3 style="font-size: 1.08rem; margin-bottom: 10px;">Registar Novo Cocktail</h3>
         <form id="form-add-cocktail" class="form-grid">
@@ -463,13 +467,18 @@
               <input type="text" id="ck-by" class="input" placeholder="O seu nome..." />
             </div>
             <div>
-              <label class="field-label" for="ck-note">Notas / Comentário</label>
-              <input type="text" id="ck-note" class="input" placeholder="Ex: Pedir sem sal, bem fresco, muito doce..." />
+              <label class="field-label" for="ck-photo">Foto do Cocktail (opcional)</label>
+              <input type="file" id="ck-photo" accept="image/*" class="input" />
             </div>
           </div>
 
+          <div>
+            <label class="field-label" for="ck-note">Notas / Comentário</label>
+            <input type="text" id="ck-note" class="input" placeholder="Ex: Pedir sem sal, bem fresco, muito doce..." />
+          </div>
+
           <div style="display: flex; justify-content: flex-end;">
-            <button type="submit" class="btn btn-primary">+ Guardar Avaliação</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-cocktail">+ Guardar Avaliação</button>
           </div>
         </form>
       </div>

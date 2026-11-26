@@ -585,6 +585,43 @@
   function renderResortVenues() {
     const sim = document.getElementById('resort-time-sim').value;
     const nowMins = getCancunMinutesNow(sim);
+
+    // Render Top Restaurants Podium
+    const rankBox = document.getElementById('restaurants-ranking-box');
+    if (rankBox) {
+      const rated = state.venues
+        .filter((v) => v.ratings)
+        .sort((a, b) => getVenueAvg(b) - getVenueAvg(a))
+        .slice(0, 5);
+      if (rated.length) {
+        const medals = ['🥇', '🥈', '🥉', '4º', '5º'];
+        rankBox.innerHTML = `
+          <div class="surface">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <h3 style="font-size:1.1rem;">🏆 Ranking dos Melhores Restaurantes</h3>
+              <span class="tag tag-cenote">${rated.length} avaliado${rated.length === 1 ? '' : 's'}</span>
+            </div>
+            <div class="open-now-list">
+              ${rated
+                .map(
+                  (v, i) => `
+                  <div class="open-venue-row">
+                    <div>
+                      <strong>${medals[i]} ${escapeHtml(v.name)}</strong>
+                      <span style="font-size:0.78rem;color:var(--ink-secondary);margin-left:6px;">${escapeHtml(v.cuisine)}</span>
+                    </div>
+                    <span class="tag tag-cenote mono">★ ${getVenueAvg(v).toFixed(1)} / 5</span>
+                  </div>`
+                )
+                .join('')}
+            </div>
+          </div>
+        `;
+      } else {
+        rankBox.innerHTML = '';
+      }
+    }
+
     let list = state.venues.filter((v) => {
       if (activeVenueCategory === 'all') return true;
       if (activeVenueCategory === 'ranking') return Boolean(v.ratings);
@@ -920,15 +957,11 @@
   function renderCocktails() {
     const grid = document.getElementById('cocktails-list-grid');
     const badge = document.getElementById('cocktails-count-badge');
+    const rankBox = document.getElementById('cocktails-ranking-box');
     if (!grid) return;
 
     const list = Array.isArray(state.cocktails) ? state.cocktails : [];
     if (badge) badge.textContent = `${list.length} avaliado${list.length === 1 ? '' : 's'}`;
-
-    if (!list.length) {
-      grid.innerHTML = `<div class="surface"><p style="font-size:0.86rem;color:var(--ink-secondary);">Ainda nenhum cocktail avaliado. Registe o primeiro acima!</p></div>`;
-      return;
-    }
 
     const getAvg = (c) => {
       if (c.aspects) {
@@ -938,6 +971,46 @@
     };
 
     const sorted = [...list].sort((a, b) => getAvg(b) - getAvg(a));
+
+    if (rankBox) {
+      if (sorted.length) {
+        const medals = ['🥇', '🥈', '🥉', '4º', '5º'];
+        rankBox.innerHTML = `
+          <div class="surface">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <h3 style="font-size:1.1rem;">🏆 Top Melhores Cocktails</h3>
+              <span class="tag tag-cenote">Top ${Math.min(5, sorted.length)}</span>
+            </div>
+            <div class="open-now-list">
+              ${sorted
+                .slice(0, 5)
+                .map(
+                  (c, i) => `
+                  <div class="open-venue-row">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      ${c.photoUrl ? `<img src="${escapeHtml(c.photoUrl)}" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:8px;" />` : ''}
+                      <div>
+                        <strong>${medals[i]} ${escapeHtml(c.name)}</strong>
+                        <span style="font-size:0.78rem;color:var(--ink-secondary);margin-left:6px;">${escapeHtml(c.bar)}</span>
+                      </div>
+                    </div>
+                    <span class="tag tag-cenote mono">★ ${getAvg(c).toFixed(1)} / 5</span>
+                  </div>`
+                )
+                .join('')}
+            </div>
+          </div>
+        `;
+      } else {
+        rankBox.innerHTML = '';
+      }
+    }
+
+    if (!sorted.length) {
+      grid.innerHTML = `<div class="surface"><p style="font-size:0.86rem;color:var(--ink-secondary);">Ainda nenhum cocktail avaliado. Registe o primeiro acima!</p></div>`;
+      return;
+    }
+
     grid.innerHTML = sorted
       .map((c, idx) => {
         const avg = getAvg(c).toFixed(1);
@@ -945,6 +1018,7 @@
         return `
           <article class="venue-card">
             <div>
+              ${c.photoUrl ? `<img src="${escapeHtml(c.photoUrl)}" alt="${escapeHtml(c.name)}" style="width:100%;height:190px;object-fit:cover;border-radius:10px;margin-bottom:10px;" loading="lazy" />` : ''}
               <div class="venue-top">
                 <div>
                   <h3 class="venue-name">#${idx + 1} ${escapeHtml(c.name)}</h3>
@@ -982,7 +1056,7 @@
     );
   }
 
-  document.getElementById('form-add-cocktail')?.addEventListener('submit', (e) => {
+  document.getElementById('form-add-cocktail')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('ck-name').value.trim();
     const bar = document.getElementById('ck-bar').value;
@@ -992,7 +1066,21 @@
     const look = Number(document.getElementById('ck-look').value) || 4;
     const byInput = document.getElementById('ck-by')?.value.trim();
     const note = document.getElementById('ck-note').value.trim();
+    const photoInput = document.getElementById('ck-photo');
+    const photoFile = photoInput?.files?.[0];
     if (!name) return;
+
+    let photoUrl = '';
+    if (photoFile && sbClient && sbUser) {
+      showToast('A carregar foto do cocktail...');
+      const ext = (photoFile.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `cocktails/${Date.now()}.${ext}`;
+      const { error: upErr } = await sbClient.storage.from('trip-photos').upload(path, photoFile, { upsert: false });
+      if (!upErr) {
+        const { data: pub } = sbClient.storage.from('trip-photos').getPublicUrl(path);
+        photoUrl = pub?.publicUrl || '';
+      }
+    }
 
     const avg = (flavor + fresh + strength + look) / 4;
     if (!Array.isArray(state.cocktails)) state.cocktails = [];
@@ -1002,12 +1090,14 @@
       bar,
       rating: avg,
       aspects: { flavor, fresh, strength, look },
+      photoUrl,
       note,
       by: byInput || (sbUser?.email ? sbUser.email.split('@')[0] : 'Casal'),
       createdAt: new Date().toISOString()
     });
     document.getElementById('ck-name').value = '';
     document.getElementById('ck-note').value = '';
+    if (photoInput) photoInput.value = '';
     saveState();
     renderCocktails();
     showToast(`Cocktail avaliado (${avg.toFixed(1)}★)!`);
