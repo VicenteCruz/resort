@@ -225,13 +225,24 @@
     const allLegs = [...state.flights.outbound.legs, ...state.flights.inbound.legs];
     const targetLegs = legId ? allLegs.filter((l) => l.id === legId) : state.flights[activeFlightDir].legs;
 
-    showToast('A consultar radar api.adsb.lol...');
+    showToast('A consultar radar ADS-B em direto...');
     let airborneCount = 0;
+    const proxyBase =
+      window.SUPABASE_URL
+        ? `${window.SUPABASE_URL.replace(/\/$/, '')}/functions/v1/adsb-proxy`
+        : null;
 
     for (const leg of targetLegs) {
       const callsign = getIcaoCallsign(leg.flightNumber);
       try {
-        const res = await fetch(`https://api.adsb.lol/v2/callsign/${encodeURIComponent(callsign)}`);
+        const endpoint = proxyBase
+          ? `${proxyBase}?callsign=${encodeURIComponent(callsign)}`
+          : `https://api.adsb.lol/v2/callsign/${encodeURIComponent(callsign)}`;
+        const res = await fetch(endpoint);
+        if (res.status === 404 && proxyBase) {
+          showToast('Ativa a Edge Function "adsb-proxy" no Supabase para o radar em direto.');
+          return;
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         const ac = Array.isArray(json.ac) && json.ac.length > 0 ? json.ac[0] : null;
@@ -262,8 +273,8 @@
           };
         }
       } catch (err) {
-        console.warn('ADSB.lol fetch error:', err);
-        showToast('Erro de rede ao contactar api.adsb.lol');
+        console.warn('ADS-B radar fetch error:', err);
+        showToast('Erro de rede ao contactar o radar ADS-B.');
         return;
       }
     }
