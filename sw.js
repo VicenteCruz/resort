@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yucatan-companion-pt-v36';
+const CACHE_NAME = 'yucatan-companion-pt-v37';
 const ASSETS = [
   './',
   './index.html',

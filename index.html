@@ -61,12 +61,8 @@
         <span id="nav-tab-planner-label">Plano</span>
       </button>
       <button type="button" class="nav-tab" data-view-target="resort" id="nav-tab-resort" data-private-only="true" style="display: none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M4.93 10.93a10 10 0 0 1 14.14 0M2 15h20M8 19h8"/></svg>
-        Restaurantes
-      </button>
-      <button type="button" class="nav-tab" data-view-target="cocktails" id="nav-tab-cocktails" data-private-only="true" style="display: none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 22h8M12 11v11M19 3l-7 8-7-8h14z"/></svg>
-        Cocktails
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Reviews
       </button>
       <button type="button" class="nav-tab" data-view-target="toolkit" id="nav-tab-toolkit" data-private-only="true" style="display: none;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
@@ -241,34 +237,62 @@
       </div>
     </section>
 
-    <!-- SECÇÃO 4: RESTAURANTES -->
+    <!-- SECÇÃO 4: REVIEWS (RESTAURANTES & COCKTAILS) -->
     <section class="view-panel" id="view-resort" aria-labelledby="resort-heading">
-      <div id="resort-list-view">
-        <div class="section-header">
-          <div>
-            <h2 class="section-title" id="resort-heading">Ranking de Restaurantes</h2>
-            <p class="section-subtitle">Toque num restaurante para abrir a página, ver o menu e registar o que comeram</p>
-          </div>
-          <span class="tag tag-cenote" id="restaurants-count-badge">0 restaurantes</span>
-        </div>
-
-        <div class="chip-group" id="venue-category-chips" role="tablist">
-          <button type="button" class="chip is-active" data-venue-cat="all">Todos</button>
-          <button type="button" class="chip" data-venue-cat="ranking">★ Já Avaliados</button>
-          <button type="button" class="chip" data-venue-cat="pyp" id="venue-chip-pyp">Alojamento</button>
-          <button type="button" class="chip" data-venue-cat="sister" id="venue-chip-sister">Parceiros / Perto</button>
-          <button type="button" class="chip" data-venue-cat="extra">Fora / Pago à Parte</button>
-        </div>
-
-        <div class="cocktail-postcards-list" id="venue-cards-grid"></div>
-
-        <button type="button" class="fab-add-btn" id="btn-fab-add-restaurant" aria-label="Adicionar novo restaurante">
-          <span class="fab-plus" aria-hidden="true">+</span>
-          <span>Adicionar Restaurante</span>
+      <div class="direction-toggle" id="reviews-category-toggle" role="tablist" aria-label="Categoria de Reviews" style="margin-top: 0;">
+        <button type="button" class="direction-btn is-active" data-reviews-tab="restaurants" id="btn-rev-tab-restaurants">
+          <span class="direction-btn-title">🍽️ Restaurantes</span>
+        </button>
+        <button type="button" class="direction-btn" data-reviews-tab="cocktails" id="btn-rev-tab-cocktails">
+          <span class="direction-btn-title">🍹 Cocktails</span>
         </button>
       </div>
 
-      <div id="resort-detail-view" style="display: none;"></div>
+      <div id="reviews-panel-restaurants">
+        <div id="resort-list-view">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title" id="resort-heading">Ranking de Restaurantes</h2>
+              <p class="section-subtitle">Toque num restaurante para abrir a página, ver o menu e registar o que comeram</p>
+            </div>
+            <span class="tag tag-cenote" id="restaurants-count-badge">0 restaurantes</span>
+          </div>
+
+          <div class="chip-group" id="venue-category-chips" role="tablist">
+            <button type="button" class="chip is-active" data-venue-cat="all">Todos</button>
+            <button type="button" class="chip" data-venue-cat="ranking">★ Já Avaliados</button>
+            <button type="button" class="chip" data-venue-cat="pyp" id="venue-chip-pyp">Alojamento</button>
+            <button type="button" class="chip" data-venue-cat="sister" id="venue-chip-sister">Parceiros / Perto</button>
+            <button type="button" class="chip" data-venue-cat="extra">Fora / Pago à Parte</button>
+          </div>
+
+          <div class="cocktail-postcards-list" id="venue-cards-grid"></div>
+
+          <button type="button" class="fab-add-btn" id="btn-fab-add-restaurant" aria-label="Adicionar novo restaurante">
+            <span class="fab-plus" aria-hidden="true">+</span>
+            <span>Adicionar Restaurante</span>
+          </button>
+        </div>
+
+        <div id="resort-detail-view" style="display: none;"></div>
+      </div>
+
+      <div id="reviews-panel-cocktails" style="display: none;">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="cocktails-heading">Ranking de Cocktails</h2>
+            <p class="section-subtitle">Os vossos cocktails favoritos ordenados pela pontuação</p>
+          </div>
+          <span class="tag tag-cenote" id="cocktails-count-badge">0 avaliados</span>
+        </div>
+
+        <div class="cocktail-postcards-list" id="cocktails-list-grid"></div>
+
+        <button type="button" class="fab-add-btn" id="btn-fab-add-cocktail" aria-label="Adicionar novo cocktail">
+          <span class="fab-plus" aria-hidden="true">+</span>
+          <span>Adicionar Cocktail</span>
+        </button>
+      </div>
     </section>
 
     <!-- SECÇÃO 5: MALA & CÂMBIO -->
@@ -368,24 +392,6 @@
       </div>
 
       <div class="photo-gallery" id="photos-gallery-grid"></div>
-    </section>
-
-    <!-- SECÇÃO 7 (PRIVADA): AVALIAÇÃO DE COCKTAILS -->
-    <section class="view-panel" id="view-cocktails" aria-labelledby="cocktails-heading">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title" id="cocktails-heading">Ranking de Cocktails</h2>
-          <p class="section-subtitle">Os vossos cocktails favoritos ordenados pela pontuação</p>
-        </div>
-        <span class="tag tag-cenote" id="cocktails-count-badge">0 avaliados</span>
-      </div>
-
-      <div class="cocktail-postcards-list" id="cocktails-list-grid"></div>
-
-      <button type="button" class="fab-add-btn" id="btn-fab-add-cocktail" aria-label="Adicionar novo cocktail">
-        <span class="fab-plus" aria-hidden="true">+</span>
-        <span>Adicionar Cocktail</span>
-      </button>
     </section>
 
     <!-- SECÇÃO 8 (PRIVADA): CONFIGURAÇÃO -->
@@ -627,12 +633,12 @@
       <span>Plano</span>
     </button>
     <button type="button" class="dock-btn" data-view-target="resort" data-private-only="true" style="display: none;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M4.93 10.93a10 10 0 0 1 14.14 0M2 15h20M8 19h8"/></svg>
-      <span>Locais</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <span>Reviews</span>
     </button>
-    <button type="button" class="dock-btn" data-view-target="cocktails" data-private-only="true" style="display: none;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 22h8M12 11v11M19 3l-7 8-7-8h14z"/></svg>
-      <span>Drinks</span>
+    <button type="button" class="dock-btn" data-view-target="toolkit" data-private-only="true" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>Mala</span>
     </button>
     <button type="button" class="dock-btn" data-view-target="settings" data-private-only="true" style="display: none;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>

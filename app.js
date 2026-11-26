@@ -719,14 +719,6 @@
         .join('');
     }
 
-    const destTz = state.trip.destTz || 'Europe/Lisbon';
-    const destCity = state.trip.destCity || state.trip.destination || 'Destino';
-    const destTime = formatTzTime(destTz);
-    const ovDestLbl = document.getElementById('overview-dest-tz-label');
-    if (ovDestLbl) {
-      ovDestLbl.innerHTML = `Hora local em ${escapeHtml(destCity)} (<span class="mono" id="overview-dest-time">${escapeHtml(destTime)}</span>)`;
-    }
-
     const outTimes = getLegTimes('outbound').filter((t) => t.dep != null);
     const inTimes = getLegTimes('inbound').filter((t) => t.arr != null);
     const depMs = outTimes.length ? outTimes[0].dep : Date.parse(`${state.trip.startDate}T09:00:00Z`);
@@ -847,30 +839,92 @@
     ].join('');
 
     const openTitle = document.getElementById('overview-open-title');
-    if (openTitle) openTitle.textContent = `Aberto Agora${t.title ? ` · ${t.title.split(' ').slice(0, 2).join(' ')}` : ''}`;
-
-    const nowMins = getDestMinutesNow('live');
-    const openVenues = state.venues
-      .map((v) => ({ v, st: evaluateVenueStatus(v, nowMins) }))
-      .filter((x) => x.st.state === 'open' || x.st.state === 'soon')
-      .slice(0, 4);
-
+    const openSub = document.getElementById('overview-dest-tz-label');
+    const openBtn = document.getElementById('overview-all-dining-btn');
     const openEl = document.getElementById('overview-open-venues');
+
+    // Compute today's ISO date in destination timezone
+    let todayIso = new Date().toISOString().slice(0, 10);
+    try {
+      const parts = new Intl.DateTimeFormat('en-CA', { timeZone: t.destTz || 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+      const get = (k) => parts.find((p) => p.type === k)?.value || '';
+      if (get('year')) todayIso = `${get('year')}-${get('month')}-${get('day')}`;
+    } catch {}
+
+    const todayObj = (state.days || []).find((d) => d.date === todayIso);
+    const hasTodayDinner = todayObj && todayObj.dinnerChoice && todayObj.dinnerChoice !== 'Sem restaurante marcado' && todayObj.dinnerChoice !== 'Em viagem';
+    const todayItems = todayObj && Array.isArray(todayObj.items) ? todayObj.items : [];
+    const hasTodayPlans = Boolean(todayObj && (todayItems.length > 0 || hasTodayDinner));
+
     if (openEl) {
-      openEl.innerHTML = openVenues.length
-        ? openVenues
-            .map(
-              ({ v, st }) => `
-              <div class="open-venue-row">
-                <div>
-                  <div style="font-weight: 600; font-size: 0.88rem;">${escapeHtml(v.name)}</div>
-                  <div style="font-size: 0.76rem; color: var(--ink-secondary);">${escapeHtml(v.cuisine)}</div>
-                </div>
-                <span class="tag ${st.state === 'open' ? 'tag-open' : 'tag-soon'}">${escapeHtml(st.label)}</span>
-              </div>`
-            )
-            .join('')
-        : `<p style="font-size:0.84rem;color:var(--ink-muted);">Sem locais abertos neste horário (ou ainda sem locais configurados).</p>`;
+      if (hasTodayPlans) {
+        if (openTitle) openTitle.textContent = `Plano de Hoje`;
+        if (openSub) openSub.textContent = `${todayObj.shortDate} · ${todayObj.theme || 'Agenda do dia'}`;
+        if (openBtn) {
+          openBtn.textContent = 'Ver Plano';
+          openBtn.onclick = () => {
+            const idx = state.days.findIndex((d) => d.date === todayIso);
+            if (idx >= 0) activeDayIndex = idx;
+            renderPlanner();
+            switchView('planner');
+          };
+        }
+        const rows = [];
+        todayItems.slice(0, 4).forEach((it) => {
+          rows.push(`
+            <div class="open-venue-row">
+              <div>
+                <div style="font-weight: 600; font-size: 0.88rem;">${escapeHtml(it.title)}</div>
+                ${it.note ? `<div style="font-size: 0.76rem; color: var(--ink-secondary);">${escapeHtml(it.note)}</div>` : ''}
+              </div>
+              <span class="tag tag-cenote mono">${escapeHtml(it.time || '')}</span>
+            </div>`);
+        });
+        if (hasTodayDinner) {
+          rows.push(`
+            <div class="open-venue-row">
+              <div>
+                <div style="font-weight: 600; font-size: 0.88rem;">🍽️ ${escapeHtml(todayObj.dinnerChoice)}</div>
+                <div style="font-size: 0.76rem; color: var(--ink-secondary);">Jantar marcado</div>
+              </div>
+              <span class="tag tag-open">Jantar</span>
+            </div>`);
+        }
+        openEl.innerHTML = rows.join('');
+      } else {
+        if (openTitle) openTitle.textContent = 'Top Restaurantes';
+        if (openSub) openSub.textContent = 'Sem planos para hoje — ranking dos vossos favoritos';
+        if (openBtn) {
+          openBtn.textContent = 'Ver Reviews';
+          openBtn.onclick = () => switchView('resort');
+        }
+        const topRest = state.venues
+          .filter((v) => v.category !== 'bars' && getVenueAvg(v) > 0)
+          .sort((a, b) => getVenueAvg(b) - getVenueAvg(a))
+          .slice(0, 4);
+        const medals = ['🥇', '🥈', '🥉', '4º'];
+        openEl.innerHTML = topRest.length
+          ? topRest
+              .map((v, i) => `
+                <div class="open-venue-row" style="cursor:pointer;" data-ov-open-rest="${escapeHtml(v.id)}">
+                  <div>
+                    <div style="font-weight: 600; font-size: 0.88rem;">${medals[i]} ${escapeHtml(v.name)}</div>
+                    <div style="font-size: 0.76rem; color: var(--ink-secondary);">${escapeHtml(v.cuisine)}</div>
+                  </div>
+                  <span class="tag tag-cenote mono">★ ${getVenueAvg(v).toFixed(1)}</span>
+                </div>`)
+              .join('')
+          : `<p style="font-size:0.84rem;color:var(--ink-muted);">Ainda sem planos para hoje nem restaurantes avaliados. Adicione reviews na aba Reviews!</p>`;
+
+        openEl.querySelectorAll('[data-ov-open-rest]').forEach((row) =>
+          row.addEventListener('click', () => {
+            activeRestaurantId = row.getAttribute('data-ov-open-rest');
+            switchReviewsTab('restaurants');
+            switchView('resort');
+            renderResortVenues();
+          })
+        );
+      }
     }
 
     // Dynamic Tips section
@@ -1568,23 +1622,75 @@
     openLightbox(0);
   }
 
-  function openRateVenueModal(venueId) {
+  let activeReviewsTab = 'restaurants';
+  function switchReviewsTab(tab) {
+    activeReviewsTab = tab === 'cocktails' ? 'cocktails' : 'restaurants';
+    document.querySelectorAll('[data-reviews-tab]').forEach((b) =>
+      b.classList.toggle('is-active', b.getAttribute('data-reviews-tab') === activeReviewsTab)
+    );
+    const restPanel = document.getElementById('reviews-panel-restaurants');
+    const ckPanel = document.getElementById('reviews-panel-cocktails');
+    if (restPanel) restPanel.style.display = activeReviewsTab === 'restaurants' ? 'block' : 'none';
+    if (ckPanel) ckPanel.style.display = activeReviewsTab === 'cocktails' ? 'block' : 'none';
+  }
+  document.querySelectorAll('[data-reviews-tab]').forEach((b) =>
+    b.addEventListener('click', () => switchReviewsTab(b.getAttribute('data-reviews-tab')))
+  );
+
+  function openEditRestaurantModal(venueId) {
+    const v = state.venues.find((x) => x.id === venueId);
+    if (!v) return;
+    openModal(`Editar ${v.name}`, `
+      <form id="f-edit-rest" class="form-grid">
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label" for="er-name">Nome do Restaurante</label><input id="er-name" class="input" value="${escapeHtml(v.name)}" required /></div>
+          <div>
+            <label class="field-label" for="er-cat">Categoria</label>
+            <select id="er-cat" class="select">
+              <option value="pyp" ${v.category === 'pyp' ? 'selected' : ''}>Alojamento / Principal</option>
+              <option value="sister" ${v.category === 'sister' ? 'selected' : ''}>Parceiros / Perto</option>
+              <option value="extra" ${v.category === 'extra' ? 'selected' : ''}>Fora / Pago à Parte</option>
+            </select>
+          </div>
+        </div>
+        <div><label class="field-label" for="er-cuisine">Tipo / Cozinha</label><input id="er-cuisine" class="input" value="${escapeHtml(v.cuisine || '')}" /></div>
+        <div><label class="field-label" for="er-desc">Descrição / Notas</label><textarea id="er-desc" class="textarea" rows="3">${escapeHtml(v.description || '')}</textarea></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;"><button type="submit" class="btn btn-primary">Guardar Alterações</button></div>
+      </form>
+    `);
+    document.getElementById('f-edit-rest').addEventListener('submit', (e) => {
+      e.preventDefault();
+      v.name = document.getElementById('er-name').value.trim() || v.name;
+      v.category = document.getElementById('er-cat').value;
+      v.cuisine = document.getElementById('er-cuisine').value.trim() || v.cuisine;
+      v.description = document.getElementById('er-desc').value.trim();
+      v.included = v.category !== 'extra';
+      saveState();
+      renderAll();
+      closeModal();
+      showToast('Restaurante atualizado!');
+    });
+  }
+
+  function openRateVenueModal(venueId, editReviewId = null) {
     const v = state.venues.find((x) => x.id === venueId);
     if (!v) return;
     if (!Array.isArray(v.reviews)) v.reviews = [];
     const me = getCurrentReviewer();
-    const myPrev = v.reviews.find((r) => r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase());
-    const a = myPrev?.aspects || { food: 4, vibe: 4, service: 4, quality: 4 };
+    const editing = editReviewId
+      ? v.reviews.find((r) => r.id === editReviewId)
+      : v.reviews.find((r) => r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase());
+    const a = editing?.aspects || { food: 4, vibe: 4, service: 4, quality: 4 };
     const opts = (val) =>
       [5, 4, 3, 2, 1]
         .map((n) => `<option value="${n}" ${Number(val) === n ? 'selected' : ''}>${'★'.repeat(n)}${'☆'.repeat(5 - n)} (${n})</option>`)
         .join('');
 
-    openModal(myPrev ? `Editar Review — ${v.name}` : `Avaliar ${v.name}`, `
+    openModal(editing ? `Editar Review — ${v.name}` : `Avaliar ${v.name}`, `
       <form id="f-rate-venue" class="form-grid">
         <div>
           <label class="field-label" for="rv-dishes">O que comeste?</label>
-          <input id="rv-dishes" class="input" value="${escapeHtml(myPrev?.dishes || '')}" placeholder="Ex: Bife Ribeye, Ceviche, Massa Trufada, Tiramisu..." required />
+          <input id="rv-dishes" class="input" value="${escapeHtml(editing?.dishes || '')}" placeholder="Ex: Bife Ribeye, Ceviche, Massa Trufada, Tiramisu..." required />
         </div>
         <div class="form-grid form-grid-2">
           <div><label class="field-label" for="rv-food">Comida</label><select id="rv-food" class="select">${opts(a.food)}</select></div>
@@ -1594,10 +1700,10 @@
         </div>
         <div>
           <label class="field-label" for="rv-note">Comentário / Dica (opcional)</label>
-          <input id="rv-note" class="input" value="${escapeHtml(myPrev?.comment || '')}" placeholder="Ex: Pedir mesa lá fora, sobremesa incrível..." />
+          <input id="rv-note" class="input" value="${escapeHtml(editing?.comment || '')}" placeholder="Ex: Pedir mesa lá fora, sobremesa incrível..." />
         </div>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
-          <button type="submit" class="btn btn-primary">${myPrev ? 'Guardar Alterações' : '+ Guardar Review'}</button>
+          <button type="submit" class="btn btn-primary">${editing ? 'Guardar Alterações' : '+ Guardar Review'}</button>
         </div>
       </form>
     `);
@@ -1613,25 +1719,26 @@
       const avg = (food + vibe + service + quality) / 4;
 
       const revPayload = {
-        id: myPrev?.id || `vrev-${Date.now()}`,
-        userId: me.userId,
-        by: me.by,
+        id: editing?.id || `vrev-${Date.now()}`,
+        userId: editing?.userId || me.userId,
+        by: editing?.by || me.by,
         dishes,
         rating: avg,
         aspects: { food, vibe, service, quality },
         comment,
-        createdAt: new Date().toISOString()
+        createdAt: editing?.createdAt || new Date().toISOString()
       };
 
-      const idx = v.reviews.findIndex((r) => r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase());
+      const idx = editing ? v.reviews.findIndex((r) => r.id === editing.id) : -1;
       if (idx >= 0) v.reviews[idx] = revPayload;
       else v.reviews.push(revPayload);
 
       v.visited = true;
       saveState();
       renderResortVenues();
+      renderOverview();
       closeModal();
-      showToast(`${v.name} avaliado (${avg.toFixed(1)}★)!`);
+      showToast(`${v.name} atualizado (${avg.toFixed(1)}★)!`);
     });
   }
 
@@ -1721,8 +1828,9 @@
               <div class="ck-review-row">
                 <div class="ck-review-row-top">
                   <span class="ck-review-author">${escapeHtml(r.by)}</span>
-                  <div style="display:flex;align-items:center;gap:6px;">
+                  <div style="display:flex;align-items:center;gap:4px;">
                     <span class="ck-review-score">★ ${rAvg}</span>
+                    <button type="button" class="icon-btn" style="padding:2px 5px;font-size:0.78rem;" data-edit-v-rev="${escapeHtml(r.id)}" title="Editar esta review">✎</button>
                     <button type="button" class="icon-btn" style="padding:2px 5px;font-size:0.75rem;" data-del-v-rev="${escapeHtml(r.id)}" title="Apagar esta review">✕</button>
                   </div>
                 </div>
@@ -1744,6 +1852,7 @@
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
         <button type="button" class="btn btn-sm" id="btn-back-restaurants">← Voltar aos Restaurantes</button>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm" id="btn-detail-edit-rest">✎ Editar</button>
           <button type="button" class="btn btn-sm" id="btn-detail-sched">+ Agendar no Plano</button>
           <button type="button" class="btn btn-primary btn-sm" id="btn-detail-review">${myReview ? '✎ Editar a minha Review' : '+ Adicionar Review'}</button>
         </div>
@@ -1816,9 +1925,13 @@
       renderResortVenues();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
+    document.getElementById('btn-detail-edit-rest')?.addEventListener('click', () => openEditRestaurantModal(v.id));
     document.getElementById('btn-detail-sched')?.addEventListener('click', () => openSchedModal(v.id));
     document.getElementById('btn-detail-review')?.addEventListener('click', () => openRateVenueModal(v.id));
     document.getElementById('btn-detail-review-2')?.addEventListener('click', () => openRateVenueModal(v.id));
+    detailEl.querySelectorAll('[data-edit-v-rev]').forEach((b) =>
+      b.addEventListener('click', () => openRateVenueModal(v.id, b.getAttribute('data-edit-v-rev')))
+    );
     document.getElementById('btn-detail-delete-rest')?.addEventListener('click', () => {
       const previewHtml = `
         ${v.photoUrl ? `<img src="${escapeHtml(v.photoUrl)}" alt="" style="width:54px;height:54px;object-fit:cover;border-radius:8px;flex-shrink:0;" />` : `<span style="font-size:1.8rem;">🍽️</span>`}
@@ -3248,8 +3361,9 @@
                     <span class="ck-review-author">${escapeHtml(r.by)}</span>
                     ${revBar ? `<span style="font-size:0.74rem;color:var(--cenote-700);font-weight:600;margin-left:6px;">· ${escapeHtml(revBar)}</span>` : ''}
                   </div>
-                  <div style="display:flex;align-items:center;gap:6px;">
+                  <div style="display:flex;align-items:center;gap:4px;">
                     <span class="ck-review-score">★ ${rAvg}</span>
+                    <button type="button" class="icon-btn" style="padding:2px 5px;font-size:0.78rem;" data-edit-ck-rev="${escapeHtml(c.id)}::${escapeHtml(r.id)}" title="Editar esta review">✎</button>
                     <button type="button" class="icon-btn" style="padding:2px 5px;font-size:0.75rem;" data-del-ck-rev="${escapeHtml(c.id)}::${escapeHtml(r.id)}" title="Apagar esta review">✕</button>
                   </div>
                 </div>
@@ -3295,7 +3409,14 @@
       .join('');
 
     grid.querySelectorAll('[data-review-ck]').forEach((b) =>
-      b.addEventListener('click', () => openCocktailReviewModal(b.getAttribute('data-review-ck')))
+      b.addEventListener('click', () => openCocktailReviewModal(b.getAttribute('data-review-ck'), null))
+    );
+
+    grid.querySelectorAll('[data-edit-ck-rev]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const [ckId, revId] = b.getAttribute('data-edit-ck-rev').split('::');
+        openCocktailReviewModal(ckId, revId);
+      })
     );
 
     grid.querySelectorAll('[data-del-ck-rev]').forEach((b) =>
@@ -3332,25 +3453,34 @@
     );
   }
 
-  function openCocktailReviewModal(existingCocktailId = null) {
+  function openCocktailReviewModal(existingCocktailId = null, editReviewId = null) {
     const existing = existingCocktailId ? (state.cocktails || []).find((c) => c.id === existingCocktailId) : null;
+    const editingRev = existing && editReviewId ? (existing.reviews || []).find((r) => r.id === editReviewId) : null;
     const me = getCurrentReviewer();
 
     const bars = state.venues.filter((v) => v.category === 'bars');
     const others = state.venues.filter((v) => v.category !== 'bars');
-    const barOpts = [
-      ...bars.map((v) => `<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)}</option>`),
-      ...others.map((v) => `<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)}</option>`),
-      '<option value="Outro Bar / Local">Outro Bar / Local</option>'
-    ].join('');
+    const selectedBar = editingRev?.bar || existing?.bar || '';
+    const allBarNames = [
+      ...bars.map((v) => v.name),
+      ...others.map((v) => v.name),
+      'Outro Bar / Local'
+    ];
+    if (selectedBar && !allBarNames.includes(selectedBar)) allBarNames.unshift(selectedBar);
+    const barOpts = allBarNames
+      .map((name) => `<option value="${escapeHtml(name)}" ${name === selectedBar ? 'selected' : ''}>${escapeHtml(name)}</option>`)
+      .join('');
 
     const starOpts = (selVal) =>
       [5, 4, 3, 2, 1]
         .map((n) => `<option value="${n}" ${Number(selVal) === n ? 'selected' : ''}>${'★'.repeat(n)}${'☆'.repeat(5 - n)} (${n})</option>`)
         .join('');
 
+    const prevA = editingRev?.aspects || { flavor: 4, fresh: 4, strength: 4, look: 4 };
     const showPhotoField = !existing || !existing.photoUrl;
-    const modalTitle = existing ? `Avaliar ${existing.name}` : 'Adicionar Cocktail ao Ranking';
+    const modalTitle = editingRev
+      ? `Editar Review — ${existing.name}`
+      : (existing ? `Avaliar ${existing.name}` : 'Adicionar Cocktail ao Ranking');
 
     openModal(modalTitle, `
       <form id="form-add-cocktail" class="form-grid">
@@ -3378,10 +3508,10 @@
           </div>
         `}
         <div class="form-grid form-grid-2">
-          <div><label class="field-label" for="ck-flavor">Sabor &amp; Equilíbrio</label><select id="ck-flavor" class="select">${starOpts(4)}</select></div>
-          <div><label class="field-label" for="ck-fresh">Frescura / Temperatura</label><select id="ck-fresh" class="select">${starOpts(4)}</select></div>
-          <div><label class="field-label" for="ck-strength">Força / Álcool</label><select id="ck-strength" class="select">${starOpts(4)}</select></div>
-          <div><label class="field-label" for="ck-look">Apresentação</label><select id="ck-look" class="select">${starOpts(4)}</select></div>
+          <div><label class="field-label" for="ck-flavor">Sabor &amp; Equilíbrio</label><select id="ck-flavor" class="select">${starOpts(prevA.flavor)}</select></div>
+          <div><label class="field-label" for="ck-fresh">Frescura / Temperatura</label><select id="ck-fresh" class="select">${starOpts(prevA.fresh)}</select></div>
+          <div><label class="field-label" for="ck-strength">Força / Álcool</label><select id="ck-strength" class="select">${starOpts(prevA.strength)}</select></div>
+          <div><label class="field-label" for="ck-look">Apresentação</label><select id="ck-look" class="select">${starOpts(prevA.look)}</select></div>
         </div>
         ${showPhotoField ? `
           <div>
@@ -3391,10 +3521,10 @@
         ` : ''}
         <div>
           <label class="field-label" for="ck-note">Notas / Review</label>
-          <input type="text" id="ck-note" class="input" placeholder="Ex: Pedir sem sal, bem fresco, muito doce..." />
+          <input type="text" id="ck-note" class="input" value="${escapeHtml(editingRev?.note || '')}" placeholder="Ex: Pedir sem sal, bem fresco, muito doce..." />
         </div>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
-          <button type="submit" class="btn btn-primary" id="btn-submit-cocktail">+ Guardar Review</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-cocktail">${editingRev ? 'Guardar Alterações' : '+ Guardar Review'}</button>
         </div>
       </form>
     `);
@@ -3435,19 +3565,22 @@
         }
       }
 
-      const existingRevIdx = target.reviews.findIndex(
-        (r) => (r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase()) &&
-               String(r.bar || target.bar || '').toLowerCase() === String(bar || '').toLowerCase()
-      );
+      const existingRevIdx = editingRev
+        ? target.reviews.findIndex((r) => r.id === editingRev.id)
+        : target.reviews.findIndex(
+            (r) => (r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase()) &&
+                   String(r.bar || target.bar || '').toLowerCase() === String(bar || '').toLowerCase()
+          );
+
       const revPayload = {
         id: existingRevIdx >= 0 ? target.reviews[existingRevIdx].id : `rev-${Date.now()}`,
-        userId: me.userId,
-        by: me.by,
+        userId: editingRev?.userId || me.userId,
+        by: editingRev?.by || me.by,
         bar,
         rating: avg,
         aspects: { flavor, fresh, strength, look },
         note,
-        createdAt: new Date().toISOString()
+        createdAt: editingRev?.createdAt || new Date().toISOString()
       };
 
       if (existingRevIdx >= 0) {
@@ -3459,7 +3592,7 @@
       saveState();
       renderCocktails();
       closeModal();
-      showToast(`${target.name} (${bar}) avaliado — ${avg.toFixed(1)}★!`);
+      showToast(`${target.name} (${bar}) atualizado — ${avg.toFixed(1)}★!`);
     });
   }
 
@@ -3805,7 +3938,10 @@
             </button>
             ${row.caption || sbUser ? `<figcaption class="photo-caption">
               <span>${escapeHtml(row.caption || '')}</span>
-              ${sbUser ? `<button type="button" class="icon-btn" data-del-photo="${escapeHtml(row.id)}" data-del-path="${escapeHtml(row.storage_path)}" data-del-url="${escapeHtml(imgUrl)}" data-del-caption="${escapeHtml(row.caption || `Dia ${day}`)}" title="Apagar foto">✕</button>` : ''}
+              ${sbUser ? `<div style="display:flex;align-items:center;gap:4px;">
+                <button type="button" class="icon-btn" data-edit-photo="${escapeHtml(row.id)}" data-edit-caption="${escapeHtml(row.caption || '')}" title="Editar descrição">✎</button>
+                <button type="button" class="icon-btn" data-del-photo="${escapeHtml(row.id)}" data-del-path="${escapeHtml(row.storage_path)}" data-del-url="${escapeHtml(imgUrl)}" data-del-caption="${escapeHtml(row.caption || `Dia ${day}`)}" title="Apagar foto">✕</button>
+              </div>` : ''}
             </figcaption>` : ''}
             <div class="photo-comments">
               ${cmList.length ? `<div class="photo-comments-list">${cmHtml}</div>` : ''}
@@ -3894,6 +4030,38 @@
             showToast('Comentário removido');
             loadPhotosGallery();
           }
+        });
+      })
+    );
+
+    grid.querySelectorAll('[data-edit-photo]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const id = b.getAttribute('data-edit-photo');
+        const currentCaption = b.getAttribute('data-edit-caption') || '';
+        openModal('Editar Descrição da Fotografia', `
+          <form id="f-edit-photo-cap" class="form-grid">
+            <div>
+              <label class="field-label" for="epc-text">Descrição / Legenda</label>
+              <input id="epc-text" class="input" value="${escapeHtml(currentCaption)}" placeholder="Ex: Pôr do sol na praia..." />
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
+              <button type="button" class="btn" id="btn-epc-cancel">Cancelar</button>
+              <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+          </form>
+        `);
+        document.getElementById('btn-epc-cancel')?.addEventListener('click', closeModal);
+        document.getElementById('f-edit-photo-cap')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const newCap = document.getElementById('epc-text').value.trim();
+          const { error: upErr } = await sbClient.from('trip_photos').update({ caption: newCap }).eq('id', id);
+          if (upErr) {
+            showToast(`Erro ao atualizar descrição: ${upErr.message}`);
+            return;
+          }
+          closeModal();
+          showToast('Descrição atualizada!');
+          loadPhotosGallery();
         });
       })
     );

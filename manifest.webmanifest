@@ -1,7 +1,7 @@
 {
-  "name": "Platinum Yucatán Princess — Travel & Stay Companion",
-  "short_name": "Yucatán Stay",
-  "description": "Personal offline-ready travel itinerary, Air Canada flight guide (AC 811, AC 1812, AC 1373, AC 810), dining directory, and 10-day stay planner for Platinum Yucatán Princess in Riviera Maya.",
+  "name": "Viagens — Voos, Fotos & Reviews",
+  "short_name": "Viagens",
+  "description": "Painel dinâmico de viagem: acompanhamento de voos, mapa ao vivo, álbum de fotos, plano diário, reviews de restaurantes e cocktails.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#faf7f2",
