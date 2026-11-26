@@ -752,6 +752,228 @@
     }
   });
 
+  /* ========================================================================
+     Supabase Cloud Sync & Private Photo Album
+     ======================================================================== */
+
+  let sbClient = null;
+  let sbUser = null;
+  let syncTimer = null;
+
+  function initSupabase() {
+    const cfg = window.SUPABASE_CONFIG || {};
+    if (window.supabase && cfg.url && cfg.anonKey) {
+      sbClient = window.supabase.createClient(cfg.url, cfg.anonKey);
+      sbClient.auth.getSession().then(({ data }) => {
+        sbUser = data?.session?.user || null;
+        renderPhotosAndSync();
+        if (sbUser) {
+          pullStateFromSupabase();
+          loadPhotosGallery();
+        }
+      });
+      sbClient.auth.onAuthStateChange((_evt, session) => {
+        sbUser = session?.user || null;
+        renderPhotosAndSync();
+        if (sbUser) {
+          pullStateFromSupabase();
+          loadPhotosGallery();
+        }
+      });
+    } else {
+      renderPhotosAndSync();
+    }
+  }
+
+  function queueCloudSave() {
+    if (!sbClient || !sbUser) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(async () => {
+      try {
+        await sbClient.from('trip_state').upsert({
+          id: 'main-trip',
+          data: state,
+          updated_at: new Date().toISOString()
+        });
+        const badge = document.getElementById('sync-status-badge');
+        if (badge) {
+          badge.className = 'tag tag-open';
+          badge.textContent = '✓ Sincronizado na Nuvem';
+        }
+      } catch (err) {
+        console.warn('Supabase sync failed:', err);
+      }
+    }, 600);
+  }
+
+  async function pullStateFromSupabase() {
+    if (!sbClient || !sbUser) return;
+    const { data, error } = await sbClient.from('trip_state').select('data').eq('id', 'main-trip').maybeSingle();
+    if (!error && data && data.data) {
+      state = { ...JSON.parse(JSON.stringify(window.DEFAULT_TRIP_DATA)), ...data.data };
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+      renderOverview();
+      renderFlights();
+      renderPlanner();
+      renderResortVenues();
+      renderPacking();
+      renderExpenses();
+      showToast('Dados sincronizados do Supabase!');
+    }
+  }
+
+  async function loadPhotosGallery() {
+    const grid = document.getElementById('photos-gallery-grid');
+    if (!grid || !sbClient || !sbUser) return;
+    grid.innerHTML = `<p style="font-size:0.85rem;color:var(--ink-secondary);">A carregar fotografias...</p>`;
+
+    const { data: rows, error } = await sbClient
+      .from('trip_photos')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error || !rows || !rows.length) {
+      grid.innerHTML = `<div class="surface"><p style="font-size:0.86rem;color:var(--ink-secondary);">Ainda sem fotos carregadas. Carregue a primeira acima!</p></div>`;
+      return;
+    }
+
+    const cards = [];
+    for (const row of rows) {
+      const { data: signed } = await sbClient.storage.from('trip-photos').createSignedUrl(row.storage_path, 3600);
+      const imgUrl = signed?.signedUrl || '';
+      cards.push(`
+        <article class="venue-card" style="padding:12px;gap:10px;">
+          ${imgUrl ? `<img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(row.caption || 'Foto da viagem')}" style="width:100%;height:220px;object-fit:cover;border-radius:10px;" loading="lazy" />` : ''}
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div>
+              <span class="tag tag-cenote">Dia ${row.day_number}</span>
+              <div style="font-size:0.85rem;font-weight:600;margin-top:4px;">${escapeHtml(row.caption || 'Sem legenda')}</div>
+            </div>
+            <button type="button" class="icon-btn" data-del-photo="${escapeHtml(row.id)}" data-del-path="${escapeHtml(row.storage_path)}" title="Apagar foto">✕</button>
+          </div>
+        </article>
+      `);
+    }
+    grid.innerHTML = cards.join('');
+    grid.querySelectorAll('[data-del-photo]').forEach((b) =>
+      b.addEventListener('click', async () => {
+        const id = b.getAttribute('data-del-photo');
+        const path = b.getAttribute('data-del-path');
+        await sbClient.storage.from('trip-photos').remove([path]);
+        await sbClient.from('trip_photos').delete().eq('id', id);
+        showToast('Foto removida');
+        loadPhotosGallery();
+      })
+    );
+  }
+
+  function renderPhotosAndSync() {
+    const panel = document.getElementById('supabase-auth-panel');
+    const uploadPanel = document.getElementById('photos-upload-panel');
+    const badge = document.getElementById('sync-status-badge');
+    if (!panel) return;
+
+    if (!sbClient) {
+      if (badge) { badge.className = 'tag'; badge.textContent = 'Supabase por configurar'; }
+      if (uploadPanel) uploadPanel.style.display = 'none';
+      panel.innerHTML = `
+        <h3 style="font-size:1.1rem;margin-bottom:6px;">Como ligar ao Supabase (5 minutos, gratuito)</h3>
+        <ol class="layover-steps" style="margin-top:6px;">
+          <li>Crie um projeto gratuito em <strong>supabase.com</strong>.</li>
+          <li>No menu <strong>SQL Editor</strong>, cole e execute o ficheiro <code>supabase.sql</code> deste repositório.</li>
+          <li>Em <strong>Authentication → Users</strong>, crie as 2 contas (a sua e a da sua namorada).</li>
+          <li>Em <strong>Project Settings → API</strong>, copie o <em>Project URL</em> e a <em>anon public key</em> para o ficheiro <code>supabase-config.js</code> e faça push para o GitHub Pages.</li>
+        </ol>
+      `;
+      return;
+    }
+
+    if (!sbUser) {
+      if (badge) { badge.className = 'tag tag-soon'; badge.textContent = 'Sessão não iniciada'; }
+      if (uploadPanel) uploadPanel.style.display = 'none';
+      panel.innerHTML = `
+        <h3 style="font-size:1.1rem;margin-bottom:8px;">Iniciar Sessão Privada (Casal)</h3>
+        <form id="form-sb-login" class="form-grid form-grid-2">
+          <div><label class="field-label">Email</label><input id="sb-email" type="email" class="input" required /></div>
+          <div><label class="field-label">Password</label><input id="sb-pass" type="password" class="input" required /></div>
+          <div style="grid-column:1/-1;display:flex;justify-content:flex-end;">
+            <button type="submit" class="btn btn-primary">Entrar &amp; Sincronizar</button>
+          </div>
+        </form>
+      `;
+      document.getElementById('form-sb-login').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('sb-email').value.trim();
+        const password = document.getElementById('sb-pass').value;
+        const { error } = await sbClient.auth.signInWithPassword({ email, password });
+        if (error) showToast(`Erro de login: ${error.message}`);
+        else showToast('Sessão iniciada!');
+      });
+      return;
+    }
+
+    if (badge) { badge.className = 'tag tag-open'; badge.textContent = '✓ Ligado ao Supabase'; }
+    if (uploadPanel) uploadPanel.style.display = 'block';
+    panel.innerHTML = `
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;">
+        <div>
+          <strong>Sessão ativa:</strong> <span class="mono">${escapeHtml(sbUser.email)}</span>
+          <div style="font-size:0.8rem;color:var(--ink-secondary);">Alterações no plano, voos e mala sincronizam automaticamente entre os dois telemóveis.</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="btn btn-sm" id="btn-sb-pull">↻ Atualizar da Nuvem</button>
+          <button type="button" class="btn btn-sm" id="btn-sb-logout">Sair</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('btn-sb-pull').addEventListener('click', () => { pullStateFromSupabase(); loadPhotosGallery(); });
+    document.getElementById('btn-sb-logout').addEventListener('click', () => sbClient.auth.signOut());
+  }
+
+  document.getElementById('form-upload-photo')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!sbClient || !sbUser) return;
+    const fileInput = document.getElementById('photo-file-input');
+    const file = fileInput?.files?.[0];
+    if (!file) return;
+
+    const dayNum = Number(document.getElementById('photo-day-select').value) || 1;
+    const caption = document.getElementById('photo-caption-input').value.trim();
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const storagePath = `day-${dayNum}/${Date.now()}.${ext}`;
+
+    showToast('A carregar fotografia...');
+    const { error: upErr } = await sbClient.storage.from('trip-photos').upload(storagePath, file, { upsert: false });
+    if (upErr) {
+      showToast(`Erro ao carregar: ${upErr.message}`);
+      return;
+    }
+
+    const { error: dbErr } = await sbClient.from('trip_photos').insert({
+      day_number: dayNum,
+      caption,
+      storage_path: storagePath,
+      uploaded_by: sbUser.email || ''
+    });
+
+    if (dbErr) {
+      showToast(`Erro na base de dados: ${dbErr.message}`);
+      return;
+    }
+
+    fileInput.value = '';
+    document.getElementById('photo-caption-input').value = '';
+    showToast('Fotografia guardada!');
+    loadPhotosGallery();
+  });
+
+  // Wrap saveState to also sync to Supabase when logged in
+  const _origSave = saveState;
+  saveState = function () {
+    _origSave();
+    queueCloudSave();
+  };
+
   updateClocksAndCountdown();
   renderOverview();
   renderFlights();
@@ -760,6 +982,7 @@
   renderPacking();
   updateCurrency('MXN', '400');
   renderExpenses();
+  initSupabase();
   setInterval(updateClocksAndCountdown, 30000);
 
   if ('serviceWorker' in navigator) {

@@ -65,6 +65,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         Mala &amp; Câmbio
       </button>
+      <button type="button" class="nav-tab" data-view-target="photos" id="nav-tab-photos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+        Fotos &amp; Sync
+      </button>
     </nav>
   </header>
 
@@ -327,9 +331,56 @@
         </div>
       </div>
     </section>
+
+    <!-- SECÇÃO 6: FOTOS & SINCRONIZAÇÃO SUPABASE -->
+    <section class="view-panel" id="view-photos" aria-labelledby="photos-heading">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title" id="photos-heading">Álbum de Fotos &amp; Sincronização (Supabase)</h2>
+          <p class="section-subtitle">Partilhem o plano e guardem fotografias da viagem de forma privada entre os dois telemóveis</p>
+        </div>
+        <div id="sync-status-badge" class="tag">Modo Local (Offline)</div>
+      </div>
+
+      <div class="surface" id="supabase-auth-panel" style="margin-bottom: 18px;"></div>
+
+      <div class="surface" id="photos-upload-panel" style="display: none; margin-bottom: 18px;">
+        <h3 style="font-size: 1.1rem; margin-bottom: 10px;">Carregar Nova Fotografia</h3>
+        <form id="form-upload-photo" class="form-grid">
+          <div class="form-grid form-grid-2">
+            <div>
+              <label class="field-label" for="photo-file-input">Escolher Foto / Câmara</label>
+              <input type="file" id="photo-file-input" accept="image/*" class="input" required />
+            </div>
+            <div>
+              <label class="field-label" for="photo-day-select">Dia da Viagem</label>
+              <select id="photo-day-select" class="select">
+                <option value="1">Dia 1 · Sáb 28 Nov</option>
+                <option value="2">Dia 2 · Dom 29 Nov</option>
+                <option value="3">Dia 3 · Seg 30 Nov</option>
+                <option value="4">Dia 4 · Ter 1 Dez</option>
+                <option value="5">Dia 5 · Qua 2 Dez</option>
+                <option value="6">Dia 6 · Qui 3 Dez</option>
+                <option value="7">Dia 7 · Sex 4 Dez</option>
+                <option value="8">Dia 8 · Sáb 5 Dez</option>
+                <option value="9">Dia 9 · Dom 6 Dez</option>
+                <option value="10">Dia 10 · Seg 7 Dez</option>
+                <option value="11">Dia 11 · Ter 8 Dez</option>
+              </select>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <input type="text" id="photo-caption-input" class="input" style="flex: 1; min-width: 200px;" placeholder="Legenda opcional (ex: Pôr do sol na praia, jantar no Kotatsu)..." />
+            <button type="submit" class="btn btn-primary" id="btn-upload-photo">Guardar Foto</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="grid-3" id="photos-gallery-grid"></div>
+    </section>
   </main>
 
-  <nav class="mobile-dock" aria-label="Menu Mobile">
+  <nav class="mobile-dock" style="grid-template-columns: repeat(6, 1fr);" aria-label="Menu Mobile">
     <button type="button" class="dock-btn is-active" data-view-target="overview">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5z"/></svg>
       <span>Resumo</span>
@@ -350,6 +401,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
       <span>Mala</span>
     </button>
+    <button type="button" class="dock-btn" data-view-target="photos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+      <span>Fotos</span>
+    </button>
   </nav>
 
   <div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -364,6 +419,8 @@
 
   <div class="toast" id="toast-message" role="status" aria-live="polite"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./supabase-config.js"></script>
   <script src="./data.js"></script>
   <script src="./app.js"></script>
 </body>

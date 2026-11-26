@@ -1,8 +1,9 @@
-const CACHE_NAME = 'yucatan-companion-pt-v3';
+const CACHE_NAME = 'yucatan-companion-pt-v4';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
+  './supabase-config.js',
   './data.js',
   './app.js',
   './manifest.webmanifest',
