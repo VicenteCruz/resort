@@ -746,21 +746,60 @@
     }
   }
 
-  function switchView(viewName) {
+  const viewScrollPositions = {};
+  let lastNonSettingsView = 'overview';
+
+  function getNavGroupForView(viewName) {
+    if (viewName === 'overview' || viewName === 'flights') return 'home';
+    if (viewName === 'resort' || viewName === 'cocktails') return 'dining';
+    return null;
+  }
+
+  function switchView(viewName, opts = {}) {
+    const { pushHistory = true } = opts;
+    if (activeView && activeView !== viewName) {
+      viewScrollPositions[activeView] = window.scrollY;
+      if (activeView !== 'settings') lastNonSettingsView = activeView;
+    }
     activeView = viewName;
     if (viewName === 'resort' && activeRestaurantId) {
       activeRestaurantId = null;
       renderResortVenues();
     }
     document.querySelectorAll('.view-panel').forEach((p) => p.classList.toggle('is-active', p.id === `view-${viewName}`));
-    document.querySelectorAll('[data-view-target]').forEach((b) => b.classList.toggle('is-active', b.getAttribute('data-view-target') === viewName));
+    const activeGroup = getNavGroupForView(viewName);
+    document.querySelectorAll('[data-view-target]').forEach((b) => {
+      const target = b.getAttribute('data-view-target');
+      const group = b.getAttribute('data-view-group');
+      const isActive = target === viewName || (group && group === activeGroup && !b.classList.contains('subnav-btn'));
+      b.classList.toggle('is-active', Boolean(isActive));
+    });
+    const headerBtn = document.getElementById('btn-header-auth');
+    if (headerBtn) {
+      headerBtn.classList.toggle('is-active', Boolean(sbUser) && viewName === 'settings');
+    }
+    if (pushHistory && window.location.hash !== `#${viewName}`) {
+      try { history.pushState({ view: viewName }, '', `#${viewName}`); } catch {}
+    }
     if (viewName === 'flights') {
       setTimeout(() => {
         if (typeof updateFlightMap === 'function') updateFlightMap();
       }, 60);
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const targetY = viewScrollPositions[viewName] ?? 0;
+    window.scrollTo({ top: targetY, behavior: 'auto' });
   }
+
+  window.addEventListener('popstate', (ev) => {
+    const fromState = ev.state?.view;
+    const fromHash = window.location.hash ? window.location.hash.slice(1) : '';
+    const candidate = fromState || fromHash;
+    if (candidate && document.getElementById(`view-${candidate}`)) {
+      if (sbUser || PUBLIC_VIEWS.has(candidate)) {
+        switchView(candidate, { pushHistory: false });
+      }
+    }
+  });
 
   // ---------- Overview (Private) ----------
   function renderOverview() {
@@ -3966,13 +4005,24 @@
     document.documentElement.classList.toggle('is-public', publicMode);
 
     const authBtn = document.getElementById('btn-header-auth');
+    const loginIcon = document.getElementById('header-action-icon-login');
+    const settingsIcon = document.getElementById('header-action-icon-settings');
+    const actionLabel = document.getElementById('header-action-label');
     if (authBtn) {
-      authBtn.textContent = isLoggedIn ? 'Sair' : 'Entrar (Privado)';
-      authBtn.className = isLoggedIn ? 'btn btn-sm' : 'btn btn-primary btn-sm';
+      authBtn.classList.toggle('is-settings-mode', isLoggedIn);
+      authBtn.classList.toggle('is-active', isLoggedIn && activeView === 'settings');
+      authBtn.setAttribute('aria-label', isLoggedIn ? 'Abrir Configuração' : 'Entrar na área privada');
     }
+    if (loginIcon) loginIcon.style.display = isLoggedIn ? 'none' : '';
+    if (settingsIcon) settingsIcon.style.display = isLoggedIn ? '' : 'none';
+    if (actionLabel) actionLabel.textContent = isLoggedIn ? 'Configuração' : 'Entrar';
 
     if (!isLoggedIn && !PUBLIC_VIEWS.has(activeView)) {
-      switchView('flights');
+      switchView('flights', { pushHistory: false });
+    } else if (isLoggedIn && modeChanged) {
+      const fromHash = window.location.hash ? window.location.hash.slice(1) : '';
+      const initialPrivate = (fromHash && document.getElementById(`view-${fromHash}`)) ? fromHash : 'overview';
+      switchView(initialPrivate, { pushHistory: false });
     }
     renderTripChrome();
     if (modeChanged) renderFlights();
@@ -3980,14 +4030,30 @@
   }
 
   document.getElementById('btn-header-auth')?.addEventListener('click', () => {
-    if (sbUser && sbClient) {
-      sbClient.auth.signOut();
-      showToast('Sessão terminada');
+    if (sbUser) {
+      if (activeView === 'settings') switchView(lastNonSettingsView || 'overview');
+      else switchView('settings');
     } else {
       openLoginModal();
     }
   });
+  document.getElementById('btn-settings-logout')?.addEventListener('click', () => {
+    if (sbUser && sbClient) {
+      sbClient.auth.signOut();
+      showToast('Sessão terminada');
+    }
+  });
   document.getElementById('btn-footer-login')?.addEventListener('click', openLoginModal);
+
+  // Acordeão exclusivo em Configuração (abre uma secção de cada vez)
+  document.querySelectorAll('#view-settings .settings-accordion').forEach((det) => {
+    det.addEventListener('toggle', () => {
+      if (!det.open) return;
+      document.querySelectorAll('#view-settings .settings-accordion').forEach((other) => {
+        if (other !== det && other.open) other.open = false;
+      });
+    });
+  });
 
   function initSupabase() {
     const cfg = window.SUPABASE_CONFIG || {};

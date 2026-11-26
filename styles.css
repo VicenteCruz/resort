@@ -97,25 +97,27 @@ button { cursor: pointer; }
 .topbar-inner {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 10px 18px;
+  padding: 10px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
+  gap: 10px;
+  flex-wrap: nowrap;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
   text-decoration: none;
   color: inherit;
+  min-width: 0;
 }
+.brand > div { min-width: 0; }
 
 .brand-mark {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 10px;
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
@@ -123,39 +125,85 @@ button { cursor: pointer; }
 
 .brand-title {
   font-family: var(--font-serif);
-  font-size: 1.05rem;
+  font-size: 1.02rem;
   font-weight: 600;
   line-height: 1.15;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .brand-subtitle {
   display: block;
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   color: var(--ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
-@media (max-width: 640px) {
-  .topbar-right {
-    width: 100%;
-    justify-content: space-between;
-  }
+.topbar-desktop-only {
+  display: none;
 }
 
 .tz-strip {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 6px;
   background: var(--bg-subtle);
   padding: 5px 10px;
   border-radius: var(--radius-pill);
   font-size: 0.74rem;
+}
+
+@media (min-width: 900px) {
+  .topbar-desktop-only { display: inline-flex; }
+  .tz-strip { display: flex; }
+}
+
+.header-action-btn {
+  min-height: 38px;
+  min-width: 38px;
+  padding: 6px 11px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.header-action-btn.is-settings-mode {
+  padding: 7px;
+  color: var(--ink-secondary);
+}
+.header-action-btn.is-settings-mode.is-active {
+  background: var(--cenote-700);
+  border-color: var(--cenote-700);
+  color: var(--ink-on-dark);
+}
+.header-action-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+@media (max-width: 899px) {
+  .header-action-btn.is-settings-mode .header-action-label {
+    display: none;
+  }
+}
+@media (min-width: 900px) {
+  .header-action-btn.is-settings-mode {
+    padding: 6px 12px;
+  }
 }
 
 .tz-item { display: inline-flex; align-items: center; gap: 5px; padding: 2px 5px; }
@@ -295,9 +343,9 @@ button { cursor: pointer; }
 .section-subtitle { font-size: 0.85rem; color: var(--ink-secondary); margin-top: 3px; }
 .surface { background: var(--bg-surface); border: 1px solid var(--line-soft); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; }
 
-.grid-2 { display: grid; grid-template-columns: 1fr; gap: 18px; }
+.grid-2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 @media (min-width: 820px) { .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.grid-3 { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 @media (min-width: 720px) { .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1040px) { .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
@@ -689,11 +737,10 @@ html.is-public {
   --ink-muted: hsl(192, 14%, 38%);
 }
 html.is-public .tz-strip,
-html.is-public .desktop-nav,
-html.is-public #btn-header-auth { display: none !important; }
-html.is-public .topbar-inner { justify-content: center; }
-html.is-public .brand-title { font-size: 1.1rem; }
-html.is-public .brand-subtitle { font-size: 0.85rem; }
+html.is-public .desktop-nav { display: none !important; }
+html.is-public .topbar-inner { justify-content: space-between; }
+html.is-public .brand-title { font-size: 1.05rem; }
+html.is-public .brand-subtitle { font-size: 0.8rem; }
 html.is-public .section-title { font-family: var(--font-sans); font-weight: 800; font-size: 1.6rem; }
 html.is-public .section-subtitle { font-size: 1rem; }
 html.is-public .direction-btn { min-height: 64px; }
@@ -703,9 +750,22 @@ html.is-public .tag { font-size: 0.85rem; padding: 4px 10px; }
 html.is-public .flight-live-map { height: 280px; }
 html.is-public .view-panel { animation: none; }
 
-/* Big two-button bottom bar (Voos / Fotos), always visible on any screen size */
+/* Big two-button bottom bar (Voos / Fotos), always visible on any screen size, centered on desktop */
 html.is-public body { padding-bottom: 110px; }
 html.is-public .mobile-dock { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line-strong); }
+@media (min-width: 720px) {
+  html.is-public .mobile-dock {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(560px, calc(100% - 32px));
+    bottom: 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 22px;
+    box-shadow: var(--shadow-lg);
+    padding: 8px;
+  }
+}
 html.is-public .dock-btn { flex-direction: row; justify-content: center; gap: 10px; min-height: 64px; font-size: 1.15rem; font-weight: 800; color: var(--ink-primary); background: var(--bg-subtle); border-radius: 16px; }
 html.is-public .dock-btn svg { width: 28px; height: 28px; }
 html.is-public .dock-btn.is-active { background: var(--cenote-700); color: var(--ink-on-dark); }
@@ -1022,6 +1082,137 @@ html.is-public .toast { bottom: 110px; font-size: 1rem; }
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   Sub-navigation segmented control, Settings accordion & Mobile refinements
+   ========================================================================== */
+.subnav-segment {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-pill);
+  margin-bottom: 16px;
+  width: 100%;
+  max-width: 360px;
+}
+.subnav-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+.subnav-btn.is-active {
+  background: var(--bg-surface);
+  color: var(--cenote-700);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Settings accordion */
+.settings-accordion {
+  margin-bottom: 12px;
+  padding: 0;
+  overflow: hidden;
+}
+.settings-accordion-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  user-select: none;
+}
+.settings-accordion-summary::-webkit-details-marker { display: none; }
+.settings-accordion-summary h3 {
+  font-size: 1.02rem;
+  margin: 0;
+}
+.settings-accordion-summary .section-subtitle {
+  margin-top: 2px;
+  font-size: 0.8rem;
+}
+.accordion-chevron {
+  font-size: 1.3rem;
+  color: var(--ink-muted);
+  transition: transform 180ms var(--ease-out);
+  flex-shrink: 0;
+}
+.settings-accordion[open] .accordion-chevron {
+  transform: rotate(90deg);
+}
+.settings-accordion-body {
+  padding: 0 18px 18px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 14px;
+}
+
+.settings-logout-wrap {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  justify-content: center;
+}
+.settings-logout-btn {
+  width: 100%;
+  max-width: 320px;
+  min-height: 44px;
+}
+
+/* Single-row horizontally scrollable category chips on mobile */
+#venue-category-chips {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+#venue-category-chips::-webkit-scrollbar { display: none; }
+#venue-category-chips .chip { flex-shrink: 0; }
+
+/* Compact FAB on mobile + space below postcard lists */
+.cocktail-postcards-list {
+  padding-bottom: 84px;
+}
+@media (max-width: 899px) {
+  .fab-add-btn {
+    width: 54px;
+    height: 54px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+    right: 16px;
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+  .fab-add-btn > span:not(.fab-plus) {
+    display: none;
+  }
+  .fab-plus {
+    font-size: 1.6rem;
+  }
+}
+
+/* Compact restaurant/cocktail postcards on mobile */
+@media (max-width: 640px) {
+  .cocktail-postcard {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+  .cocktail-postcard-media {
+    min-height: 110px;
+  }
+  .cocktail-postcard-body {
+    padding: 12px 13px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

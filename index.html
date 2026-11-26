@@ -34,27 +34,21 @@
       <div class="topbar-right">
         <div class="tz-strip" id="tz-strip" aria-label="Relógios da Viagem"></div>
 
-        <button type="button" class="btn btn-sm" id="btn-open-wallet" data-private-only="true" style="display: none;">
+        <button type="button" class="btn btn-sm topbar-desktop-only" id="btn-open-wallet" data-private-only="true" style="display: none;">
           Carteira
         </button>
-        <button type="button" class="btn btn-primary btn-sm" id="btn-header-auth">
-          Entrar (Privado)
+        <button type="button" class="btn btn-sm header-action-btn" id="btn-header-auth" aria-label="Entrar na área privada">
+          <svg class="header-action-icon" id="header-action-icon-login" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          <svg class="header-action-icon" id="header-action-icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="display:none;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="header-action-label" id="header-action-label">Entrar</span>
         </button>
       </div>
     </div>
 
     <nav class="desktop-nav" aria-label="Navegação Principal">
-      <button type="button" class="nav-tab is-active" data-view-target="flights" id="nav-tab-flights">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-        Voos &amp; Radar
-      </button>
-      <button type="button" class="nav-tab" data-view-target="photos" id="nav-tab-photos">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-        Fotos
-      </button>
-      <button type="button" class="nav-tab" data-view-target="overview" id="nav-tab-overview" data-private-only="true" style="display: none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v6H9v-6H4a1 1 0 0 1-1-1v-10.5z"/></svg>
-        Resumo
+      <button type="button" class="nav-tab" data-view-target="overview" data-view-group="home" id="nav-tab-overview" data-private-only="true" style="display: none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5z"/></svg>
+        Hoje
       </button>
       <button type="button" class="nav-tab" data-view-target="planner" id="nav-tab-planner" data-private-only="true" style="display: none;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
@@ -64,13 +58,13 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         Reviews
       </button>
+      <button type="button" class="nav-tab" data-view-target="photos" id="nav-tab-photos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+        Fotos
+      </button>
       <button type="button" class="nav-tab" data-view-target="toolkit" id="nav-tab-toolkit" data-private-only="true" style="display: none;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         Mala &amp; Câmbio
-      </button>
-      <button type="button" class="nav-tab" data-view-target="settings" id="nav-tab-settings" data-private-only="true" style="display: none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Configuração
       </button>
     </nav>
   </header>
@@ -78,6 +72,10 @@
   <main class="app-shell" id="main-content">
     <!-- SECÇÃO 1 (PRIVADA): RESUMO -->
     <section class="view-panel" id="view-overview" aria-labelledby="hero-main-heading">
+      <div class="subnav-segment" data-private-only="true" style="display: none;" role="tablist" aria-label="Secções de Hoje">
+        <button type="button" class="subnav-btn is-active" data-view-target="overview">Resumo</button>
+        <button type="button" class="subnav-btn" data-view-target="flights">Voos &amp; Radar</button>
+      </div>
       <article class="hero-card">
         <img src="./assets/resort-hero.jpg" alt="Imagem da viagem" class="hero-media" id="hero-media-img" />
         <div class="hero-scrim" aria-hidden="true"></div>
@@ -156,6 +154,10 @@
 
     <!-- SECÇÃO 2 (PÚBLICA): VOOS / A VIAGEM -->
     <section class="view-panel is-active" id="view-flights" aria-labelledby="flights-heading">
+      <div class="subnav-segment" data-private-only="true" style="display: none;" role="tablist" aria-label="Secções de Hoje">
+        <button type="button" class="subnav-btn" data-view-target="overview">Resumo</button>
+        <button type="button" class="subnav-btn is-active" data-view-target="flights">Voos &amp; Radar</button>
+      </div>
       <div class="section-header">
         <div>
           <h2 class="section-title" id="flights-heading">
@@ -426,146 +428,166 @@
       </div>
 
       <!-- 0. PERFIL DO UTILIZADOR -->
-      <div class="surface" style="margin-bottom: 18px;">
-        <div class="section-header" style="margin-bottom: 10px;">
+      <details class="surface settings-accordion" open>
+        <summary class="settings-accordion-summary">
           <div>
-            <h3 style="font-size: 1.05rem;">O Meu Perfil</h3>
-            <p class="section-subtitle">Este nome aparece automaticamente nas tuas reviews de cocktails e restaurantes (<span class="mono" id="st-user-email">--</span>).</p>
+            <h3>O Meu Perfil</h3>
+            <p class="section-subtitle">Nome usado nas tuas reviews (<span class="mono" id="st-user-email">--</span>)</p>
           </div>
+          <span class="accordion-chevron" aria-hidden="true">›</span>
+        </summary>
+        <div class="settings-accordion-body">
+          <form id="f-settings-profile" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+            <div style="flex:1;min-width:200px;">
+              <label class="field-label" for="st-user-name">Nome do Utilizador</label>
+              <input id="st-user-name" class="input" placeholder="Ex: Vicente, Ana..." required />
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Guardar Nome</button>
+          </form>
         </div>
-        <form id="f-settings-profile" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
-          <div style="flex:1;min-width:200px;">
-            <label class="field-label" for="st-user-name">Nome do Utilizador</label>
-            <input id="st-user-name" class="input" placeholder="Ex: Vicente, Ana..." required />
-          </div>
-          <button type="submit" class="btn btn-primary btn-sm">Guardar Nome</button>
-        </form>
-      </div>
+      </details>
 
       <!-- 1. IDENTIDADE, DATAS & FUSOS -->
-      <div class="surface" style="margin-bottom: 18px;">
-        <div class="section-header" style="margin-bottom: 12px;">
+      <details class="surface settings-accordion">
+        <summary class="settings-accordion-summary">
           <div>
-            <h3 style="font-size: 1.1rem;">1. Dados Gerais da Viagem</h3>
-            <p class="section-subtitle">Altere o destino, datas, fusos horários ou moeda — a app inteira adapta-se de imediato.</p>
+            <h3>1. Dados Gerais da Viagem</h3>
+            <p class="section-subtitle">Destino, datas, fusos horários e moeda · <span class="mono" id="settings-trip-duration-badge">--</span></p>
           </div>
-          <span class="tag tag-cenote mono" id="settings-trip-duration-badge">--</span>
+          <span class="accordion-chevron" aria-hidden="true">›</span>
+        </summary>
+        <div class="settings-accordion-body">
+          <form id="f-settings-trip" class="form-grid">
+            <div class="form-grid form-grid-2">
+              <div>
+                <label class="field-label" for="st-title">Nome da Viagem / Alojamento</label>
+                <input id="st-title" class="input" placeholder="Ex: Platinum Yucatán Princess, Hotel em Roma..." required />
+              </div>
+              <div>
+                <label class="field-label" for="st-destination">Destino Final</label>
+                <input id="st-destination" class="input" placeholder="Ex: Riviera Maya, Roma, Tóquio..." required />
+              </div>
+            </div>
+
+            <div class="form-grid form-grid-2">
+              <div>
+                <label class="field-label" for="st-country">País</label>
+                <input id="st-country" class="input" placeholder="Ex: México, Itália, Japão..." />
+              </div>
+              <div>
+                <label class="field-label" for="st-subtitle">Subtítulo / Tipo de Estadia (opcional)</label>
+                <input id="st-subtitle" class="input" placeholder="Ex: Adults-Only 5★ Tudo Incluído, Escapadela Urbana..." />
+              </div>
+            </div>
+
+            <div>
+              <label class="field-label" for="st-headline">Frase de Destaque no Resumo (opcional · automático se vazio)</label>
+              <input id="st-headline" class="input" placeholder="Ex: 10 dias no Caribe Mexicano." />
+            </div>
+
+            <div class="form-grid form-grid-2">
+              <div>
+                <label class="field-label" for="st-start">Data de Partida</label>
+                <input id="st-start" type="date" class="input mono" required />
+              </div>
+              <div>
+                <label class="field-label" for="st-end">Data de Regresso</label>
+                <input id="st-end" type="date" class="input mono" required />
+              </div>
+            </div>
+
+            <div class="form-grid form-grid-2">
+              <div>
+                <label class="field-label" for="st-home-city">Cidade de Origem &amp; Fuso Horário</label>
+                <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:6px;">
+                  <input id="st-home-city" class="input" placeholder="Lisboa" />
+                  <select id="st-home-tz" class="select"></select>
+                </div>
+              </div>
+              <div>
+                <label class="field-label" for="st-dest-city">Cidade de Destino &amp; Fuso Horário</label>
+                <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:6px;">
+                  <input id="st-dest-city" class="input" placeholder="Cancún" />
+                  <select id="st-dest-tz" class="select"></select>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-grid form-grid-2">
+              <div>
+                <label class="field-label" for="st-curr-code">Moeda do Destino (Código &amp; Nome)</label>
+                <div style="display:grid;grid-template-columns:90px 1fr;gap:6px;">
+                  <input id="st-curr-code" class="input mono" maxlength="4" placeholder="MXN" />
+                  <input id="st-curr-name" class="input" placeholder="Pesos Mexicanos" />
+                </div>
+              </div>
+              <div>
+                <label class="field-label" for="st-curr-rate">Taxa de Câmbio (1 EUR = ? na moeda local)</label>
+                <input id="st-curr-rate" type="number" step="any" class="input mono" placeholder="21.6" />
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+              <button type="submit" class="btn btn-primary">Guardar Dados da Viagem</button>
+            </div>
+          </form>
         </div>
-
-        <form id="f-settings-trip" class="form-grid">
-          <div class="form-grid form-grid-2">
-            <div>
-              <label class="field-label" for="st-title">Nome da Viagem / Alojamento</label>
-              <input id="st-title" class="input" placeholder="Ex: Platinum Yucatán Princess, Hotel em Roma..." required />
-            </div>
-            <div>
-              <label class="field-label" for="st-destination">Destino Final</label>
-              <input id="st-destination" class="input" placeholder="Ex: Riviera Maya, Roma, Tóquio..." required />
-            </div>
-          </div>
-
-          <div class="form-grid form-grid-2">
-            <div>
-              <label class="field-label" for="st-country">País</label>
-              <input id="st-country" class="input" placeholder="Ex: México, Itália, Japão..." />
-            </div>
-            <div>
-              <label class="field-label" for="st-subtitle">Subtítulo / Tipo de Estadia (opcional)</label>
-              <input id="st-subtitle" class="input" placeholder="Ex: Adults-Only 5★ Tudo Incluído, Escapadela Urbana..." />
-            </div>
-          </div>
-
-          <div>
-            <label class="field-label" for="st-headline">Frase de Destaque no Resumo (opcional · automático se vazio)</label>
-            <input id="st-headline" class="input" placeholder="Ex: 10 dias no Caribe Mexicano." />
-          </div>
-
-          <div class="form-grid form-grid-2">
-            <div>
-              <label class="field-label" for="st-start">Data de Partida</label>
-              <input id="st-start" type="date" class="input mono" required />
-            </div>
-            <div>
-              <label class="field-label" for="st-end">Data de Regresso</label>
-              <input id="st-end" type="date" class="input mono" required />
-            </div>
-          </div>
-
-          <div class="form-grid form-grid-2">
-            <div>
-              <label class="field-label" for="st-home-city">Cidade de Origem &amp; Fuso Horário</label>
-              <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:6px;">
-                <input id="st-home-city" class="input" placeholder="Lisboa" />
-                <select id="st-home-tz" class="select"></select>
-              </div>
-            </div>
-            <div>
-              <label class="field-label" for="st-dest-city">Cidade de Destino &amp; Fuso Horário</label>
-              <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:6px;">
-                <input id="st-dest-city" class="input" placeholder="Cancún" />
-                <select id="st-dest-tz" class="select"></select>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-grid form-grid-2">
-            <div>
-              <label class="field-label" for="st-curr-code">Moeda do Destino (Código &amp; Nome)</label>
-              <div style="display:grid;grid-template-columns:90px 1fr;gap:6px;">
-                <input id="st-curr-code" class="input mono" maxlength="4" placeholder="MXN" />
-                <input id="st-curr-name" class="input" placeholder="Pesos Mexicanos" />
-              </div>
-            </div>
-            <div>
-              <label class="field-label" for="st-curr-rate">Taxa de Câmbio (1 EUR = ? na moeda local)</label>
-              <input id="st-curr-rate" type="number" step="any" class="input mono" placeholder="21.6" />
-            </div>
-          </div>
-
-          <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
-            <button type="submit" class="btn btn-primary">Guardar Dados da Viagem</button>
-          </div>
-        </form>
-      </div>
+      </details>
 
       <!-- 2. PAINEL PÚBLICO (PARA AMIGOS & FAMÍLIA) -->
-      <div class="surface" style="margin-bottom: 18px;">
-        <div class="section-header" style="margin-bottom: 10px;">
+      <details class="surface settings-accordion">
+        <summary class="settings-accordion-summary">
           <div>
-            <h3 style="font-size: 1.1rem;">2. Painel Público (Amigos &amp; Família)</h3>
-            <p class="section-subtitle">Quem abre o link sem login vê sempre os dados mais recentes da viagem — sem nunca ver códigos PNR, carteira ou despesas.</p>
+            <h3>2. Painel Público (Amigos &amp; Família)</h3>
+            <p class="section-subtitle">Nota de estado e visibilidade do alojamento para quem acompanha sem login</p>
           </div>
-        </div>
-        <form id="f-settings-public" class="form-grid">
-          <div>
-            <label class="field-label" for="st-public-note">Nota rápida de estado para quem acompanha (opcional)</label>
-            <input id="st-public-note" class="input" placeholder="Ex: Já fizemos check-in no hotel, tudo ótimo! (deixe vazio para ocultar)" />
-          </div>
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.86rem;">
-            <input type="checkbox" id="st-public-show-stay" class="check-circle" style="margin-top:0;" />
-            <span>Mostrar o nome do alojamento no ecrã público</span>
-          </label>
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-            <span style="font-size:0.78rem;color:var(--ink-secondary);" id="settings-public-sync-info">Sincroniza automaticamente ao guardar (requer tabela <code>public_trip</code> no Supabase).</span>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button type="button" class="btn btn-sm" id="btn-sync-public-now">↻ Publicar Agora</button>
-              <button type="submit" class="btn btn-primary btn-sm">Guardar Painel Público</button>
+          <span class="accordion-chevron" aria-hidden="true">›</span>
+        </summary>
+        <div class="settings-accordion-body">
+          <form id="f-settings-public" class="form-grid">
+            <div>
+              <label class="field-label" for="st-public-note">Nota rápida de estado para quem acompanha (opcional)</label>
+              <input id="st-public-note" class="input" placeholder="Ex: Já fizemos check-in no hotel, tudo ótimo! (deixe vazio para ocultar)" />
             </div>
-          </div>
-        </form>
-      </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.86rem;">
+              <input type="checkbox" id="st-public-show-stay" class="check-circle" style="margin-top:0;" />
+              <span>Mostrar o nome do alojamento no ecrã público</span>
+            </label>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span style="font-size:0.78rem;color:var(--ink-secondary);" id="settings-public-sync-info">Sincroniza automaticamente ao guardar.</span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button type="button" class="btn btn-sm" id="btn-sync-public-now">↻ Publicar Agora</button>
+                <button type="submit" class="btn btn-primary btn-sm">Guardar Painel Público</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </details>
 
-      <!-- 3. VOOS & ESCALAS + LOCAIS -->
-      <div class="grid-2">
-        <div class="surface">
-          <h3 style="font-size: 1.1rem; margin-bottom: 6px;">3. Voos &amp; Escalas (Ida &amp; Regresso)</h3>
-          <p class="section-subtitle" style="margin-bottom: 12px;">Adicione, edite ou remova segmentos. Atualiza logo o ecrã da viagem, o mapa, o radar e as datas.</p>
+      <!-- 3. VOOS & ESCALAS -->
+      <details class="surface settings-accordion">
+        <summary class="settings-accordion-summary">
+          <div>
+            <h3>3. Voos &amp; Escalas (Ida &amp; Regresso)</h3>
+            <p class="section-subtitle">Adicionar, editar ou remover segmentos de voo</p>
+          </div>
+          <span class="accordion-chevron" aria-hidden="true">›</span>
+        </summary>
+        <div class="settings-accordion-body">
           <div id="settings-flights-list" class="open-now-list"></div>
         </div>
+      </details>
 
-        <div class="surface">
-          <h3 style="font-size: 1.1rem; margin-bottom: 6px;">4. Adicionar Restaurante ou Bar</h3>
-          <p class="section-subtitle" style="margin-bottom: 12px;">Os locais aparecem no guia, no seletor de jantares do Plano e nos Cocktails.</p>
+      <!-- 4. RESTAURANTES & BARES -->
+      <details class="surface settings-accordion">
+        <summary class="settings-accordion-summary">
+          <div>
+            <h3>4. Gerir Restaurantes &amp; Bares</h3>
+            <p class="section-subtitle">Adicionar ou remover locais do guia</p>
+          </div>
+          <span class="accordion-chevron" aria-hidden="true">›</span>
+        </summary>
+        <div class="settings-accordion-body">
           <form id="f-settings-add-venue" class="form-grid">
             <div class="form-grid form-grid-2">
               <div><label class="field-label" for="sav-name">Nome</label><input id="sav-name" class="input" placeholder="Ex: Restaurante Praia, Bar Terraço..." required /></div>
@@ -590,48 +612,67 @@
           </form>
           <div id="settings-custom-venues-list" class="open-now-list" style="margin-top: 12px;"></div>
         </div>
-      </div>
+      </details>
 
-      <!-- 5. INFORMAÇÕES ÚTEIS & CARTEIRA -->
-      <div class="grid-2 section-block">
-        <div class="surface">
-          <div class="section-header" style="margin-bottom: 8px;">
-            <div>
-              <h3 style="font-size: 1.05rem;">5. Informações Úteis (Ecrã Resumo)</h3>
-              <p class="section-subtitle">Dicas de tomadas, dress code, transfers ou regras do destino.</p>
-            </div>
+      <!-- 5. INFORMAÇÕES ÚTEIS -->
+      <details class="surface settings-accordion">
+        <summary class="settings-accordion-summary">
+          <div>
+            <h3>5. Informações Úteis (Ecrã Hoje)</h3>
+            <p class="section-subtitle">Dicas de tomadas, dress code, transfers ou regras do destino</p>
+          </div>
+          <span class="accordion-chevron" aria-hidden="true">›</span>
+        </summary>
+        <div class="settings-accordion-body">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
             <button type="button" class="btn btn-sm" id="btn-add-tip">+ Nova Dica</button>
           </div>
           <div id="settings-tips-list" class="open-now-list"></div>
         </div>
+      </details>
 
-        <div class="surface" style="display:flex;flex-direction:column;justify-content:space-between;gap:14px;">
+      <!-- 6. CARTEIRA & DOCUMENTOS -->
+      <details class="surface settings-accordion">
+        <summary class="settings-accordion-summary">
           <div>
-            <h3 style="font-size: 1.05rem; margin-bottom: 4px;">6. Carteira, Códigos &amp; Documentos</h3>
-            <p class="section-subtitle">Editar PNR da companhia, reserva do alojamento, quarto/suite, transfer e documentos obrigatórios (eTA, visto, seguro, etc.).</p>
+            <h3>6. Carteira, Códigos &amp; Documentos</h3>
+            <p class="section-subtitle">PNR, reserva do alojamento, quarto/suite e documentos</p>
           </div>
+          <span class="accordion-chevron" aria-hidden="true">›</span>
+        </summary>
+        <div class="settings-accordion-body">
           <div style="display:flex;justify-content:flex-end;">
             <button type="button" class="btn btn-sm" id="btn-settings-wallet">Abrir Carteira</button>
           </div>
         </div>
-      </div>
+      </details>
 
       <!-- 7. PRÓXIMAS VIAGENS & BACKUP -->
-      <div class="surface section-block">
-        <div class="section-header" style="margin-bottom: 10px;">
+      <details class="surface settings-accordion">
+        <summary class="settings-accordion-summary">
           <div>
-            <h3 style="font-size: 1.05rem;">7. Próximas Viagens &amp; Backup</h3>
-            <p class="section-subtitle">Guarde uma cópia desta viagem ou inicie uma viagem nova com tudo limpo e pronto a configurar.</p>
+            <h3>7. Próximas Viagens &amp; Backup</h3>
+            <p class="section-subtitle">Exportar, importar ou começar uma viagem nova</p>
+          </div>
+          <span class="accordion-chevron" aria-hidden="true">›</span>
+        </summary>
+        <div class="settings-accordion-body">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+            <button type="button" class="btn btn-sm" id="btn-export-trip">⬇ Exportar Tudo (JSON)</button>
+            <label class="btn btn-sm" style="cursor:pointer;">
+              ⬆ Importar Backup (JSON)
+              <input type="file" id="input-import-trip" accept="application/json" style="display:none;" />
+            </label>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-new-trip">✈ Começar Nova Viagem</button>
           </div>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
-          <button type="button" class="btn btn-sm" id="btn-export-trip">⬇ Exportar Tudo (JSON)</button>
-          <label class="btn btn-sm" style="cursor:pointer;">
-            ⬆ Importar Backup (JSON)
-            <input type="file" id="input-import-trip" accept="application/json" style="display:none;" />
-          </label>
-          <button type="button" class="btn btn-primary btn-sm" id="btn-new-trip">✈ Começar Nova Viagem</button>
-        </div>
+      </details>
+
+      <!-- SAIR DA CONTA -->
+      <div class="settings-logout-wrap">
+        <button type="button" class="btn btn-danger settings-logout-btn" id="btn-settings-logout">
+          Sair da conta
+        </button>
       </div>
     </section>
 
@@ -640,14 +681,14 @@
     </div>
   </main>
 
-  <nav class="mobile-dock" id="mobile-dock" style="display: flex; justify-content: space-around;" aria-label="Menu Mobile">
-    <button type="button" class="dock-btn is-active" data-view-target="flights">
+  <nav class="mobile-dock" id="mobile-dock" aria-label="Menu Mobile">
+    <button type="button" class="dock-btn is-active" data-view-target="flights" data-public-only="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
       <span>Viagem</span>
     </button>
-    <button type="button" class="dock-btn" data-view-target="photos">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-      <span>Fotos</span>
+    <button type="button" class="dock-btn" data-view-target="overview" data-view-group="home" data-private-only="true" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5z"/></svg>
+      <span>Hoje</span>
     </button>
     <button type="button" class="dock-btn" data-view-target="planner" data-private-only="true" style="display: none;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
@@ -657,13 +698,13 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       <span>Reviews</span>
     </button>
+    <button type="button" class="dock-btn" data-view-target="photos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+      <span>Fotos</span>
+    </button>
     <button type="button" class="dock-btn" data-view-target="toolkit" data-private-only="true" style="display: none;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
       <span>Mala</span>
-    </button>
-    <button type="button" class="dock-btn" data-view-target="settings" data-private-only="true" style="display: none;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      <span>Config</span>
     </button>
   </nav>
 
