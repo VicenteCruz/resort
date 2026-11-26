@@ -78,6 +78,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         Mala &amp; Câmbio
       </button>
+      <button type="button" class="nav-tab" data-view-target="settings" id="nav-tab-settings" data-private-only="true" style="display: none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Configuração
+      </button>
     </nav>
   </header>
 
@@ -274,17 +278,14 @@
 
       <div id="restaurants-ranking-box" style="margin-bottom: 18px;"></div>
 
-      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;">
-        <div class="chip-group" id="venue-category-chips" role="tablist" style="margin-bottom:0;">
-          <button type="button" class="chip is-active" data-venue-cat="all">Todos</button>
-          <button type="button" class="chip" data-venue-cat="ranking">★ Top Ranking</button>
-          <button type="button" class="chip" data-venue-cat="open">Abertos Agora</button>
-          <button type="button" class="chip" data-venue-cat="pyp">No Vosso Hotel (Platinum)</button>
-          <button type="button" class="chip" data-venue-cat="sister">Hotéis Vizinhos (Incluídos)</button>
-          <button type="button" class="chip" data-venue-cat="bars">Bares &amp; Gelataria</button>
-          <button type="button" class="chip" data-venue-cat="extra">Pagos à Parte</button>
-        </div>
-        <button type="button" class="btn btn-primary btn-sm" id="btn-add-custom-venue">+ Adicionar Restaurante / Bar</button>
+      <div class="chip-group" id="venue-category-chips" role="tablist">
+        <button type="button" class="chip is-active" data-venue-cat="all">Todos</button>
+        <button type="button" class="chip" data-venue-cat="ranking">★ Top Ranking</button>
+        <button type="button" class="chip" data-venue-cat="open">Abertos Agora</button>
+        <button type="button" class="chip" data-venue-cat="pyp">No Vosso Hotel (Platinum)</button>
+        <button type="button" class="chip" data-venue-cat="sister">Hotéis Vizinhos (Incluídos)</button>
+        <button type="button" class="chip" data-venue-cat="bars">Bares &amp; Gelataria</button>
+        <button type="button" class="chip" data-venue-cat="extra">Pagos à Parte</button>
       </div>
 
       <div class="grid-3" id="venue-cards-grid"></div>
@@ -488,6 +489,59 @@
 
       <div class="grid-3" id="cocktails-list-grid"></div>
     </section>
+
+    <!-- SECÇÃO 8 (PRIVADA): CONFIGURAÇÃO -->
+    <section class="view-panel" id="view-settings" aria-labelledby="settings-heading">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title" id="settings-heading">Configuração da Viagem</h2>
+          <p class="section-subtitle">Alterar voos em caso de remarcação, adicionar novos restaurantes/bares e gerir a carteira</p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="surface">
+          <h3 style="font-size: 1.1rem; margin-bottom: 6px;">Alterar Voos (Ida &amp; Regresso)</h3>
+          <p class="section-subtitle" style="margin-bottom: 12px;">Se algum voo for remarcado, altere aqui o nº do voo, companhia, rota ou horários (atualiza logo o radar).</p>
+          <div id="settings-flights-list" class="open-now-list"></div>
+        </div>
+
+        <div class="surface">
+          <h3 style="font-size: 1.1rem; margin-bottom: 6px;">Adicionar Restaurante ou Bar</h3>
+          <p class="section-subtitle" style="margin-bottom: 12px;">Novos bares ficam automaticamente disponíveis também na aba Cocktails.</p>
+          <form id="f-settings-add-venue" class="form-grid">
+            <div class="form-grid form-grid-2">
+              <div><label class="field-label" for="sav-name">Nome</label><input id="sav-name" class="input" placeholder="Ex: Bar Tequila, Restaurante Praia..." required /></div>
+              <div>
+                <label class="field-label" for="sav-cat">Categoria</label>
+                <select id="sav-cat" class="select">
+                  <option value="pyp">No Vosso Hotel (Platinum)</option>
+                  <option value="sister">Hotel Vizinho (Grand Riviera / Sunset)</option>
+                  <option value="bars">Bar / Café / Gelataria</option>
+                  <option value="extra">Fora do Resort / Pago à Parte</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-grid form-grid-2">
+              <div><label class="field-label" for="sav-cuisine">Tipo / Especialidade</label><input id="sav-cuisine" class="input" placeholder="Ex: Tacos, Marisco, Cocktails..." /></div>
+              <div><label class="field-label" for="sav-hours">Horário (opcional)</label><input id="sav-hours" class="input" placeholder="Ex: 18:00–22:00" /></div>
+            </div>
+            <div><label class="field-label" for="sav-desc">Notas (opcional)</label><input id="sav-desc" class="input" placeholder="Ex: Junto à praia, pede reserva..." /></div>
+            <div style="display: flex; justify-content: flex-end;">
+              <button type="submit" class="btn btn-primary btn-sm">+ Adicionar à Lista</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="surface section-block" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <h3 style="font-size: 1.05rem;">Carteira, Códigos &amp; Documentos</h3>
+          <p class="section-subtitle">Editar PNR Air Canada, código do hotel, suite, eTA e Visitax.</p>
+        </div>
+        <button type="button" class="btn btn-sm" id="btn-settings-wallet">Abrir Carteira</button>
+      </div>
+    </section>
   </main>
 
   <nav class="mobile-dock" id="mobile-dock" style="display: flex; justify-content: space-around;" aria-label="Menu Mobile">
@@ -511,9 +565,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 22h8M12 11v11M19 3l-7 8-7-8h14z"/></svg>
       <span>Drinks</span>
     </button>
-    <button type="button" class="dock-btn" data-view-target="toolkit" data-private-only="true" style="display: none;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      <span>Mala</span>
+    <button type="button" class="dock-btn" data-view-target="settings" data-private-only="true" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Config</span>
     </button>
   </nav>
 

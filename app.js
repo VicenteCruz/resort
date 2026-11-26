@@ -301,7 +301,6 @@
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
               <button type="button" class="btn btn-ghost-light btn-sm" data-refresh-leg="${escapeHtml(leg.id)}">↻ Radar</button>
-              <button type="button" class="btn btn-ghost-light btn-sm" data-edit-leg="${escapeHtml(leg.id)}">Editar</button>
             </div>
           </div>
           <div class="bp-body">
@@ -602,76 +601,66 @@
       });
   }
 
-  function openAddVenueModal() {
-    openModal('Adicionar Restaurante ou Bar', `
-      <form id="f-add-venue" class="form-grid">
-        <div class="form-grid form-grid-2">
-          <div>
-            <label class="field-label">Nome do Restaurante / Bar</label>
-            <input id="av-name" class="input" placeholder="Ex: Bar Tequila, Restaurante Praia..." required />
-          </div>
-          <div>
-            <label class="field-label">Categoria</label>
-            <select id="av-cat" class="select">
-              <option value="pyp">No Vosso Hotel (Platinum)</option>
-              <option value="sister">Hotel Vizinho (Grand Riviera / Sunset)</option>
-              <option value="bars">Bar / Café / Gelataria</option>
-              <option value="extra">Fora do Resort / Pago à Parte</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-grid form-grid-2">
-          <div>
-            <label class="field-label">Tipo / Especialidade</label>
-            <input id="av-cuisine" class="input" placeholder="Ex: Tacos, Marisco, Cocktails..." />
-          </div>
-          <div>
-            <label class="field-label">Horário (opcional)</label>
-            <input id="av-hours" class="input" placeholder="Ex: 18:00–22:00" />
-          </div>
-        </div>
-        <div>
-          <label class="field-label">Notas / Descrição (opcional)</label>
-          <input id="av-desc" class="input" placeholder="Ex: Junto à praia, pede reserva..." />
-        </div>
-        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
-          <button type="submit" class="btn btn-primary">+ Adicionar</button>
-        </div>
-      </form>
-    `);
+  function renderSettings() {
+    const flList = document.getElementById('settings-flights-list');
+    if (flList) {
+      const allLegs = [
+        ...state.flights.outbound.legs.map((l) => ({ ...l, dirLabel: 'Ida · 28 Nov' })),
+        ...state.flights.inbound.legs.map((l) => ({ ...l, dirLabel: 'Regresso · 8 Dez' }))
+      ];
+      flList.innerHTML = allLegs
+        .map(
+          (l) => `
+          <div class="open-venue-row">
+            <div>
+              <div style="font-size:0.72rem;color:var(--ink-muted);font-weight:600;">${escapeHtml(l.dirLabel)}</div>
+              <div><strong class="mono">${escapeHtml(l.flightNumber)}</strong> · ${escapeHtml(l.fromCode)} → ${escapeHtml(l.toCode)} <span class="mono" style="font-size:0.78rem;color:var(--ink-secondary);">(${escapeHtml(l.depTime)} – ${escapeHtml(l.arrTime)})</span></div>
+            </div>
+            <button type="button" class="btn btn-sm" data-set-edit-leg="${escapeHtml(l.id)}">Alterar</button>
+          </div>`
+        )
+        .join('');
 
-    document.getElementById('f-add-venue').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const name = document.getElementById('av-name').value.trim();
-      const category = document.getElementById('av-cat').value;
-      const cuisine = document.getElementById('av-cuisine').value.trim() || (category === 'bars' ? 'Bar / Bebidas' : 'Restaurante');
-      const hoursLabel = document.getElementById('av-hours').value.trim() || 'Consultar horário local';
-      const description = document.getElementById('av-desc').value.trim() || 'Adicionado manualmente.';
-      if (!name) return;
-
-      state.venues.push({
-        id: `custom-v-${Date.now()}`,
-        name,
-        category,
-        cuisine,
-        included: category !== 'extra',
-        reservationRequired: false,
-        dressCode: category === 'bars' ? 'Casual' : 'Smart Casual / Casual',
-        hoursLabel,
-        openIntervals: [{ start: '00:00', end: '24:00' }],
-        description,
-        visited: false,
-        custom: true
-      });
-      saveState();
-      syncCustomBarsToCocktailSelect();
-      renderResortVenues();
-      closeModal();
-      showToast(`${name} adicionado!`);
-    });
+      flList.querySelectorAll('[data-set-edit-leg]').forEach((b) =>
+        b.addEventListener('click', () => openLegModal(b.getAttribute('data-set-edit-leg')))
+      );
+    }
   }
 
-  document.getElementById('btn-add-custom-venue')?.addEventListener('click', openAddVenueModal);
+  document.getElementById('f-settings-add-venue')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('sav-name').value.trim();
+    const category = document.getElementById('sav-cat').value;
+    const cuisine = document.getElementById('sav-cuisine').value.trim() || (category === 'bars' ? 'Bar / Bebidas' : 'Restaurante');
+    const hoursLabel = document.getElementById('sav-hours').value.trim() || 'Consultar horário local';
+    const description = document.getElementById('sav-desc').value.trim() || 'Adicionado em Configuração.';
+    if (!name) return;
+
+    state.venues.push({
+      id: `custom-v-${Date.now()}`,
+      name,
+      category,
+      cuisine,
+      included: category !== 'extra',
+      reservationRequired: false,
+      dressCode: category === 'bars' ? 'Casual' : 'Smart Casual / Casual',
+      hoursLabel,
+      openIntervals: [{ start: '00:00', end: '24:00' }],
+      description,
+      visited: false,
+      custom: true
+    });
+    document.getElementById('sav-name').value = '';
+    document.getElementById('sav-cuisine').value = '';
+    document.getElementById('sav-hours').value = '';
+    document.getElementById('sav-desc').value = '';
+    saveState();
+    syncCustomBarsToCocktailSelect();
+    renderResortVenues();
+    showToast(`${name} adicionado!`);
+  });
+
+  document.getElementById('btn-settings-wallet')?.addEventListener('click', openWalletModal);
 
   function renderResortVenues() {
     const sim = document.getElementById('resort-time-sim').value;
@@ -1444,6 +1433,8 @@
   updateClocksAndCountdown();
   renderOverview();
   renderFlights();
+  renderSettings();
+  syncCustomBarsToCocktailSelect();
   renderPlanner();
   renderResortVenues();
   renderCocktails();
