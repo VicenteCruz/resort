@@ -241,41 +241,34 @@
       </div>
     </section>
 
-    <!-- SECÇÃO 4: RESTAURANTES & LOCAIS -->
+    <!-- SECÇÃO 4: RESTAURANTES -->
     <section class="view-panel" id="view-resort" aria-labelledby="resort-heading">
-      <div class="editorial-banner">
-        <img src="./assets/resort-dining.jpg" alt="Restaurantes e bares da viagem" class="editorial-img" />
-        <div class="editorial-copy">
-          <span class="tag tag-cenote" id="resort-banner-tag" style="align-self: flex-start;">Locais da Viagem</span>
-          <h2 class="section-title" id="resort-heading">Restaurantes, Bares &amp; Locais</h2>
-          <p id="resort-banner-desc" style="font-size: 0.86rem; color: var(--ink-secondary);"></p>
-          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px;">
-            <label for="resort-time-sim" style="font-size: 0.78rem; font-weight: 600; color: var(--ink-secondary);">Simular horário:</label>
-            <select id="resort-time-sim" class="select" style="width: auto; padding: 5px 10px; font-size: 0.8rem;">
-              <option value="live" id="resort-time-sim-live">Hora Real do Destino</option>
-              <option value="08:30">08:30 · Pequeno-almoço</option>
-              <option value="13:00">13:00 · Almoço</option>
-              <option value="17:00">17:00 · Tarde</option>
-              <option value="19:30">19:30 · Jantar</option>
-              <option value="23:15">23:15 · Noite</option>
-            </select>
+      <div id="resort-list-view">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="resort-heading">Ranking de Restaurantes</h2>
+            <p class="section-subtitle">Toque num restaurante para abrir a página, ver o menu e registar o que comeram</p>
           </div>
+          <span class="tag tag-cenote" id="restaurants-count-badge">0 restaurantes</span>
         </div>
+
+        <div class="chip-group" id="venue-category-chips" role="tablist">
+          <button type="button" class="chip is-active" data-venue-cat="all">Todos</button>
+          <button type="button" class="chip" data-venue-cat="ranking">★ Já Avaliados</button>
+          <button type="button" class="chip" data-venue-cat="pyp" id="venue-chip-pyp">Alojamento</button>
+          <button type="button" class="chip" data-venue-cat="sister" id="venue-chip-sister">Parceiros / Perto</button>
+          <button type="button" class="chip" data-venue-cat="extra">Fora / Pago à Parte</button>
+        </div>
+
+        <div class="cocktail-postcards-list" id="venue-cards-grid"></div>
+
+        <button type="button" class="fab-add-btn" id="btn-fab-add-restaurant" aria-label="Adicionar novo restaurante">
+          <span class="fab-plus" aria-hidden="true">+</span>
+          <span>Adicionar Restaurante</span>
+        </button>
       </div>
 
-      <div id="restaurants-ranking-box" style="margin-bottom: 18px;"></div>
-
-      <div class="chip-group" id="venue-category-chips" role="tablist">
-        <button type="button" class="chip is-active" data-venue-cat="all">Todos</button>
-        <button type="button" class="chip" data-venue-cat="ranking">★ Top Ranking</button>
-        <button type="button" class="chip" data-venue-cat="open">Abertos Agora</button>
-        <button type="button" class="chip" data-venue-cat="pyp" id="venue-chip-pyp">Alojamento / Principal</button>
-        <button type="button" class="chip" data-venue-cat="sister" id="venue-chip-sister">Parceiros / Perto</button>
-        <button type="button" class="chip" data-venue-cat="bars">Bares &amp; Cafés</button>
-        <button type="button" class="chip" data-venue-cat="extra">Fora / Pago à Parte</button>
-      </div>
-
-      <div class="grid-3" id="venue-cards-grid"></div>
+      <div id="resort-detail-view" style="display: none;"></div>
     </section>
 
     <!-- SECÇÃO 5: MALA & CÂMBIO -->

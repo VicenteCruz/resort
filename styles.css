@@ -907,6 +907,73 @@ html.is-public .toast { bottom: 110px; font-size: 1rem; }
   }
 }
 
+/* Restaurant dedicated page (photo + menu photo + dishes eaten) */
+.cocktail-postcard.is-clickable {
+  cursor: pointer;
+  transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+.cocktail-postcard.is-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.rest-detail-photos {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+@media (min-width: 680px) {
+  .rest-detail-photos {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.rest-photo-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+.rest-photo-stage {
+  position: relative;
+  height: 220px;
+  background: linear-gradient(145deg, var(--cenote-100), var(--bg-subtle));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--ink-muted);
+  font-size: 0.84rem;
+  overflow: hidden;
+}
+.rest-photo-stage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: zoom-in;
+  display: block;
+}
+.rest-photo-bar {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+.rest-dishes-line {
+  font-size: 0.83rem;
+  color: var(--ink-primary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
+  margin-top: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .view-panel { animation: none; }
   .btn:hover { transform: none; }

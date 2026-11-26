@@ -142,6 +142,28 @@
       merged.days = buildDaysArray(merged.trip.startDate, merged.trip.endDate, []);
     }
     if (!Array.isArray(merged.venues)) merged.venues = [];
+    merged.venues = merged.venues.map((v) => {
+      const copy = { ...v, photoUrl: v.photoUrl || '', menuPhotoUrl: v.menuPhotoUrl || '' };
+      if (Array.isArray(copy.reviews)) return copy;
+      if (copy.ratings) {
+        const r = copy.ratings;
+        const avg = (Number(r.food || 4) + Number(r.vibe || 4) + Number(r.service || 4) + Number(r.quality || 4)) / 4;
+        copy.reviews = [{
+          id: `vrev-${copy.id || Date.now()}`,
+          userId: String(r.by || 'legacy').toLowerCase(),
+          by: r.by || 'Viajante',
+          dishes: r.dishes || '',
+          rating: avg,
+          aspects: { food: Number(r.food || 4), vibe: Number(r.vibe || 4), service: Number(r.service || 4), quality: Number(r.quality || 4) },
+          comment: r.comment || '',
+          createdAt: new Date().toISOString()
+        }];
+      } else {
+        copy.reviews = [];
+      }
+      return copy;
+    });
+
     if (!Array.isArray(merged.packing)) merged.packing = [];
     if (!Array.isArray(merged.expenses)) merged.expenses = [];
     if (!Array.isArray(merged.cocktails)) merged.cocktails = [];
@@ -189,6 +211,7 @@
   let activeFlightDir = 'outbound';
   let activeDayIndex = 0;
   let activeVenueCategory = 'all';
+  let activeRestaurantId = null;
   // Simple, large-type mode for visitors who are not logged in (family/friends following the trip).
   let publicMode = true;
 
@@ -733,6 +756,10 @@
 
   function switchView(viewName) {
     activeView = viewName;
+    if (viewName === 'resort' && activeRestaurantId) {
+      activeRestaurantId = null;
+      renderResortVenues();
+    }
     document.querySelectorAll('.view-panel').forEach((p) => p.classList.toggle('is-active', p.id === `view-${viewName}`));
     document.querySelectorAll('[data-view-target]').forEach((b) => b.classList.toggle('is-active', b.getAttribute('data-view-target') === viewName));
     if (viewName === 'flights') {
@@ -1499,177 +1526,461 @@
     }
   }
 
-  // ---------- Venues & Ratings ----------
+  // ---------- Restaurants: Ranking Postcards + Dedicated Page (Photo, Menu, Dishes & Reviews) ----------
+  function getVenueReviewAvg(r) {
+    if (r?.aspects) {
+      return (Number(r.aspects.food || 4) + Number(r.aspects.vibe || 4) + Number(r.aspects.service || 4) + Number(r.aspects.quality || 4)) / 4;
+    }
+    return Number(r?.rating || 4);
+  }
+
   function getVenueAvg(v) {
+    const revs = Array.isArray(v.reviews) ? v.reviews : [];
+    if (revs.length) {
+      return revs.reduce((sum, r) => sum + getVenueReviewAvg(r), 0) / revs.length;
+    }
     const r = v.ratings;
     if (!r) return 0;
     return (Number(r.food || 0) + Number(r.vibe || 0) + Number(r.service || 0) + Number(r.quality || 0)) / 4;
   }
 
+  async function uploadVenueImage(file, folder) {
+    if (!file) return '';
+    if (!sbClient || !sbUser) {
+      showToast('Inicie sessão para guardar fotografias na nuvem.');
+      return '';
+    }
+    showToast('A carregar fotografia...');
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${folder}/${Date.now()}.${ext}`;
+    const { error: upErr } = await sbClient.storage.from('trip-photos').upload(path, file, { upsert: false });
+    if (upErr) {
+      showToast(`Erro ao carregar: ${upErr.message}`);
+      return '';
+    }
+    const { data: pub } = sbClient.storage.from('trip-photos').getPublicUrl(path);
+    return pub?.publicUrl || '';
+  }
+
+  function openSingleImageLightbox(url, title, subtitle = '') {
+    if (!url) return;
+    galleryPhotos = [{ url, caption: title, dayLabel: subtitle }];
+    openLightbox(0);
+  }
+
   function openRateVenueModal(venueId) {
     const v = state.venues.find((x) => x.id === venueId);
     if (!v) return;
+    if (!Array.isArray(v.reviews)) v.reviews = [];
     const me = getCurrentReviewer();
-    const r = v.ratings || { food: 5, vibe: 5, service: 5, quality: 5, comment: '', by: me.by };
+    const myPrev = v.reviews.find((r) => r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase());
+    const a = myPrev?.aspects || { food: 4, vibe: 4, service: 4, quality: 4 };
     const opts = (val) =>
       [5, 4, 3, 2, 1]
         .map((n) => `<option value="${n}" ${Number(val) === n ? 'selected' : ''}>${'★'.repeat(n)}${'☆'.repeat(5 - n)} (${n})</option>`)
         .join('');
 
-    openModal(`Avaliar ${v.name}`, `
+    openModal(myPrev ? `Editar Review — ${v.name}` : `Avaliar ${v.name}`, `
       <form id="f-rate-venue" class="form-grid">
+        <div>
+          <label class="field-label" for="rv-dishes">O que comeste?</label>
+          <input id="rv-dishes" class="input" value="${escapeHtml(myPrev?.dishes || '')}" placeholder="Ex: Bife Ribeye, Ceviche, Massa Trufada, Tiramisu..." required />
+        </div>
         <div class="form-grid form-grid-2">
-          <div><label class="field-label">Comida</label><select id="rv-food" class="select">${opts(r.food)}</select></div>
-          <div><label class="field-label">Ambiente</label><select id="rv-vibe" class="select">${opts(r.vibe)}</select></div>
-          <div><label class="field-label">Serviço</label><select id="rv-serv" class="select">${opts(r.service)}</select></div>
-          <div><label class="field-label">Qualidade / Pratos</label><select id="rv-qual" class="select">${opts(r.quality)}</select></div>
+          <div><label class="field-label" for="rv-food">Comida</label><select id="rv-food" class="select">${opts(a.food)}</select></div>
+          <div><label class="field-label" for="rv-vibe">Ambiente</label><select id="rv-vibe" class="select">${opts(a.vibe)}</select></div>
+          <div><label class="field-label" for="rv-serv">Serviço</label><select id="rv-serv" class="select">${opts(a.service)}</select></div>
+          <div><label class="field-label" for="rv-qual">Qualidade / Pratos</label><select id="rv-qual" class="select">${opts(a.quality)}</select></div>
         </div>
         <div>
-          <label class="field-label">Comentário / Prato Favorito</label>
-          <input id="rv-note" class="input" value="${escapeHtml(r.comment || '')}" placeholder="Ex: Melhor prato da viagem..." />
+          <label class="field-label" for="rv-note">Comentário / Dica (opcional)</label>
+          <input id="rv-note" class="input" value="${escapeHtml(myPrev?.comment || '')}" placeholder="Ex: Pedir mesa lá fora, sobremesa incrível..." />
         </div>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
-          <button type="submit" class="btn btn-primary">Guardar Avaliação</button>
+          <button type="submit" class="btn btn-primary">${myPrev ? 'Guardar Alterações' : '+ Guardar Review'}</button>
         </div>
       </form>
     `);
 
     document.getElementById('f-rate-venue').addEventListener('submit', (e) => {
       e.preventDefault();
-      v.ratings = {
-        food: Number(document.getElementById('rv-food').value),
-        vibe: Number(document.getElementById('rv-vibe').value),
-        service: Number(document.getElementById('rv-serv').value),
-        quality: Number(document.getElementById('rv-qual').value),
+      const food = Number(document.getElementById('rv-food').value) || 4;
+      const vibe = Number(document.getElementById('rv-vibe').value) || 4;
+      const service = Number(document.getElementById('rv-serv').value) || 4;
+      const quality = Number(document.getElementById('rv-qual').value) || 4;
+      const dishes = document.getElementById('rv-dishes').value.trim();
+      const comment = document.getElementById('rv-note').value.trim();
+      const avg = (food + vibe + service + quality) / 4;
+
+      const revPayload = {
+        id: myPrev?.id || `vrev-${Date.now()}`,
+        userId: me.userId,
         by: me.by,
-        comment: document.getElementById('rv-note').value.trim()
+        dishes,
+        rating: avg,
+        aspects: { food, vibe, service, quality },
+        comment,
+        createdAt: new Date().toISOString()
       };
+
+      const idx = v.reviews.findIndex((r) => r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase());
+      if (idx >= 0) v.reviews[idx] = revPayload;
+      else v.reviews.push(revPayload);
+
       v.visited = true;
       saveState();
       renderResortVenues();
       closeModal();
-      showToast(`${v.name} avaliado (${getVenueAvg(v).toFixed(1)}★)!`);
+      showToast(`${v.name} avaliado (${avg.toFixed(1)}★)!`);
     });
   }
 
-  function renderResortVenues() {
-    const sim = document.getElementById('resort-time-sim')?.value || 'live';
-    const nowMins = getDestMinutesNow(sim);
-
-    const rankBox = document.getElementById('restaurants-ranking-box');
-    if (rankBox) {
-      const rated = state.venues
-        .filter((v) => v.ratings)
-        .sort((a, b) => getVenueAvg(b) - getVenueAvg(a))
-        .slice(0, 5);
-      if (rated.length) {
-        const medals = ['🥇', '🥈', '🥉', '4º', '5º'];
-        rankBox.innerHTML = `
-          <div class="surface">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-              <h3 style="font-size:1.1rem;">🏆 Ranking dos Melhores Restaurantes</h3>
-              <span class="tag tag-cenote">${rated.length} avaliado${rated.length === 1 ? '' : 's'}</span>
-            </div>
-            <div class="open-now-list">
-              ${rated
-                .map(
-                  (v, i) => `
-                  <div class="open-venue-row">
-                    <div>
-                      <strong>${medals[i]} ${escapeHtml(v.name)}</strong>
-                      <span style="font-size:0.78rem;color:var(--ink-secondary);margin-left:6px;">${escapeHtml(v.cuisine)}</span>
-                    </div>
-                    <span class="tag tag-cenote mono">★ ${getVenueAvg(v).toFixed(1)} / 5</span>
-                  </div>`
-                )
-                .join('')}
-            </div>
+  function openAddRestaurantModal() {
+    openModal('Adicionar Restaurante', `
+      <form id="f-add-rest" class="form-grid">
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label" for="nr-name">Nome do Restaurante</label><input id="nr-name" class="input" placeholder="Ex: Kotatsu, Osteria..." required /></div>
+          <div>
+            <label class="field-label" for="nr-cat">Categoria</label>
+            <select id="nr-cat" class="select">
+              <option value="pyp">Alojamento / Principal</option>
+              <option value="sister">Parceiros / Perto</option>
+              <option value="extra">Fora / Pago à Parte</option>
+            </select>
           </div>
-        `;
-      } else {
-        rankBox.innerHTML = '';
-      }
-    }
+        </div>
+        <div><label class="field-label" for="nr-cuisine">Tipo / Cozinha</label><input id="nr-cuisine" class="input" placeholder="Ex: Italiano, Marisco, Steakhouse..." /></div>
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label" for="nr-photo">Foto do Restaurante (opcional)</label><input type="file" id="nr-photo" accept="image/*" class="input" /></div>
+          <div><label class="field-label" for="nr-menu">Foto do Menu (opcional)</label><input type="file" id="nr-menu" accept="image/*" class="input" /></div>
+        </div>
+        <div><label class="field-label" for="nr-desc">Notas (opcional)</label><input id="nr-desc" class="input" placeholder="Ex: Pede reserva, dress code..." /></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:4px;"><button type="submit" class="btn btn-primary">+ Criar Restaurante</button></div>
+      </form>
+    `);
 
-    let list = state.venues.filter((v) => {
-      if (activeVenueCategory === 'all') return true;
-      if (activeVenueCategory === 'ranking') return Boolean(v.ratings);
-      if (activeVenueCategory === 'open') {
-        const s = evaluateVenueStatus(v, nowMins).state;
-        return s === 'open' || s === 'soon';
-      }
-      return v.category === activeVenueCategory;
+    document.getElementById('f-add-rest').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('nr-name').value.trim();
+      const category = document.getElementById('nr-cat').value;
+      const cuisine = document.getElementById('nr-cuisine').value.trim() || 'Restaurante';
+      const description = document.getElementById('nr-desc').value.trim();
+      const photoFile = document.getElementById('nr-photo')?.files?.[0];
+      const menuFile = document.getElementById('nr-menu')?.files?.[0];
+      if (!name) return;
+
+      const photoUrl = photoFile ? await uploadVenueImage(photoFile, 'restaurants') : '';
+      const menuPhotoUrl = menuFile ? await uploadVenueImage(menuFile, 'menus') : '';
+
+      const newId = `rest-${Date.now()}`;
+      state.venues.push({
+        id: newId,
+        name,
+        category,
+        cuisine,
+        included: category !== 'extra',
+        reservationRequired: false,
+        dressCode: '',
+        hoursLabel: '',
+        openIntervals: [{ start: '00:00', end: '24:00' }],
+        description,
+        photoUrl,
+        menuPhotoUrl,
+        reviews: [],
+        visited: false,
+        custom: true
+      });
+      activeRestaurantId = newId;
+      saveState();
+      renderAll();
+      closeModal();
+      showToast(`${name} adicionado!`);
     });
+  }
 
-    if (activeVenueCategory === 'ranking') {
-      list = [...list].sort((a, b) => getVenueAvg(b) - getVenueAvg(a));
-    }
-
-    const grid = document.getElementById('venue-cards-grid');
-    if (!list.length) {
-      grid.innerHTML = `<div class="surface"><p style="font-size:0.88rem;color:var(--ink-secondary);">${
-        activeVenueCategory === 'ranking'
-          ? 'Ainda nenhum restaurante avaliado. Clique em "★ Avaliar" em qualquer local para criar o vosso Top Ranking!'
-          : 'Sem locais nesta categoria. Pode adicionar novos restaurantes e bares no ecrã de Configuração.'
-      }</p></div>`;
+  function renderRestaurantDetail(venueId) {
+    const detailEl = document.getElementById('resort-detail-view');
+    const v = state.venues.find((x) => x.id === venueId);
+    if (!detailEl || !v) {
+      activeRestaurantId = null;
+      renderResortVenues();
       return;
     }
 
+    const revs = Array.isArray(v.reviews) ? v.reviews : [];
+    const avg = getVenueAvg(v);
+    const me = getCurrentReviewer();
+    const myReview = revs.find((r) => r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase());
+
+    const reviewsHtml = revs.length
+      ? revs
+          .map((r) => {
+            const rAvg = getVenueReviewAvg(r).toFixed(1);
+            const a = r.aspects;
+            return `
+              <div class="ck-review-row">
+                <div class="ck-review-row-top">
+                  <span class="ck-review-author">${escapeHtml(r.by)}</span>
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span class="ck-review-score">★ ${rAvg}</span>
+                    <button type="button" class="icon-btn" style="padding:2px 5px;font-size:0.75rem;" data-del-v-rev="${escapeHtml(r.id)}" title="Apagar esta review">✕</button>
+                  </div>
+                </div>
+                ${r.dishes ? `<div class="rest-dishes-line">🍽️ <strong>Comeu:</strong> ${escapeHtml(r.dishes)}</div>` : ''}
+                ${a ? `
+                  <div class="ck-review-mini-metrics" style="margin-top:2px;">
+                    <span>Comida ${a.food}★</span>
+                    <span>Ambiente ${a.vibe}★</span>
+                    <span>Serviço ${a.service}★</span>
+                    <span>Qualidade ${a.quality}★</span>
+                  </div>` : ''}
+                ${r.comment ? `<p class="ck-postcard-quote">"${escapeHtml(r.comment)}"</p>` : ''}
+              </div>`;
+          })
+          .join('')
+      : `<p style="font-size:0.88rem;color:var(--ink-secondary);padding:8px 0;">Ainda sem reviews. Sejam os primeiros a dizer o que comeram e a dar a nota!</p>`;
+
+    detailEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <button type="button" class="btn btn-sm" id="btn-back-restaurants">← Voltar aos Restaurantes</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm" id="btn-detail-sched">+ Agendar no Plano</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-detail-review">${myReview ? '✎ Editar a minha Review' : '+ Adicionar Review'}</button>
+        </div>
+      </div>
+
+      <div class="surface" style="margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+          <div>
+            <h2 class="section-title">${escapeHtml(v.name)}</h2>
+            <div class="ck-postcard-bar" style="font-size:0.88rem;">${escapeHtml(v.cuisine)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            ${avg > 0 ? `<span class="tag tag-cenote mono" style="font-size:0.88rem;">★ ${avg.toFixed(1)} / 5</span>` : `<span class="tag">Por avaliar</span>`}
+            <span class="tag">${revs.length} ${revs.length === 1 ? 'review' : 'reviews'}</span>
+          </div>
+        </div>
+        ${v.description ? `<p style="font-size:0.86rem;color:var(--ink-secondary);margin-top:10px;">${escapeHtml(v.description)}</p>` : ''}
+      </div>
+
+      <div class="rest-detail-photos">
+        <div class="rest-photo-card">
+          <div class="rest-photo-stage">
+            ${v.photoUrl
+              ? `<img src="${escapeHtml(v.photoUrl)}" alt="Foto de ${escapeHtml(v.name)}" id="img-rest-photo" />`
+              : `<span style="font-size:2.4rem;">🍽️</span><span>Sem foto do restaurante</span>`}
+          </div>
+          <div class="rest-photo-bar">
+            <strong style="font-size:0.84rem;">Foto do Restaurante</strong>
+            <label class="btn btn-sm" style="cursor:pointer;">
+              📷 ${v.photoUrl ? 'Alterar' : 'Adicionar'}
+              <input type="file" id="inp-rest-photo" accept="image/*" style="display:none;" />
+            </label>
+          </div>
+        </div>
+
+        <div class="rest-photo-card">
+          <div class="rest-photo-stage">
+            ${v.menuPhotoUrl
+              ? `<img src="${escapeHtml(v.menuPhotoUrl)}" alt="Menu de ${escapeHtml(v.name)}" id="img-rest-menu" />`
+              : `<span style="font-size:2.4rem;">📄</span><span>Sem foto do menu</span>`}
+          </div>
+          <div class="rest-photo-bar">
+            <strong style="font-size:0.84rem;">Foto do Menu</strong>
+            <label class="btn btn-sm" style="cursor:pointer;">
+              📄 ${v.menuPhotoUrl ? 'Alterar' : 'Adicionar'}
+              <input type="file" id="inp-rest-menu" accept="image/*" style="display:none;" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="surface">
+        <div class="section-header" style="margin-bottom:10px;">
+          <div>
+            <h3 style="font-size:1.1rem;">Reviews &amp; O Que Comeram</h3>
+            <p class="section-subtitle">Cada pessoa pode registar os pratos que provou e a sua nota</p>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-detail-review-2">${myReview ? '✎ Editar a minha' : '+ Adicionar Review'}</button>
+        </div>
+        <div class="ck-reviews-list">${reviewsHtml}</div>
+      </div>
+    `;
+
+    document.getElementById('btn-back-restaurants')?.addEventListener('click', () => {
+      activeRestaurantId = null;
+      renderResortVenues();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    document.getElementById('btn-detail-sched')?.addEventListener('click', () => openSchedModal(v.id));
+    document.getElementById('btn-detail-review')?.addEventListener('click', () => openRateVenueModal(v.id));
+    document.getElementById('btn-detail-review-2')?.addEventListener('click', () => openRateVenueModal(v.id));
+
+    document.getElementById('img-rest-photo')?.addEventListener('click', () =>
+      openSingleImageLightbox(v.photoUrl, v.name, 'Foto do Restaurante')
+    );
+    document.getElementById('img-rest-menu')?.addEventListener('click', () =>
+      openSingleImageLightbox(v.menuPhotoUrl, `Menu — ${v.name}`, 'Toque para ampliar e ler')
+    );
+
+    document.getElementById('inp-rest-photo')?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const url = await uploadVenueImage(file, 'restaurants');
+      if (url) {
+        v.photoUrl = url;
+        saveState();
+        renderResortVenues();
+        showToast('Foto do restaurante guardada!');
+      }
+    });
+
+    document.getElementById('inp-rest-menu')?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const url = await uploadVenueImage(file, 'menus');
+      if (url) {
+        v.menuPhotoUrl = url;
+        saveState();
+        renderResortVenues();
+        showToast('Foto do menu guardada!');
+      }
+    });
+
+    detailEl.querySelectorAll('[data-del-v-rev]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const revId = b.getAttribute('data-del-v-rev');
+        const rev = (v.reviews || []).find((r) => r.id === revId);
+        if (!rev) return;
+        const previewHtml = `
+          ${v.photoUrl ? `<img src="${escapeHtml(v.photoUrl)}" alt="" style="width:54px;height:54px;object-fit:cover;border-radius:8px;flex-shrink:0;" />` : `<span style="font-size:1.8rem;">🍽️</span>`}
+          <div>
+            <div style="font-weight:700;font-size:0.95rem;">${escapeHtml(v.name)}</div>
+            <div style="font-size:0.8rem;color:var(--ink-secondary);">Review de <strong>${escapeHtml(rev.by)}</strong> (★ ${getVenueReviewAvg(rev).toFixed(1)})</div>
+          </div>`;
+        openConfirmModal({
+          title: 'Apagar Review?',
+          message: `Tem a certeza que quer apagar a review de ${rev.by} em "${v.name}"?`,
+          previewHtml,
+          confirmLabel: 'Apagar Review',
+          onConfirm: () => {
+            v.reviews = v.reviews.filter((r) => r.id !== revId);
+            saveState();
+            renderResortVenues();
+            showToast('Review removida');
+          }
+        });
+      })
+    );
+  }
+
+  function renderResortVenues() {
+    const listView = document.getElementById('resort-list-view');
+    const detailView = document.getElementById('resort-detail-view');
+    if (!listView || !detailView) return;
+
+    if (activeRestaurantId) {
+      listView.style.display = 'none';
+      detailView.style.display = 'block';
+      renderRestaurantDetail(activeRestaurantId);
+      return;
+    }
+
+    listView.style.display = 'block';
+    detailView.style.display = 'none';
+
+    const restaurantsOnly = state.venues.filter((v) => v.category !== 'bars');
+    const totalReviews = restaurantsOnly.reduce((s, v) => s + (Array.isArray(v.reviews) ? v.reviews.length : 0), 0);
+    const badge = document.getElementById('restaurants-count-badge');
+    if (badge) {
+      badge.textContent = `${restaurantsOnly.length} restaurante${restaurantsOnly.length === 1 ? '' : 's'} · ${totalReviews} review${totalReviews === 1 ? '' : 's'}`;
+    }
+
+    let list = restaurantsOnly.filter((v) => {
+      if (activeVenueCategory === 'all') return true;
+      if (activeVenueCategory === 'ranking') return getVenueAvg(v) > 0;
+      return v.category === activeVenueCategory;
+    });
+
+    // Always sort by ranking (highest rated first, unrated after)
+    list = [...list].sort((a, b) => getVenueAvg(b) - getVenueAvg(a));
+
+    const grid = document.getElementById('venue-cards-grid');
+    if (!list.length) {
+      grid.innerHTML = `<div class="surface" style="grid-column: 1 / -1; text-align: center; padding: 36px 20px;">
+        <div style="font-size: 2.2rem; margin-bottom: 8px;">🍽️</div>
+        <p style="font-size: 0.92rem; color: var(--ink-secondary);">${
+          activeVenueCategory === 'ranking'
+            ? 'Ainda nenhum restaurante avaliado. Toque num restaurante para abrir a página e registar o que comeram!'
+            : 'Sem restaurantes nesta categoria. Carregue em + Adicionar Restaurante no canto inferior direito.'
+        }</p>
+      </div>`;
+      return;
+    }
+
+    const medals = ['🥇 #1', '🥈 #2', '🥉 #3'];
+    const medalClasses = ['is-gold', 'is-silver', 'is-bronze'];
+    let ratedRank = 0;
+
     grid.innerHTML = list
-      .map((v, idx) => {
-        const st = evaluateVenueStatus(v, nowMins);
-        const cls = st.state === 'open' ? 'tag-open' : st.state === 'soon' ? 'tag-soon' : 'tag-closed';
+      .map((v) => {
         const avg = getVenueAvg(v);
-        const r = v.ratings;
+        const revs = Array.isArray(v.reviews) ? v.reviews : [];
+        let rankBadge = '';
+        if (avg > 0) {
+          const rankText = medals[ratedRank] || `#${ratedRank + 1}`;
+          const rankCls = medalClasses[ratedRank] || '';
+          rankBadge = `<span class="ck-rank-badge ${rankCls}">${rankText}</span>`;
+          ratedRank++;
+        }
+
+        const recentDishes = revs.map((r) => r.dishes).filter(Boolean).slice(0, 2);
 
         return `
-          <article class="venue-card">
-            <div>
-              <div class="venue-top">
-                <div>
-                  <h3 class="venue-name">${activeVenueCategory === 'ranking' ? `#${idx + 1} ` : ''}${escapeHtml(v.name)}</h3>
-                  <div class="venue-cuisine">${escapeHtml(v.cuisine)}</div>
-                </div>
-                ${avg > 0
-                  ? `<span class="tag tag-cenote mono">★ ${avg.toFixed(1)} / 5</span>`
-                  : `<span class="tag ${cls}">${escapeHtml(st.label)}</span>`}
-              </div>
-              <p class="venue-desc">${escapeHtml(v.description)}</p>
-              ${r ? `
-                <div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--bg-canvas);font-size:0.76rem;color:var(--ink-secondary);">
-                  <div class="mono" style="display:flex;flex-wrap:wrap;gap:6px 10px;">
-                    <span>Comida <strong>${r.food}★</strong></span>
-                    <span>Ambiente <strong>${r.vibe}★</strong></span>
-                    <span>Serviço <strong>${r.service}★</strong></span>
-                    <span>Qualidade <strong>${r.quality}★</strong></span>
-                  </div>
-                  ${r.comment ? `<div style="margin-top:4px;font-style:italic;">"${escapeHtml(r.comment)}"</div>` : ''}
-                  ${r.by ? `<div style="margin-top:4px;font-size:0.72rem;color:var(--ink-muted);">Avaliado por <strong>${escapeHtml(r.by)}</strong></div>` : ''}
-                </div>
-              ` : ''}
+          <article class="cocktail-postcard is-clickable" data-open-rest="${escapeHtml(v.id)}">
+            <div class="ck-postcard-media">
+              ${v.photoUrl
+                ? `<img src="${escapeHtml(v.photoUrl)}" alt="${escapeHtml(v.name)}" loading="lazy" />`
+                : `<span class="ck-postcard-placeholder" aria-hidden="true">🍽️</span>`}
+              ${rankBadge}
             </div>
-            <div>
-              <div class="venue-meta-list">
-                <div><strong>Horário:</strong> ${escapeHtml(v.hoursLabel)}</div>
-                ${v.dressCode ? `<div><strong>Dress Code:</strong> ${escapeHtml(v.dressCode)}</div>` : ''}
-                <div><strong>Acesso:</strong> ${v.included ? 'Incluído' : 'Pago à parte'} · ${v.reservationRequired ? 'Requer Reserva' : 'Sem Reserva'}</div>
+            <div class="ck-postcard-body">
+              <div>
+                <div class="ck-postcard-head">
+                  <div style="min-width:0;">
+                    <h3 class="ck-postcard-title">${escapeHtml(v.name)}</h3>
+                    <div class="ck-postcard-bar">${escapeHtml(v.cuisine)}</div>
+                  </div>
+                  ${avg > 0
+                    ? `<span class="tag tag-cenote mono">★ ${avg.toFixed(1)}</span>`
+                    : `<span class="tag">Por avaliar</span>`}
+                </div>
+                ${recentDishes.length
+                  ? `<div class="rest-dishes-line" style="margin-top:8px;">🍽️ ${escapeHtml(recentDishes.join(' · '))}</div>`
+                  : (v.description ? `<p class="ck-postcard-quote" style="margin-top:8px;font-style:normal;">${escapeHtml(v.description)}</p>` : '')}
               </div>
-              <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;">
-                <button type="button" class="btn btn-primary btn-sm" data-rate-v="${escapeHtml(v.id)}">${r ? '★ Editar Nota' : '★ Avaliar'}</button>
-                <button type="button" class="btn btn-sm" data-sched="${escapeHtml(v.id)}">+ Agendar</button>
+              <div class="ck-postcard-footer">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                  <span>${revs.length} ${revs.length === 1 ? 'review' : 'reviews'}</span>
+                  ${v.menuPhotoUrl ? `<span class="tag tag-open" style="padding:1px 7px;font-size:0.7rem;">📄 Menu</span>` : ''}
+                </div>
+                <span style="font-weight:700;color:var(--cenote-700);">Abrir página →</span>
               </div>
             </div>
           </article>`;
       })
       .join('');
 
-    grid.querySelectorAll('[data-rate-v]').forEach((b) =>
-      b.addEventListener('click', () => openRateVenueModal(b.getAttribute('data-rate-v')))
-    );
-    grid.querySelectorAll('[data-sched]').forEach((b) =>
-      b.addEventListener('click', () => openSchedModal(b.getAttribute('data-sched')))
+    grid.querySelectorAll('[data-open-rest]').forEach((card) =>
+      card.addEventListener('click', () => {
+        activeRestaurantId = card.getAttribute('data-open-rest');
+        renderResortVenues();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      })
     );
   }
+
+  document.getElementById('btn-fab-add-restaurant')?.addEventListener('click', openAddRestaurantModal);
 
   // ---------- Settings (Full Trip Control Panel) ----------
   function populateTimezoneSelect(selectEl, selectedTz) {
