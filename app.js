@@ -973,21 +973,18 @@
     const result = { airline: airlines[prefix] || '', fromCode: '', toCode: '' };
 
     try {
-      const res = await fetch('https://api.adsb.lol/api/0/routeset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planes: [{ callsign, lat: 0, lng: 0 }] })
-      });
+      const res = await fetch(`https://api.adsbdb.com/v0/callsign/${encodeURIComponent(callsign)}`);
       if (res.ok) {
-        const arr = await res.json();
-        const entry = Array.isArray(arr) && arr[0];
-        if (entry && Array.isArray(entry._airports) && entry._airports.length >= 2) {
-          result.fromCode = (entry._airports[0].iata || '').toUpperCase();
-          result.toCode = (entry._airports[entry._airports.length - 1].iata || '').toUpperCase();
+        const json = await res.json();
+        const route = json?.response?.flightroute;
+        if (route) {
+          if (route.airline?.name) result.airline = route.airline.name;
+          if (route.origin?.iata_code) result.fromCode = route.origin.iata_code.toUpperCase();
+          if (route.destination?.iata_code) result.toCode = route.destination.iata_code.toUpperCase();
         }
       }
     } catch (err) {
-      console.warn('routeset lookup failed:', err);
+      console.warn('adsbdb route lookup failed:', err);
     }
     return result;
   }
