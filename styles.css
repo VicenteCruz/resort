@@ -488,39 +488,74 @@ button { cursor: pointer; }
   color: var(--ink-secondary);
 }
 
-.trip-stepper {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line-soft);
+/* Integrated multi-leg trip chain: visually links consecutive flights */
+.trip-journey-chain {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 0;
 }
-.trip-step {
+.trip-leg-connector {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 12px;
+}
+.trip-leg-connector::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--cenote-600) 0,
+    var(--cenote-600) 5px,
+    transparent 5px,
+    transparent 10px
+  );
+  opacity: 0.55;
+}
+.trip-leg-connector-pill {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
+  gap: 7px;
+  padding: 6px 14px;
   border-radius: var(--radius-pill);
-  font-size: 0.82rem;
-  font-weight: 600;
-  background: var(--bg-subtle);
-  color: var(--ink-muted);
-}
-.trip-step.is-done {
-  background: var(--agave-100);
-  color: var(--agave-700);
-}
-.trip-step.is-current {
-  background: var(--cenote-700);
-  color: var(--ink-on-dark);
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--cenote-200);
   box-shadow: var(--shadow-sm);
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--cenote-700);
 }
-.trip-step-sep {
-  color: var(--ink-muted);
-  font-size: 0.8rem;
-  user-select: none;
+.trip-journey-chain .boarding-pass,
+.trip-journey-chain .simple-flight {
+  position: relative;
+}
+.trip-journey-chain.has-multiple .boarding-pass:first-child,
+.trip-journey-chain.has-multiple .simple-flight:first-child {
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+.trip-journey-chain.has-multiple .boarding-pass:last-child,
+.trip-journey-chain.has-multiple .simple-flight:last-child {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+.bp-step-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: hsla(38, 45%, 98%, 0.14);
+  color: var(--ink-on-dark);
 }
 
 /* ==========================================================================

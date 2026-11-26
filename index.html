@@ -188,9 +188,12 @@
         <div class="map-surface-header">
           <strong class="map-surface-title">
             <span data-public-only="true">Mapa da viagem</span>
-            <span data-private-only="true" style="display: none;">Mapa da Rota &amp; Posição do Avião (ADS-B ao Vivo)</span>
+            <span data-private-only="true" style="display: none;">Mapa da Rota &amp; Radar (ADS-B)</span>
           </strong>
-          <span class="tag tag-cenote" id="map-live-status">--</span>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span class="tag tag-cenote" id="map-live-status">--</span>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-refresh-map-radar" data-private-only="true" style="display: none;">↻ Atualizar Radar</button>
+          </div>
         </div>
         <div id="flight-live-map" class="flight-live-map"></div>
       </div>

@@ -862,8 +862,20 @@
     return clean;
   }
 
-  function formatStatusBadge(live) {
-    if (!live) return `<span class="tag">Programado</span>`;
+  function isLegActiveWindow(tObj, now = Date.now()) {
+    if (!tObj || tObj.dep == null || tObj.arr == null) return false;
+    const preMs = 3 * 3600000;  // 3h before departure
+    const postMs = 4 * 3600000; // 4h after arrival (covers delays)
+    return now >= (tObj.dep - preMs) && now <= (tObj.arr + postMs);
+  }
+
+  function findLegTiming(legId) {
+    const all = [...getLegTimes('outbound'), ...getLegTimes('inbound')];
+    return all.find((t) => t.leg.id === legId) || null;
+  }
+
+  function formatStatusBadge(live, inWindow) {
+    if (!inWindow || !live) return `<span class="tag">Programado</span>`;
     if (live.active && live.onGround) return `<span class="tag tag-soon">No Solo / Taxi</span>`;
     if (live.active) return `<span class="tag tag-open">✈ Em Voo (ADS-B)</span>`;
     return `<span class="tag">Sem sinal ADS-B agora</span>`;
@@ -872,8 +884,25 @@
   async function fetchAdsbLive(legId, opts = {}) {
     const silent = Boolean(opts.silent);
     const toast = (msg) => { if (!silent) showToast(msg); };
-    const allLegs = [...state.flights.outbound.legs, ...state.flights.inbound.legs];
-    const targetLegs = legId ? allLegs.filter((l) => l.id === legId) : state.flights[activeFlightDir].legs;
+    const allTimed = [...getLegTimes('outbound'), ...getLegTimes('inbound')];
+    const targetTimed = legId
+      ? allTimed.filter((t) => t.leg.id === legId)
+      : getLegTimes(activeFlightDir);
+
+    const now = Date.now();
+    const activeTargets = targetTimed.filter((t) => isLegActiveWindow(t, now));
+
+    // Clear stale liveStatus on legs outside their scheduled flight window
+    targetTimed.forEach((t) => {
+      if (!isLegActiveWindow(t, now)) t.leg.liveStatus = null;
+    });
+
+    if (!activeTargets.length) {
+      if (!publicMode) saveState();
+      renderFlights();
+      toast('Radar só ativa no dia e horário do voo (evita mostrar aviões de outros dias com o mesmo callsign).');
+      return;
+    }
 
     toast('A consultar radar ADS-B em direto...');
     let airborneCount = 0;
@@ -882,7 +911,8 @@
       ? `${supaUrl.replace(/\/$/, '')}/functions/v1/adsb-proxy`
       : null;
 
-    for (const leg of targetLegs) {
+    for (const tObj of activeTargets) {
+      const leg = tObj.leg;
       const callsign = getIcaoCallsign(leg.flightNumber);
       try {
         const endpoint = proxyBase
@@ -935,47 +965,8 @@
     );
   }
 
-  // ---------- "Onde estão agora?" status card + Stepper + Local Time ----------
+  // ---------- "Onde estão agora?" status card + Local Time ----------
   let lastAutoRadarMs = 0;
-
-  function buildJourneyStepper(phase) {
-    const outLegs = state.flights.outbound.legs || [];
-    const inLegs = state.flights.inbound.legs || [];
-    const originCity = outLegs.length ? cityName(outLegs[0].fromCode, outLegs[0].fromCity) : (state.trip.homeCity || 'Partida');
-    const destCity = state.trip.destCity || (outLegs.length ? cityName(outLegs[outLegs.length - 1].toCode, outLegs[outLegs.length - 1].toCity) : state.trip.destination);
-    const hasOutLayover = outLegs.length > 1;
-    const layoverCity = hasOutLayover ? cityName(outLegs[0].toCode, outLegs[0].toCity) : '';
-
-    const steps = [
-      { key: 'depart', label: `Partida (${originCity})` },
-      ...(hasOutLayover ? [{ key: 'out_layover', label: `Escala (${layoverCity})` }] : []),
-      { key: 'dest', label: destCity || 'Destino' },
-      ...(inLegs.length ? [{ key: 'return', label: 'Regresso' }, { key: 'home', label: 'Casa' }] : [])
-    ];
-
-    let activeIdx = 0;
-    if (phase.kind === 'before') activeIdx = 0;
-    else if (phase.kind === 'flying' && phase.cur.dir === 'outbound') {
-      const idxInOut = outLegs.findIndex((l) => l.id === phase.cur.leg.id);
-      activeIdx = hasOutLayover ? (idxInOut === 0 ? 0 : 1) : 0;
-    } else if (phase.kind === 'layover' && phase.next.dir === 'outbound') {
-      activeIdx = hasOutLayover ? 1 : 0;
-    } else if (phase.kind === 'staying') {
-      activeIdx = hasOutLayover ? 2 : 1;
-    } else if ((phase.kind === 'flying' && phase.cur.dir === 'inbound') || (phase.kind === 'layover' && phase.next.dir === 'inbound')) {
-      activeIdx = steps.findIndex((s) => s.key === 'return');
-    } else if (phase.kind === 'home') {
-      activeIdx = steps.length - 1;
-    }
-
-    return `<div class="trip-stepper" aria-label="Etapas da viagem">${steps
-      .map((s, idx) => {
-        const cls = idx < activeIdx ? 'is-done' : idx === activeIdx ? 'is-current' : '';
-        const prefix = idx < activeIdx ? '✓ ' : '';
-        return `${idx > 0 ? '<span class="trip-step-sep" aria-hidden="true">→</span>' : ''}<span class="trip-step ${cls}">${prefix}${escapeHtml(s.label)}</span>`;
-      })
-      .join('')}</div>`;
-  }
 
   function renderFlightStatus() {
     const el = document.getElementById('flight-now-status');
@@ -1065,7 +1056,6 @@
         ${extra}
         ${publicNoteHtml}
         ${localClockHtml}
-        ${buildJourneyStepper(phase)}
       </div>`;
   }
 
@@ -1114,7 +1104,8 @@
         if (now >= t.arr) status = { cls: 'is-done', label: '✓ Já aterrou' };
         else if (now >= t.dep) status = { cls: 'is-flying', label: '✈ A voar agora' };
       }
-      const lv = leg.liveStatus;
+      const inWin = isLegActiveWindow(t, now);
+      const lv = inWin ? leg.liveStatus : null;
       let liveLine = '';
       if (status.cls === 'is-flying' && lv && lv.active && !lv.onGround) {
         const altM = lv.altFt ? Math.round((lv.altFt * 0.3048) / 100) * 100 : null;
@@ -1139,11 +1130,14 @@
 
       const next = times[i + 1];
       if (next && t.arr != null && next.dep != null) {
-        blocks.push(`<div class="sf-layover"><span aria-hidden="true">⏳</span> Escala em ${escapeHtml(toName)} · ${humanDuration(next.dep - t.arr)}</div>`);
+        blocks.push(`
+          <div class="trip-leg-connector">
+            <span class="trip-leg-connector-pill"><span aria-hidden="true">⏳</span> Escala em ${escapeHtml(toName)} · ${humanDuration(next.dep - t.arr)}</span>
+          </div>`);
       }
     });
 
-    document.getElementById('flights-container').innerHTML = blocks.join('');
+    document.getElementById('flights-container').innerHTML = `<div class="trip-journey-chain ${times.length > 1 ? 'has-multiple' : ''}">${blocks.join('')}</div>`;
     updateFlightMap();
   }
 
@@ -1152,46 +1146,33 @@
     if (publicMode) { renderSimpleFlights(); return; }
     const dir = state.flights[activeFlightDir];
     const legs = dir.legs || [];
-    const layovers = dir.layovers || [];
-    const dynSummary = legs.length
-      ? [legs[0].fromCode, ...legs.map((l) => l.toCode)].join(' → ')
-      : 'Sem voos configurados';
-    const dynDateLabel = legs.length
-      ? formatDateLongPt(legs[0].dateIso || (activeFlightDir === 'outbound' ? state.trip.startDate : state.trip.endDate))
-      : dir.dateLabel || '';
-
-    const blocks = [
-      `<div class="surface" style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">
-        <div>
-          <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-muted);font-weight:700;">${escapeHtml(dynDateLabel)}</div>
-          <div style="font-size:1.06rem;font-weight:700;margin-top:2px;">${escapeHtml(dynSummary)}</div>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-          <button type="button" class="btn btn-primary btn-sm" id="btn-refresh-all-flights">
-            ↻ Seguir no Radar (adsb.lol)
-          </button>
-        </div>
-      </div>`
-    ];
-
-    const pre = layovers.find((l) => l.beforeFirstLeg);
-    if (pre) blocks.push(renderLayover(pre));
-
     const times = getLegTimes(activeFlightDir);
+    const now = Date.now();
+    const blocks = [];
+
+    if (!legs.length) {
+      document.getElementById('flights-container').innerHTML = `<div class="surface"><p style="color:var(--ink-secondary);">Sem voos configurados para este trajeto. Adicione em Configuração.</p></div>`;
+      updateFlightMap();
+      return;
+    }
+
     legs.forEach((leg, idx) => {
       const iata = getFlightIata(leg.flightNumber).toLowerCase();
       const icao = getIcaoCallsign(leg.flightNumber);
-      const live = leg.liveStatus;
       const tObj = times[idx];
+      const inWin = isLegActiveWindow(tObj, now);
+      const live = inWin ? leg.liveStatus : null;
       const durText = leg.duration && leg.duration !== '--' ? leg.duration : formatDurationMs(tObj ? tObj.arr - tObj.dep : null);
+      const stepLabel = legs.length === 1 ? 'Voo Direto' : `Voo ${idx + 1} de ${legs.length}`;
 
       blocks.push(`
         <article class="boarding-pass">
           <div class="bp-header">
             <div class="bp-flight-badge">
+              <span class="bp-step-pill">${stepLabel}</span>
               <span class="bp-flight-num">${escapeHtml(leg.flightNumber)}</span>
               <span>${escapeHtml(leg.airline || 'Companhia')} · Callsign <strong class="mono">${escapeHtml(icao)}</strong></span>
-              ${formatStatusBadge(live)}
+              ${formatStatusBadge(live, inWin)}
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
               <button type="button" class="btn btn-ghost-light btn-sm" data-edit-leg="${escapeHtml(leg.id)}">✎ Editar</button>
@@ -1253,13 +1234,19 @@
           </div>
         </article>
       `);
-      const after = layovers.find((l) => l.afterLegId === leg.id);
-      if (after) blocks.push(renderLayover(after));
+
+      const nextT = times[idx + 1];
+      if (nextT && tObj && tObj.arr != null && nextT.dep != null) {
+        const layoverCity = cityName(leg.toCode, leg.toCity);
+        blocks.push(`
+          <div class="trip-leg-connector">
+            <span class="trip-leg-connector-pill"><span aria-hidden="true">⏳</span> Escala em ${escapeHtml(layoverCity)} (${escapeHtml(leg.toCode)}) · ${humanDuration(nextT.dep - tObj.arr)}</span>
+          </div>`);
+      }
     });
 
     const el = document.getElementById('flights-container');
-    el.innerHTML = blocks.join('');
-    document.getElementById('btn-refresh-all-flights')?.addEventListener('click', () => fetchAdsbLive());
+    el.innerHTML = `<div class="trip-journey-chain ${legs.length > 1 ? 'has-multiple' : ''}">${blocks.join('')}</div>`;
     el.querySelectorAll('[data-refresh-leg]').forEach((b) => b.addEventListener('click', () => fetchAdsbLive(b.getAttribute('data-refresh-leg'))));
     el.querySelectorAll('[data-edit-leg]').forEach((b) => b.addEventListener('click', () => openLegModal(b.getAttribute('data-edit-leg'))));
     updateFlightMap();
@@ -1296,6 +1283,8 @@
     planeLayer.clearLayers();
 
     const dirLegs = state.flights[activeFlightDir].legs || [];
+    const dirTimes = getLegTimes(activeFlightDir);
+    const now = Date.now();
     const allBounds = [];
     const plottedCodes = new Set();
 
@@ -1328,8 +1317,9 @@
 
     let activePlanes = 0;
     const planeSize = publicMode ? 36 : 28;
-    dirLegs.forEach((leg) => {
-      const lv = leg.liveStatus;
+    dirTimes.forEach((tObj) => {
+      const leg = tObj.leg;
+      const lv = isLegActiveWindow(tObj, now) ? leg.liveStatus : null;
       if (lv && lv.active && lv.lat && lv.lon) {
         activePlanes++;
         const pt = [Number(lv.lat), Number(lv.lon)];
@@ -1710,7 +1700,6 @@
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:6px;">
             <strong style="font-size:0.82rem;color:var(--cenote-700);">${label} (${legs.length} voo${legs.length === 1 ? '' : 's'})</strong>
             <div style="display:flex;gap:6px;">
-              <button type="button" class="btn btn-sm" data-edit-layovers="${dirKey}">Notas Escala</button>
               <button type="button" class="btn btn-sm" data-add-leg-dir="${dirKey}">+ Voo</button>
             </div>
           </div>
@@ -1738,10 +1727,6 @@
 
       flList.querySelectorAll('[data-set-edit-leg]').forEach((b) =>
         b.addEventListener('click', () => openLegModal(b.getAttribute('data-set-edit-leg')))
-      );
-
-      flList.querySelectorAll('[data-edit-layovers]').forEach((b) =>
-        b.addEventListener('click', () => openLayoversModal(b.getAttribute('data-edit-layovers')))
       );
 
       flList.querySelectorAll('[data-move-leg]').forEach((b) =>
@@ -2483,7 +2468,7 @@
     openModal(`Alterar Voo ${leg.flightNumber}`, `
       <form id="f-leg" class="form-grid">
         <div class="form-grid form-grid-2">
-          <div><label class="field-label">Nº do Voo (ex: AC 811, TP 832)</label><input id="l-num" class="input mono" value="${escapeHtml(leg.flightNumber)}" required /></div>
+          <div><label class="field-label">Nº do Voo / Callsign (ex: AC 811, RYR6ZL)</label><input id="l-num" class="input mono" value="${escapeHtml(leg.flightNumber)}" required /></div>
           <div><label class="field-label">Data do Voo</label><input id="l-date" type="date" class="input mono" value="${escapeHtml(defaultIso)}" required /></div>
         </div>
         <div style="display:flex;justify-content:flex-start;">
@@ -2551,11 +2536,11 @@
       const newTo = document.getElementById('l-to').value.trim().toUpperCase();
       const isoDate = document.getElementById('l-date').value;
 
-      const validFlight = /^([A-Z]{2}|[A-Z]\d|\d[A-Z]|[A-Z]{3})\s?\d{1,4}[A-Z]?$/;
+      const validFlight = /^[A-Z0-9][A-Z0-9\s-]{1,14}$/;
       const validIata = /^[A-Z]{3}$/;
 
       if (!validFlight.test(newNum)) {
-        showToast('Nº de voo inválido! Use formato tipo AC 811, TP 257 ou ACA811.');
+        showToast('Introduza um nº de voo ou callsign válido (ex: AC 811, RYR6ZL).');
         return;
       }
       if (!validIata.test(newFrom) || !validIata.test(newTo)) {
@@ -2653,6 +2638,7 @@
     switchView(publicMode ? 'flights' : 'overview');
   });
   document.getElementById('hero-btn-flights')?.addEventListener('click', () => switchView('flights'));
+  document.getElementById('btn-refresh-map-radar')?.addEventListener('click', () => fetchAdsbLive());
   document.getElementById('hero-btn-resort')?.addEventListener('click', () => switchView('resort'));
   document.getElementById('overview-all-dining-btn')?.addEventListener('click', () => switchView('resort'));
   document.getElementById('btn-open-wallet')?.addEventListener('click', openWalletModal);
