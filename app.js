@@ -227,10 +227,10 @@
 
     showToast('A consultar radar ADS-B em direto...');
     let airborneCount = 0;
-    const proxyBase =
-      window.SUPABASE_URL
-        ? `${window.SUPABASE_URL.replace(/\/$/, '')}/functions/v1/adsb-proxy`
-        : null;
+    const supaUrl = window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url ? window.SUPABASE_CONFIG.url : '';
+    const proxyBase = supaUrl
+      ? `${supaUrl.replace(/\/$/, '')}/functions/v1/adsb-proxy`
+      : null;
 
     for (const leg of targetLegs) {
       const callsign = getIcaoCallsign(leg.flightNumber);
