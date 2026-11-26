@@ -900,10 +900,13 @@
   }
 
   function openLegModal(id) {
-    const leg = [...state.flights.outbound.legs, ...state.flights.inbound.legs].find((l) => l.id === id);
+    const isOut = state.flights.outbound.legs.some((l) => l.id === id);
+    const dirObj = isOut ? state.flights.outbound : state.flights.inbound;
+    const leg = dirObj.legs.find((l) => l.id === id);
     if (!leg) return;
     openModal(`Alterar Voo ${leg.flightNumber}`, `
       <form id="f-leg" class="form-grid">
+        <div><label class="field-label">Data da Viagem</label><input id="l-date" class="input" value="${escapeHtml(dirObj.dateLabel)}" /></div>
         <div class="form-grid form-grid-2">
           <div><label class="field-label">Nº do Voo (ex: AC 811)</label><input id="l-num" class="input mono" value="${escapeHtml(leg.flightNumber)}" required /></div>
           <div><label class="field-label">Companhia Aérea</label><input id="l-air" class="input" value="${escapeHtml(leg.airline)}" /></div>
@@ -925,10 +928,11 @@
     `);
     document.getElementById('f-leg').addEventListener('submit', (e) => {
       e.preventDefault();
+      dirObj.dateLabel = document.getElementById('l-date').value.trim() || dirObj.dateLabel;
       const newNum = document.getElementById('l-num').value.trim().toUpperCase();
       if (newNum && newNum !== leg.flightNumber) {
         leg.flightNumber = newNum;
-        leg.liveStatus = null; // reset old radar telemetry for new flight number
+        leg.liveStatus = null;
       }
       leg.airline = document.getElementById('l-air').value.trim() || leg.airline;
       leg.fromCode = document.getElementById('l-from').value.trim().toUpperCase() || leg.fromCode;
@@ -937,7 +941,7 @@
       leg.arrTime = document.getElementById('l-arr').value.trim() || leg.arrTime;
       leg.gate = document.getElementById('l-gate').value.trim() || 'A definir';
       leg.seat = document.getElementById('l-seat').value.trim() || 'A definir';
-      saveState(); renderFlights(); renderOverview(); closeModal(); showToast(`Voo ${leg.flightNumber} atualizado!`);
+      saveState(); renderFlights(); renderSettings(); renderOverview(); closeModal(); showToast(`Voo ${leg.flightNumber} atualizado!`);
     });
   }
 
