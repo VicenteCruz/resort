@@ -197,7 +197,11 @@
   }
 
   function getIcaoCallsign(flightNumber) {
-    return getFlightIata(flightNumber).replace(/^AC/, 'ACA');
+    const clean = getFlightIata(flightNumber);
+    const map = { AC: 'ACA', TP: 'TAP', TS: 'TSC', WS: 'WJA', AM: 'AMX', UA: 'UAL', AA: 'AAL', DL: 'DAL', LH: 'DLH', IB: 'IBE', AF: 'AFR' };
+    const m = clean.match(/^([A-Z]{2})(\d+.*)$/);
+    if (m && map[m[1]]) return map[m[1]] + m[2];
+    return clean;
   }
 
   function formatStatusBadge(live) {
@@ -909,8 +913,16 @@
   function openLegModal(id) {
     const leg = [...state.flights.outbound.legs, ...state.flights.inbound.legs].find((l) => l.id === id);
     if (!leg) return;
-    openModal(`Editar ${leg.flightNumber}`, `
+    openModal(`Alterar Voo ${leg.flightNumber}`, `
       <form id="f-leg" class="form-grid">
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label">Nº do Voo (ex: AC 811)</label><input id="l-num" class="input mono" value="${escapeHtml(leg.flightNumber)}" required /></div>
+          <div><label class="field-label">Companhia Aérea</label><input id="l-air" class="input" value="${escapeHtml(leg.airline)}" /></div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label">Origem (Código IATA)</label><input id="l-from" class="input mono" value="${escapeHtml(leg.fromCode)}" maxlength="4" /></div>
+          <div><label class="field-label">Destino (Código IATA)</label><input id="l-to" class="input mono" value="${escapeHtml(leg.toCode)}" maxlength="4" /></div>
+        </div>
         <div class="form-grid form-grid-2">
           <div><label class="field-label">Hora Partida</label><input id="l-dep" class="input mono" value="${escapeHtml(leg.depTime)}" /></div>
           <div><label class="field-label">Hora Chegada</label><input id="l-arr" class="input mono" value="${escapeHtml(leg.arrTime)}" /></div>
@@ -919,16 +931,24 @@
           <div><label class="field-label">Porta (Gate)</label><input id="l-gate" class="input mono" value="${escapeHtml(leg.gate)}" /></div>
           <div><label class="field-label">Lugar (Seat)</label><input id="l-seat" class="input mono" value="${escapeHtml(leg.seat)}" /></div>
         </div>
-        <div style="display:flex;justify-content:flex-end;margin-top:6px;"><button type="submit" class="btn btn-primary">Guardar Voo</button></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:6px;"><button type="submit" class="btn btn-primary">Guardar Alterações</button></div>
       </form>
     `);
     document.getElementById('f-leg').addEventListener('submit', (e) => {
       e.preventDefault();
+      const newNum = document.getElementById('l-num').value.trim().toUpperCase();
+      if (newNum && newNum !== leg.flightNumber) {
+        leg.flightNumber = newNum;
+        leg.liveStatus = null; // reset old radar telemetry for new flight number
+      }
+      leg.airline = document.getElementById('l-air').value.trim() || leg.airline;
+      leg.fromCode = document.getElementById('l-from').value.trim().toUpperCase() || leg.fromCode;
+      leg.toCode = document.getElementById('l-to').value.trim().toUpperCase() || leg.toCode;
       leg.depTime = document.getElementById('l-dep').value.trim() || leg.depTime;
       leg.arrTime = document.getElementById('l-arr').value.trim() || leg.arrTime;
       leg.gate = document.getElementById('l-gate').value.trim() || 'A definir';
       leg.seat = document.getElementById('l-seat').value.trim() || 'A definir';
-      saveState(); renderFlights(); renderOverview(); closeModal(); showToast('Voo atualizado!');
+      saveState(); renderFlights(); renderOverview(); closeModal(); showToast(`Voo ${leg.flightNumber} atualizado!`);
     });
   }
 
