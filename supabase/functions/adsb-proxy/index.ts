@@ -28,7 +28,8 @@ Deno.serve(async (req) => {
   for (const target of sources) {
     try {
       const upstream = await fetch(target, {
-        headers: { 'User-Agent': 'yucatan-companion-radar/1.0' }
+        headers: { 'User-Agent': 'yucatan-companion-radar/1.0' },
+        signal: AbortSignal.timeout(4000)
       });
       if (upstream.ok) {
         const body = await upstream.text();

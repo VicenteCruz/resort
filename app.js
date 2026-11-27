@@ -169,7 +169,7 @@
       const existingIds = new Set(merged.packing.map((p) => p.id));
       base.packing.forEach((item) => {
         if (!existingIds.has(item.id)) {
-          merged.packing.push(clone(item));
+          merged.packing.push({ ...item });
         }
       });
       merged.packingChecklistV2 = true;
@@ -470,7 +470,8 @@
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   let toastTimer = null;
@@ -4248,11 +4249,15 @@
 
   document.getElementById('btn-add-agenda-item')?.addEventListener('click', () => openPlanEntryModal('activity', null));
   document.getElementById('btn-add-agenda-rest')?.addEventListener('click', () => openPlanEntryModal('dining', null));
+  let dayNotesTimer = null;
   document.getElementById('planner-day-notes')?.addEventListener('input', (e) => {
     if (state.days[activeDayIndex]) {
       state.days[activeDayIndex].notes = e.target.value;
-      saveState();
-      renderOverview();
+      clearTimeout(dayNotesTimer);
+      dayNotesTimer = setTimeout(() => {
+        saveState();
+        renderOverview();
+      }, 250);
     }
   });
 
@@ -5406,6 +5411,171 @@
     });
   });
 
+  const DIRTY_SYNC_KEY = 'pyp_stay_dirty_sync';
+  const SYNC_TS_KEY = 'pyp_stay_last_synced_at';
+  let lastSyncedUpdatedAt = '';
+  try { lastSyncedUpdatedAt = localStorage.getItem(SYNC_TS_KEY) || ''; } catch {}
+  let hasPendingCloudWrite = false;
+  try { hasPendingCloudWrite = localStorage.getItem(DIRTY_SYNC_KEY) === '1'; } catch {}
+  let isSyncInFlight = false;
+  let realtimeChannel = null;
+
+  function markPendingCloudWrite(pending) {
+    hasPendingCloudWrite = Boolean(pending);
+    try {
+      if (hasPendingCloudWrite) localStorage.setItem(DIRTY_SYNC_KEY, '1');
+      else localStorage.removeItem(DIRTY_SYNC_KEY);
+    } catch {}
+  }
+
+  function setLastSyncedUpdatedAt(ts) {
+    lastSyncedUpdatedAt = ts || '';
+    try {
+      if (lastSyncedUpdatedAt) localStorage.setItem(SYNC_TS_KEY, lastSyncedUpdatedAt);
+      else localStorage.removeItem(SYNC_TS_KEY);
+    } catch {}
+  }
+
+  function mergeById(remoteArr, localArr) {
+    const map = new Map();
+    (Array.isArray(remoteArr) ? remoteArr : []).forEach((item, idx) => {
+      if (item && typeof item === 'object') map.set(item.id || `r-${idx}`, item);
+    });
+    (Array.isArray(localArr) ? localArr : []).forEach((item, idx) => {
+      if (item && typeof item === 'object') map.set(item.id || `l-${idx}`, item);
+    });
+    return [...map.values()];
+  }
+
+  function mergeConcurrentStates(remoteRaw, localState) {
+    const rem = normalizeState(remoteRaw);
+    const loc = normalizeState(localState);
+    const merged = {
+      ...rem,
+      ...loc,
+      trip: {
+        ...rem.trip,
+        ...loc.trip,
+        tips: mergeById(rem.trip.tips, loc.trip.tips)
+      },
+      wallet: {
+        ...rem.wallet,
+        ...loc.wallet,
+        documents: mergeById(rem.wallet.documents, loc.wallet.documents)
+      },
+      rates: { ...rem.rates, ...loc.rates }
+    };
+
+    // Merge venues & each venue's reviews by id
+    const remVenuesById = new Map((rem.venues || []).map((v) => [v.id, v]));
+    const venueMap = new Map((rem.venues || []).map((v) => [v.id, v]));
+    (loc.venues || []).forEach((lv) => {
+      const rv = remVenuesById.get(lv.id);
+      if (!rv) {
+        venueMap.set(lv.id, lv);
+      } else {
+        venueMap.set(lv.id, {
+          ...rv,
+          ...lv,
+          photoUrl: lv.photoUrl || rv.photoUrl || '',
+          menuPhotoUrl: lv.menuPhotoUrl || rv.menuPhotoUrl || '',
+          visited: Boolean(lv.visited || rv.visited),
+          reviews: mergeById(rv.reviews, lv.reviews)
+        });
+      }
+    });
+    merged.venues = [...venueMap.values()];
+
+    // Merge cocktails by normalized name/id & reviews by id
+    const ckMap = new Map();
+    const ckKey = (c) => ckNorm(c.name) || c.id;
+    (rem.cocktails || []).forEach((rc) => ckMap.set(ckKey(rc), rc));
+    (loc.cocktails || []).forEach((lc) => {
+      const k = ckKey(lc);
+      const rc = ckMap.get(k);
+      if (!rc) {
+        ckMap.set(k, lc);
+      } else {
+        ckMap.set(k, {
+          ...rc,
+          ...lc,
+          id: rc.id || lc.id,
+          photoUrl: lc.photoUrl || rc.photoUrl || '',
+          reviews: mergeById(rc.reviews, lc.reviews)
+        });
+      }
+    });
+    merged.cocktails = [...ckMap.values()];
+
+    // Merge days & agenda items by date / item id
+    const remDaysByDate = new Map((rem.days || []).map((d) => [d.date, d]));
+    merged.days = (loc.days || []).map((ld) => {
+      const rd = remDaysByDate.get(ld.date);
+      if (!rd) return ld;
+      const mergedItems = mergeById(rd.items, ld.items).sort((a, b) =>
+        String(a.time || '').localeCompare(String(b.time || ''))
+      );
+      return {
+        ...rd,
+        ...ld,
+        notes: ld.notes || rd.notes || '',
+        items: mergedItems
+      };
+    });
+
+    // Merge expenses, participants & packing items
+    merged.expenses = mergeById(rem.expenses, loc.expenses);
+    merged.packing = mergeById(rem.packing, loc.packing);
+    if (Array.isArray(rem.expenseParticipants) || Array.isArray(loc.expenseParticipants)) {
+      const seenP = new Set();
+      merged.expenseParticipants = [...(rem.expenseParticipants || []), ...(loc.expenseParticipants || [])].filter((p) => {
+        const k = String(p || '').trim().toLowerCase();
+        if (!k || seenP.has(k)) return false;
+        seenP.add(k);
+        return true;
+      });
+    }
+
+    return normalizeState(merged);
+  }
+
+  function isUserEditingField() {
+    const active = document.activeElement;
+    if (!active) return false;
+    if (document.getElementById('modal-backdrop')?.classList.contains('is-open')) return true;
+    return active.matches?.('input, textarea, select');
+  }
+
+  function setupRealtimeSync() {
+    if (!sbClient) return;
+    if (realtimeChannel) {
+      try { sbClient.removeChannel(realtimeChannel); } catch {}
+      realtimeChannel = null;
+    }
+    if (!sbUser) return;
+    try {
+      realtimeChannel = sbClient
+        .channel('trip-state-live')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'trip_state', filter: 'id=eq.main-trip' },
+          (payload) => {
+            const incoming = payload?.new;
+            if (!incoming || !incoming.data) return;
+            if (incoming.updated_at && incoming.updated_at === lastSyncedUpdatedAt) return;
+            if (hasPendingCloudWrite || isSyncInFlight || isUserEditingField()) return;
+            setLastSyncedUpdatedAt(incoming.updated_at || '');
+            state = normalizeState(incoming.data);
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+            renderAll();
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('Realtime subscription unavailable:', err);
+    }
+  }
+
   function initSupabase() {
     const cfg = window.SUPABASE_CONFIG || {};
     if (window.supabase && cfg.url && cfg.anonKey) {
@@ -5414,15 +5584,31 @@
         sbUser = data?.session?.user || null;
         updateAuthVisibility();
         loadPhotosGallery();
-        if (sbUser) pullStateFromSupabase();
-        else pullPublicTrip();
+        setupRealtimeSync();
+        if (sbUser) {
+          pullStateFromSupabase().then(() => {
+            if (hasPendingCloudWrite) queueCloudSave();
+          });
+        } else {
+          pullPublicTrip();
+        }
       });
       sbClient.auth.onAuthStateChange((_evt, session) => {
-        sbUser = session?.user || null;
+        const nextUser = session?.user || null;
+        const userChanged = (nextUser?.id || null) !== (sbUser?.id || null);
+        sbUser = nextUser;
         updateAuthVisibility();
-        loadPhotosGallery();
-        if (sbUser) pullStateFromSupabase();
-        else pullPublicTrip();
+        if (userChanged) {
+          loadPhotosGallery();
+          setupRealtimeSync();
+          if (sbUser) {
+            pullStateFromSupabase().then(() => {
+              if (hasPendingCloudWrite) queueCloudSave();
+            });
+          } else {
+            pullPublicTrip();
+          }
+        }
       });
     } else {
       updateAuthVisibility();
@@ -5430,36 +5616,84 @@
   }
 
   function queueCloudSave() {
+    markPendingCloudWrite(true);
     if (!sbClient || !sbUser) return;
+    const badge = document.getElementById('sync-status-badge');
+    if (badge) {
+      badge.className = 'tag tag-soon';
+      badge.textContent = '↻ A sincronizar…';
+    }
     clearTimeout(syncTimer);
     syncTimer = setTimeout(async () => {
+      if (!sbClient || !sbUser || isSyncInFlight) return;
+      isSyncInFlight = true;
       try {
-        await sbClient.from('trip_state').upsert({
+        // Check if another device saved a newer version since our last pull/push
+        const { data: remoteRow, error: checkErr } = await sbClient
+          .from('trip_state')
+          .select('data, updated_at')
+          .eq('id', 'main-trip')
+          .maybeSingle();
+
+        if (!checkErr && remoteRow?.data && remoteRow.updated_at && lastSyncedUpdatedAt && remoteRow.updated_at > lastSyncedUpdatedAt) {
+          state = mergeConcurrentStates(remoteRow.data, state);
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+          if (!isUserEditingField()) renderAll();
+        }
+
+        const nextTs = new Date().toISOString();
+        const { error: upErr } = await sbClient.from('trip_state').upsert({
           id: 'main-trip',
           data: state,
-          updated_at: new Date().toISOString()
+          updated_at: nextTs
         });
+        if (upErr) throw upErr;
+
+        setLastSyncedUpdatedAt(nextTs);
+        markPendingCloudWrite(false);
         await pushPublicTrip(false);
-        const badge = document.getElementById('sync-status-badge');
         if (badge) {
           badge.className = 'tag tag-open';
           badge.textContent = '✓ Sincronizado na Nuvem';
         }
       } catch (err) {
-        console.warn('Supabase sync failed:', err);
+        console.warn('Supabase sync failed (will retry when online):', err);
+        if (badge) {
+          badge.className = 'tag tag-soon';
+          badge.textContent = '⏳ Guardado localmente (pendente)';
+        }
+      } finally {
+        isSyncInFlight = false;
       }
     }, 600);
   }
 
-  async function pullStateFromSupabase() {
-    if (!sbClient || !sbUser) return;
-    const { data, error } = await sbClient.from('trip_state').select('data').eq('id', 'main-trip').maybeSingle();
-    if (!error && data && data.data) {
-      state = normalizeState(data.data);
+  async function pullStateFromSupabase(opts = {}) {
+    if (!sbClient || !sbUser || isSyncInFlight) return;
+    try {
+      const { data, error } = await sbClient
+        .from('trip_state')
+        .select('data, updated_at')
+        .eq('id', 'main-trip')
+        .maybeSingle();
+      if (error || !data || !data.data) return;
+
+      if (opts.onlyIfNewer && data.updated_at && data.updated_at === lastSyncedUpdatedAt) {
+        return;
+      }
+
+      if (hasPendingCloudWrite) {
+        state = mergeConcurrentStates(data.data, state);
+      } else {
+        state = normalizeState(data.data);
+        setLastSyncedUpdatedAt(data.updated_at || '');
+      }
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
-      renderAll();
+      if (!isUserEditingField()) renderAll();
       // Ensure public_trip stays aligned with the latest private state
-      pushPublicTrip(false);
+      if (!opts.skipPublicPush) pushPublicTrip(false);
+    } catch (err) {
+      console.warn('Supabase state pull failed:', err);
     }
   }
 
@@ -5701,6 +5935,7 @@
           confirmLabel: 'Apagar Fotografia',
           onConfirm: async () => {
             await sbClient.storage.from('trip-photos').remove([path]);
+            await sbClient.from('trip_photo_comments').delete().eq('photo_id', String(id)).catch(() => {});
             await sbClient.from('trip_photos').delete().eq('id', id);
             showToast('Foto removida');
             loadPhotosGallery();
@@ -5877,14 +6112,32 @@
   setInterval(() => {
     if (activeView === 'flights') renderFlightStatus();
   }, 60000);
-  // Keep public visitors always up-to-date when they return to the tab or leave it open
+  // Keep both public visitors and logged-in travelers synchronized when returning to the app or regaining connectivity
   setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
     if (publicMode) pullPublicTrip();
-  }, 5 * 60000);
+    else if (sbUser && !hasPendingCloudWrite) pullStateFromSupabase({ onlyIfNewer: true, skipPublicPush: true });
+  }, 3 * 60000);
+
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && publicMode) {
+    if (document.visibilityState !== 'visible') return;
+    if (publicMode) {
       pullPublicTrip();
       loadPhotosGallery();
+    } else if (sbUser) {
+      if (hasPendingCloudWrite) queueCloudSave();
+      else pullStateFromSupabase({ onlyIfNewer: true, skipPublicPush: true });
+      if (activeView === 'photos') loadPhotosGallery();
+    }
+  });
+
+  window.addEventListener('online', () => {
+    if (sbUser && hasPendingCloudWrite) {
+      queueCloudSave();
+    } else if (sbUser) {
+      pullStateFromSupabase({ onlyIfNewer: true, skipPublicPush: true });
+    } else if (publicMode) {
+      pullPublicTrip();
     }
   });
 
@@ -5892,7 +6145,7 @@
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
   }
 
-  // ---------- Mobile UX: Retractable Header, Planner Swipe & Settings Auto-Save ----------
+  // ---------- Mobile UX: Retractable Header & Planner Swipe ----------
   (function setupMobileUxEnhancements() {
     // 1. Retractable topbar on mobile scroll
     const topbar = document.querySelector('.topbar');
@@ -5935,15 +6188,11 @@
       }, { passive: true });
     }
 
-    // 3. Auto-save on change in Settings forms
-    ['f-settings-profile', 'f-settings-trip', 'f-settings-public'].forEach((formId) => {
-      const form = document.getElementById(formId);
-      if (!form) return;
-      form.addEventListener('change', (e) => {
-        if (e.target && e.target.matches('input, select, textarea')) {
-          if (typeof form.requestSubmit === 'function') form.requestSubmit();
-        }
-      });
+    // 3. Instant toggle save for standalone checkbox in Public Panel (leaving multi-field forms to their explicit Save button)
+    const showStayCheckbox = document.getElementById('st-public-show-stay');
+    showStayCheckbox?.addEventListener('change', () => {
+      const pubForm = document.getElementById('f-settings-public');
+      if (pubForm && typeof pubForm.requestSubmit === 'function') pubForm.requestSubmit();
     });
   })();
 })();
