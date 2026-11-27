@@ -841,29 +841,39 @@
   });
 
   // ---------- Free Keyless Weather Engine (Open-Meteo Geocoding + Forecast) ----------
+  const WX_ICONS = {
+    sun: `<svg class="wx-svg wx-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.2v2.3M12 19.5v2.3M4.93 4.93l1.62 1.62M17.45 17.45l1.62 1.62M2.2 12h2.3M19.5 12h2.3M4.93 19.07l1.62-1.62M17.45 6.55l1.62-1.62"/></svg>`,
+    partly: `<svg class="wx-svg wx-partly" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v1.6M5.6 5.6l1.1 1.1M3 12h1.6M18.4 5.6l-1.1 1.1"/><path d="M9.8 8.3a3.8 3.8 0 0 1 5.8 2.2"/><path d="M17.5 19H8.5a4 4 0 1 1 .8-7.92A5 5 0 0 1 19 13a3 3 0 0 1-1.5 6Z"/></svg>`,
+    cloud: `<svg class="wx-svg wx-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H7.5a4.5 4.5 0 1 1 .9-8.91A5.5 5.5 0 0 1 19 12.5a3.5 3.5 0 0 1-1.5 6.5Z"/></svg>`,
+    fog: `<svg class="wx-svg wx-fog" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 14H7.5a4 4 0 1 1 .8-7.92A5 5 0 0 1 18.8 8.5a3 3 0 0 1-1.3 5.5Z"/><path d="M4 17.5h16M6 21h12"/></svg>`,
+    drizzle: `<svg class="wx-svg wx-rain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 15H7.5a4 4 0 1 1 .8-7.92A5 5 0 0 1 18.8 9.5a3 3 0 0 1-1.3 5.5Z"/><path d="M9 18.5v2M15 18.5v2"/></svg>`,
+    rain: `<svg class="wx-svg wx-rain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 14.5H7.5a4 4 0 1 1 .8-7.92A5 5 0 0 1 18.8 9a3 3 0 0 1-1.3 5.5Z"/><path d="M8.5 18l-1 3M12.5 18l-1 3M16.5 18l-1 3"/></svg>`,
+    storm: `<svg class="wx-svg wx-storm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 14H7.5a4 4 0 1 1 .8-7.92A5 5 0 0 1 18.8 8.5a3 3 0 0 1-1.3 5.5Z"/><path d="m13 13-2.5 4.2h3L11 21.5"/></svg>`
+  };
+
   const WMO_WEATHER_PT = {
-    0: { icon: '☀️', label: 'Céu limpo' },
-    1: { icon: '🌤️', label: 'Maiormente limpo' },
-    2: { icon: '⛅', label: 'Parcialmente nublado' },
-    3: { icon: '☁️', label: 'Nublado' },
-    45: { icon: '🌫️', label: 'Nevoeiro' },
-    48: { icon: '🌫️', label: 'Nevoeiro' },
-    51: { icon: '🌦️', label: 'Chuvisco leve' },
-    53: { icon: '🌦️', label: 'Chuvisco' },
-    55: { icon: '🌧️', label: 'Chuvisco intenso' },
-    61: { icon: '🌦️', label: 'Aguaceiros leves' },
-    63: { icon: '🌧️', label: 'Chuva moderada' },
-    65: { icon: '🌧️', label: 'Chuva forte' },
-    80: { icon: '🌦️', label: 'Aguaceiros passageiros' },
-    81: { icon: '🌧️', label: 'Aguaceiros' },
-    82: { icon: '⛈️', label: 'Aguaceiros fortes' },
-    95: { icon: '⛈️', label: 'Trovoada tropical' },
-    96: { icon: '⛈️', label: 'Trovoada' },
-    99: { icon: '⛈️', label: 'Trovoada forte' }
+    0: { icon: WX_ICONS.sun, label: 'Céu limpo' },
+    1: { icon: WX_ICONS.partly, label: 'Maiormente limpo' },
+    2: { icon: WX_ICONS.partly, label: 'Parcialmente nublado' },
+    3: { icon: WX_ICONS.cloud, label: 'Nublado' },
+    45: { icon: WX_ICONS.fog, label: 'Nevoeiro' },
+    48: { icon: WX_ICONS.fog, label: 'Nevoeiro' },
+    51: { icon: WX_ICONS.drizzle, label: 'Chuvisco leve' },
+    53: { icon: WX_ICONS.drizzle, label: 'Chuvisco' },
+    55: { icon: WX_ICONS.rain, label: 'Chuvisco intenso' },
+    61: { icon: WX_ICONS.drizzle, label: 'Aguaceiros leves' },
+    63: { icon: WX_ICONS.rain, label: 'Chuva moderada' },
+    65: { icon: WX_ICONS.rain, label: 'Chuva forte' },
+    80: { icon: WX_ICONS.drizzle, label: 'Aguaceiros passageiros' },
+    81: { icon: WX_ICONS.rain, label: 'Aguaceiros' },
+    82: { icon: WX_ICONS.storm, label: 'Aguaceiros fortes' },
+    95: { icon: WX_ICONS.storm, label: 'Trovoada tropical' },
+    96: { icon: WX_ICONS.storm, label: 'Trovoada' },
+    99: { icon: WX_ICONS.storm, label: 'Trovoada forte' }
   };
 
   function describeWmo(code) {
-    return WMO_WEATHER_PT[Number(code)] || { icon: '🌤️', label: 'Tempo ameno' };
+    return WMO_WEATHER_PT[Number(code)] || { icon: WX_ICONS.partly, label: 'Tempo ameno' };
   }
 
   let weatherState = {
@@ -1863,14 +1873,8 @@
     if (!sortedItems.length) {
       listEl.innerHTML = `
         <div class="plan-empty-box">
-          <span>Dia livre — adiciona atividades, passeios ou escolhe onde vão almoçar/jantar neste dia.</span>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
-            <button type="button" class="btn btn-sm" id="plan-empty-add-rest">🍽️ + Restaurante</button>
-            <button type="button" class="btn btn-primary btn-sm" id="plan-empty-add-act">✨ + Atividade</button>
-          </div>
+          <span>Dia livre — usa os botões acima para adicionar atividades, passeios ou escolher onde almoçar/jantar neste dia.</span>
         </div>`;
-      document.getElementById('plan-empty-add-rest')?.addEventListener('click', () => openPlanEntryModal('dining', null));
-      document.getElementById('plan-empty-add-act')?.addEventListener('click', () => openPlanEntryModal('activity', null));
     } else {
       listEl.innerHTML = sortedItems.map((it) => renderPlanEventCardHtml(it, { showActions: true })).join('');
 
@@ -1909,8 +1913,50 @@
     clock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
     camera: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>`,
     doc: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" x2="16" y1="13" y2="13"/><line x1="8" x2="16" y1="17" y2="17"/></svg>`,
-    shirt: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>`
+    shirt: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>`,
+    check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`,
+    fresh: `<svg class="flavor-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></svg>`,
+    alcohol: `<svg class="flavor-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14l-1.4 13a2.5 2.5 0 0 1-2.5 2.2H8.9a2.5 2.5 0 0 1-2.5-2.2L5 4Z"/><line x1="5.8" y1="11" x2="18.2" y2="11"/><rect x="9.5" y="12.5" width="5" height="4" rx="1"/></svg>`,
+    fruity: `<svg class="flavor-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><line x1="12" y1="5" x2="12" y2="21"/><line x1="4" y1="13" x2="20" y2="13"/><line x1="6.4" y1="7.4" x2="17.6" y2="18.6"/><line x1="17.6" y1="7.4" x2="6.4" y2="18.6"/><path d="M12 5c1-2.2 3-3 5-2.5"/></svg>`,
+    sweet: `<svg class="flavor-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5C12 2.5 5.5 9.8 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 9.8 12 2.5 12 2.5Z"/><path d="M9.5 15a2.8 2.8 0 0 0 2.8 2.8"/></svg>`
   };
+
+  function renderPhotoPickerMarkup({ inputId, title = 'Tirar foto ou escolher da galeria', subtitle = 'Toque para selecionar imagem', icon = 'camera', required = false }) {
+    const svg = icon === 'doc' ? UI_ICONS.doc : UI_ICONS.camera;
+    return `
+      <label class="photo-picker-card" for="${escapeHtml(inputId)}" data-picker-wrap="${escapeHtml(inputId)}">
+        <input type="file" id="${escapeHtml(inputId)}" accept="image/*" class="sr-file-input" ${required ? 'required' : ''} />
+        <span class="photo-picker-icon" data-picker-icon="${escapeHtml(inputId)}">${svg}</span>
+        <span class="photo-picker-copy">
+          <span class="photo-picker-title" data-picker-title="${escapeHtml(inputId)}" data-default-title="${escapeHtml(title)}">${escapeHtml(title)}</span>
+          <span class="photo-picker-sub" data-picker-sub="${escapeHtml(inputId)}" data-default-sub="${escapeHtml(subtitle)}">${escapeHtml(subtitle)}</span>
+        </span>
+      </label>`;
+  }
+
+  function bindPhotoPickerFeedback(root = document) {
+    root.querySelectorAll('.photo-picker-card .sr-file-input').forEach((inp) => {
+      if (inp.dataset.pickerBound) return;
+      inp.dataset.pickerBound = '1';
+      inp.addEventListener('change', () => {
+        const card = inp.closest('.photo-picker-card');
+        const titleEl = card?.querySelector('.photo-picker-title');
+        const subEl = card?.querySelector('.photo-picker-sub');
+        const file = inp.files?.[0];
+        if (!card || !titleEl || !subEl) return;
+        if (file) {
+          card.classList.add('has-file');
+          titleEl.textContent = file.name;
+          const kb = Math.max(1, Math.round(file.size / 1024));
+          subEl.textContent = `${kb > 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`} · Toque para trocar`;
+        } else {
+          card.classList.remove('has-file');
+          if (titleEl.dataset.defaultTitle) titleEl.textContent = titleEl.dataset.defaultTitle;
+          if (subEl.dataset.defaultSub) subEl.textContent = subEl.dataset.defaultSub;
+        }
+      });
+    });
+  }
 
   const RATING_WORD_LABELS = {
     1: 'Fraco · 1★',
@@ -2297,13 +2343,20 @@
           <span>Exige reserva prévia</span>
         </label>
         <div class="form-grid form-grid-2">
-          <div><label class="field-label" for="nr-photo">Foto do Restaurante (opcional)</label><input type="file" id="nr-photo" accept="image/*" class="input" /></div>
-          <div><label class="field-label" for="nr-menu">Foto do Menu (opcional)</label><input type="file" id="nr-menu" accept="image/*" class="input" /></div>
+          <div>
+            <span class="field-label">Foto do Restaurante (opcional)</span>
+            ${renderPhotoPickerMarkup({ inputId: 'nr-photo', title: 'Foto do espaço ou prato', subtitle: 'Câmara ou galeria', icon: 'camera' })}
+          </div>
+          <div>
+            <span class="field-label">Foto do Menu (opcional)</span>
+            ${renderPhotoPickerMarkup({ inputId: 'nr-menu', title: 'Fotografar menu / carta', subtitle: 'Câmara ou galeria', icon: 'doc' })}
+          </div>
         </div>
         <div><label class="field-label" for="nr-desc">Notas (opcional)</label><input id="nr-desc" class="input" placeholder="Ex: Junto à praia, dress code..." /></div>
         <div style="display:flex;justify-content:flex-end;margin-top:4px;"><button type="submit" class="btn btn-primary">+ Criar Restaurante</button></div>
       </form>
     `);
+    bindPhotoPickerFeedback(document.getElementById('f-add-rest'));
 
     document.getElementById('f-add-rest').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -2471,13 +2524,13 @@
           <div class="rest-photo-stage">
             ${v.photoUrl
               ? `<img src="${escapeHtml(v.photoUrl)}" alt="Foto de ${escapeHtml(v.name)}" id="img-rest-photo" />`
-              : `<span style="font-size:2.2rem;">📷</span><span>Adicione uma foto do espaço ou dos pratos</span>`}
+              : `<span class="rest-photo-empty-icon">${UI_ICONS.camera}</span><span>Adicione uma foto do espaço ou dos pratos</span>`}
           </div>
           <div class="rest-photo-bar">
             <strong style="font-size:0.84rem;">Fotografia do Espaço / Prato</strong>
-            <label class="btn btn-sm" style="cursor:pointer;">
-              📷 ${v.photoUrl ? 'Alterar' : 'Adicionar'}
-              <input type="file" id="inp-rest-photo" accept="image/*" style="display:none;" />
+            <label class="btn btn-sm photo-upload-pill-btn">
+              ${UI_ICONS.camera} <span>${v.photoUrl ? 'Substituir' : 'Escolher foto'}</span>
+              <input type="file" id="inp-rest-photo" accept="image/*" class="sr-file-input" />
             </label>
           </div>
         </div>
@@ -2486,13 +2539,13 @@
           <div class="rest-photo-stage">
             ${v.menuPhotoUrl
               ? `<img src="${escapeHtml(v.menuPhotoUrl)}" alt="Menu de ${escapeHtml(v.name)}" id="img-rest-menu" />`
-              : `<span style="font-size:2.2rem;">📄</span><span>Fotografe a carta para consultar quando quiser</span>`}
+              : `<span class="rest-photo-empty-icon">${UI_ICONS.doc}</span><span>Fotografe a carta para consultar quando quiser</span>`}
           </div>
           <div class="rest-photo-bar">
             <strong style="font-size:0.84rem;">Carta / Menu</strong>
-            <label class="btn btn-sm" style="cursor:pointer;">
-              📄 ${v.menuPhotoUrl ? 'Alterar' : 'Adicionar'}
-              <input type="file" id="inp-rest-menu" accept="image/*" style="display:none;" />
+            <label class="btn btn-sm photo-upload-pill-btn">
+              ${UI_ICONS.doc} <span>${v.menuPhotoUrl ? 'Substituir' : 'Fotografar'}</span>
+              <input type="file" id="inp-rest-menu" accept="image/*" class="sr-file-input" />
             </label>
           </div>
         </div>
@@ -4307,12 +4360,16 @@
   });
 
   const CK_PROFILE = [
-    { key: 'fresh', label: 'Frescura', lo: 'Pouco fresco', mid: 'Equilibrado', hi: 'Muito fresco', icon: '🧊' },
-    { key: 'alcohol', label: 'Álcool', lo: 'Suave', mid: 'Médio', hi: 'Forte', icon: '🥃' },
-    { key: 'fruity', label: 'Frutado', lo: 'Pouco frutado', mid: 'Médio', hi: 'Muito frutado', icon: '🍓' },
-    { key: 'sweet', label: 'Açucarado', lo: 'Seco', mid: 'Médio', hi: 'Doce', icon: '🍬' }
+    { key: 'fresh', label: 'Frescura', lo: 'Pouco fresco', mid: 'Equilibrado', hi: 'Muito fresco', icon: UI_ICONS.fresh },
+    { key: 'alcohol', label: 'Álcool', lo: 'Suave', mid: 'Médio', hi: 'Forte', icon: UI_ICONS.alcohol },
+    { key: 'fruity', label: 'Frutado', lo: 'Pouco frutado', mid: 'Médio', hi: 'Muito frutado', icon: UI_ICONS.fruity },
+    { key: 'sweet', label: 'Açucarado', lo: 'Seco', mid: 'Médio', hi: 'Doce', icon: UI_ICONS.sweet }
   ];
   const ckFilters = {};
+  let ckViewMode = 'cards';
+  try {
+    if (localStorage.getItem('pyp_ck_view_mode') === 'compact') ckViewMode = 'compact';
+  } catch {}
 
   function describeFlavorAxis(axis, val) {
     const v = Number(val || 0);
@@ -4331,7 +4388,7 @@
             return `
               <div class="ck-flavor-item">
                 <div class="ck-flavor-top">
-                  <span class="ck-flavor-label">${it.icon} ${escapeHtml(it.label)}</span>
+                  <span class="ck-flavor-label">${it.icon} <span>${escapeHtml(it.label)}</span></span>
                   <span class="ck-flavor-word">${escapeHtml(it.word)}</span>
                 </div>
                 <div class="ck-flavor-track">
@@ -4390,6 +4447,14 @@
 
   const expandedCocktailIds = new Set();
 
+  function syncCkViewSwitcherUi() {
+    document.querySelectorAll('[data-ck-view]').forEach((btn) => {
+      const isAct = btn.getAttribute('data-ck-view') === ckViewMode;
+      btn.classList.toggle('is-active', isAct);
+      btn.setAttribute('aria-pressed', isAct ? 'true' : 'false');
+    });
+  }
+
   function syncCkFilterUi() {
     const activeEntries = CK_PROFILE.filter((p) => Boolean(ckFilters[p.key]));
     const countBadge = document.getElementById('ck-filter-count');
@@ -4430,7 +4495,7 @@
         activeEntries.forEach((p) => {
           const tier = ckFilters[p.key];
           const tierLabel = tier === 'low' ? p.lo : tier === 'mid' ? p.mid : p.hi;
-          chips.push(`<button type="button" class="ck-active-chip" data-clear-ck-axis="${escapeHtml(p.key)}">${p.icon} ${escapeHtml(tierLabel)} <span aria-hidden="true">✕</span></button>`);
+          chips.push(`<button type="button" class="ck-active-chip" data-clear-ck-axis="${escapeHtml(p.key)}">${p.icon} <span>${escapeHtml(tierLabel)}</span> <span aria-hidden="true">✕</span></button>`);
         });
         if (chips.length > 1) {
           chips.push(`<button type="button" class="ck-active-chip is-reset" data-clear-ck-all="1">Limpar tudo</button>`);
@@ -4456,6 +4521,19 @@
     const panel = document.getElementById('ck-filter-panel');
     const axesWrap = document.getElementById('ck-filter-axes');
     const strip = document.getElementById('ck-active-filters-strip');
+    const viewSwitcher = document.getElementById('ck-view-switcher');
+
+    syncCkViewSwitcherUi();
+    viewSwitcher?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-ck-view]');
+      if (!btn) return;
+      const mode = btn.getAttribute('data-ck-view') === 'compact' ? 'compact' : 'cards';
+      if (mode === ckViewMode) return;
+      ckViewMode = mode;
+      try { localStorage.setItem('pyp_ck_view_mode', ckViewMode); } catch {}
+      syncCkViewSwitcherUi();
+      renderCocktails();
+    });
 
     if (axesWrap) {
       axesWrap.innerHTML = CK_PROFILE.map((p) => `
@@ -4535,6 +4613,8 @@
     const tabSub = document.getElementById('rev-tab-ck-sub');
     if (!grid) return;
 
+    syncCkViewSwitcherUi();
+
     const list = (Array.isArray(state.cocktails) ? state.cocktails : []).filter((c) => Array.isArray(c.reviews) && c.reviews.length > 0);
     const totalReviews = list.reduce((s, c) => s + c.reviews.length, 0);
     if (badge) {
@@ -4574,7 +4654,10 @@
         });
       });
 
+    grid.classList.toggle('is-compact-view', ckViewMode === 'compact');
+
     if (!sorted.length) {
+      grid.classList.remove('is-compact-view');
       if (list.length > 0 && hasSearchOrFilter) {
         grid.innerHTML = `
           <div class="reviews-empty-state">
@@ -4600,6 +4683,41 @@
     }
 
     const medalClasses = ['is-gold', 'is-silver', 'is-bronze'];
+
+    if (ckViewMode === 'compact') {
+      grid.innerHTML = `
+        <div class="ck-compact-list surface">
+          ${sorted
+            .map((c) => {
+              const globalIdx = rankMap.get(c.id) ?? 0;
+              const avg = getCocktailAvg(c).toFixed(1);
+              const isGold = globalIdx === 0;
+              const rankCls = medalClasses[globalIdx] || '';
+              return `
+                <button type="button" class="ck-compact-row ${isGold ? 'is-gold-row' : ''}" data-open-compact-ck="${escapeHtml(c.id)}">
+                  <span class="ck-compact-rank ${rankCls}">#${globalIdx + 1}</span>
+                  <span class="ck-compact-name">${escapeHtml(c.name)}</span>
+                  <span class="ck-compact-score ${isGold ? 'is-top' : ''}">${avg} <small>★</small></span>
+                </button>`;
+            })
+            .join('')}
+        </div>`;
+
+      grid.querySelectorAll('[data-open-compact-ck]').forEach((row) =>
+        row.addEventListener('click', () => {
+          const ckId = row.getAttribute('data-open-compact-ck');
+          ckViewMode = 'cards';
+          try { localStorage.setItem('pyp_ck_view_mode', 'cards'); } catch {}
+          expandedCocktailIds.add(ckId);
+          syncCkViewSwitcherUi();
+          renderCocktails();
+          const cardEl = grid.querySelector(`[data-ck-card="${CSS.escape(ckId)}"]`);
+          cardEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        })
+      );
+      return;
+    }
+
     const coupeWatermarkSvg = `<svg class="ck-portrait-watermark" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14h36L32 34 14 14Z"/><path d="M32 34v18M22 52h20M40 10l6-4"/></svg>`;
 
     grid.innerHTML = sorted
@@ -4802,7 +4920,7 @@
         if (!ck || !rev) return;
         const isLast = ck.reviews.length === 1;
         const previewHtml = `
-          ${ck.photoUrl ? `<img src="${escapeHtml(ck.photoUrl)}" alt="" style="width:46px;height:62px;object-fit:cover;border-radius:10px;flex-shrink:0;" />` : `<span style="font-size:1.8rem;">🍹</span>`}
+          ${ck.photoUrl ? `<img src="${escapeHtml(ck.photoUrl)}" alt="" style="width:46px;height:62px;object-fit:cover;border-radius:10px;flex-shrink:0;" />` : `<span style="display:inline-flex;width:36px;height:36px;align-items:center;justify-content:center;border-radius:10px;background:var(--cenote-100);color:var(--cenote-700);">${UI_ICONS.alcohol}</span>`}
           <div>
             <div style="font-weight:700;font-size:0.95rem;">${escapeHtml(ck.name)}</div>
             <div style="font-size:0.8rem;color:var(--ink-secondary);">Review de <strong>${escapeHtml(rev.by)}</strong>${rev.bar ? ` · ${escapeHtml(rev.bar)}` : ''} (★ ${getReviewAvg(rev).toFixed(1)})</div>
@@ -4906,7 +5024,7 @@
               return `
                 <div class="ck-slider-card">
                   <div class="ck-slider-top">
-                    <label class="ck-slider-title" for="ck-p-${p.key}">${p.icon} ${escapeHtml(p.label)}</label>
+                    <label class="ck-slider-title" for="ck-p-${p.key}">${p.icon} <span>${escapeHtml(p.label)}</span></label>
                     <span class="ck-slider-badge"><span id="ck-p-${p.key}-word">${escapeHtml(describeFlavorAxis(p, initVal))}</span> · <strong id="ck-p-${p.key}-out">${initVal}</strong>/5</span>
                   </div>
                   <input type="range" class="ck-range-input" id="ck-p-${p.key}" min="0" max="5" step="1" value="${initVal}" />
@@ -4925,8 +5043,13 @@
         </div>
 
         <div>
-          <label class="field-label" for="ck-photo">${existing?.photoUrl ? 'Substituir Foto Vertical (opcional)' : 'Fotografia do Cocktail (opcional)'}</label>
-          <input type="file" id="ck-photo" accept="image/*" class="input" />
+          <span class="field-label">${existing?.photoUrl ? 'Substituir Foto Vertical (opcional)' : 'Fotografia do Cocktail (opcional)'}</span>
+          ${renderPhotoPickerMarkup({
+            inputId: 'ck-photo',
+            title: existing?.photoUrl ? 'Escolher nova fotografia' : 'Tirar foto vertical ou escolher da galeria',
+            subtitle: 'Formato retrato (telemóvel) fica perfeito no cartão',
+            icon: 'camera'
+          })}
         </div>
 
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
@@ -4934,6 +5057,7 @@
         </div>
       </form>
     `);
+    bindPhotoPickerFeedback(document.getElementById('form-add-cocktail'));
 
     document.getElementById('ck-rating-stars')?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-ck-star]');
@@ -5691,6 +5815,8 @@
     document.getElementById('btn-sb-pull').addEventListener('click', () => { pullStateFromSupabase(); loadPhotosGallery(); showToast('Sincronizado!'); });
   }
 
+  bindPhotoPickerFeedback(document.getElementById('photos-upload-panel') || document);
+
   document.getElementById('form-upload-photo')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!sbClient || !sbUser) return;
@@ -5716,6 +5842,7 @@
     if (dbErr) { showToast(`Erro na base de dados: ${dbErr.message}`); return; }
 
     fileInput.value = '';
+    fileInput.dispatchEvent(new Event('change'));
     document.getElementById('photo-caption-input').value = '';
     showToast('Fotografia publicada!');
     loadPhotosGallery();

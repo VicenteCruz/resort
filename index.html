@@ -254,12 +254,22 @@
       </div>
 
       <div id="reviews-panel-cocktails" style="display: none;">
-        <div class="section-header reviews-hero-header">
+        <div class="section-header reviews-hero-header ck-hero-header">
           <div>
             <h2 class="section-title" id="cocktails-heading">Ranking &amp; Prova de Cocktails</h2>
             <p class="section-subtitle">Os vossos favoritos ordenados pela média, com perfil de sabor e notas de cada um</p>
           </div>
-          <span class="tag tag-cenote" id="cocktails-count-badge">0 avaliados</span>
+          <div class="ck-header-right">
+            <span class="tag tag-cenote" id="cocktails-count-badge">0 avaliados</span>
+            <div class="ck-view-switcher" id="ck-view-switcher" role="group" aria-label="Modo de visualização">
+              <button type="button" class="ck-view-btn is-active" data-ck-view="cards" title="Vista completa (cartões)" aria-label="Vista completa">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="8" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/></svg>
+              </button>
+              <button type="button" class="ck-view-btn" data-ck-view="compact" title="Vista compacta (só nome e avaliação)" aria-label="Vista compacta">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1.3" fill="currentColor"/><circle cx="4" cy="12" r="1.3" fill="currentColor"/><circle cx="4" cy="18" r="1.3" fill="currentColor"/></svg>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="ck-toolbar">
@@ -399,8 +409,17 @@
         <form id="form-upload-photo" class="form-grid">
           <div class="form-grid form-grid-2">
             <div>
-              <label class="field-label" for="photo-file-input">Escolher Foto / Câmara</label>
-              <input type="file" id="photo-file-input" accept="image/*" class="input" required />
+              <span class="field-label">Fotografia</span>
+              <label class="photo-picker-card" for="photo-file-input" id="photo-file-picker-label">
+                <input type="file" id="photo-file-input" accept="image/*" class="sr-file-input" required />
+                <span class="photo-picker-icon" id="photo-file-picker-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                </span>
+                <span class="photo-picker-copy">
+                  <span class="photo-picker-title" id="photo-file-picker-title">Tirar foto ou escolher da galeria</span>
+                  <span class="photo-picker-sub" id="photo-file-picker-sub">JPG, PNG ou HEIC</span>
+                </span>
+              </label>
             </div>
             <div>
               <label class="field-label" for="photo-day-select">Dia da Viagem</label>
