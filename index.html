@@ -262,17 +262,31 @@
           <span class="tag tag-cenote" id="cocktails-count-badge">0 avaliados</span>
         </div>
 
-        <input type="search" id="ck-search" class="input" placeholder="🔍 Pesquisar cocktail por nome..." autocomplete="off" style="margin-bottom:14px;width:100%;" />
-        <details id="ck-filter-panel" style="margin-bottom:14px;">
-          <summary style="cursor:pointer;font-weight:700;">🎛️ O que me apetece agora?</summary>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:10px;">
-            <label class="field-label">🧊 Frescura<select class="select" data-ck-filter="fresh"><option value="">Qualquer</option><option value="low">Pouco fresco</option><option value="mid">Médio</option><option value="high">Muito fresco</option></select></label>
-            <label class="field-label">🥃 Álcool<select class="select" data-ck-filter="alcohol"><option value="">Qualquer</option><option value="low">Suave</option><option value="mid">Médio</option><option value="high">Forte</option></select></label>
-            <label class="field-label">🍓 Frutado<select class="select" data-ck-filter="fruity"><option value="">Qualquer</option><option value="low">Pouco frutado</option><option value="mid">Médio</option><option value="high">Muito frutado</option></select></label>
-            <label class="field-label">🍬 Açucarado<select class="select" data-ck-filter="sweet"><option value="">Qualquer</option><option value="low">Seco</option><option value="mid">Médio</option><option value="high">Doce</option></select></label>
+        <div class="ck-toolbar">
+          <div class="ck-search-wrap">
+            <svg class="ck-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="ck-search" class="input ck-search-input" placeholder="Pesquisar bebida…" autocomplete="off" />
+            <button type="button" class="ck-search-clear" id="ck-search-clear" aria-label="Limpar pesquisa" hidden>✕</button>
           </div>
-          <button type="button" class="btn" id="ck-filter-clear" style="margin-top:10px;">Limpar filtros</button>
-        </details>
+          <button type="button" class="btn ck-filter-toggle-btn" id="ck-filter-toggle" aria-expanded="false" aria-controls="ck-filter-panel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/></svg>
+            <span>Sabores</span>
+            <span class="ck-filter-count-badge" id="ck-filter-count" hidden>0</span>
+          </button>
+        </div>
+
+        <div class="ck-active-filters-strip" id="ck-active-filters-strip" hidden></div>
+
+        <div class="ck-filter-drawer surface" id="ck-filter-panel" hidden>
+          <div class="ck-filter-drawer-head">
+            <div>
+              <h3 class="ck-filter-drawer-title">O que te apetece agora?</h3>
+              <p class="ck-filter-drawer-sub">Filtra pelo perfil de sabor — toca novamente numa opção para desmarcar</p>
+            </div>
+            <button type="button" class="btn btn-sm" id="ck-filter-clear">Limpar</button>
+          </div>
+          <div class="ck-filter-axes" id="ck-filter-axes"></div>
+        </div>
 
         <div class="reviews-cards-grid ck-cards-grid" id="cocktails-list-grid"></div>
 

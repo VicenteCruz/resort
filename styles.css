@@ -1735,7 +1735,222 @@ html.is-public .toast { bottom: 110px; font-size: 1rem; }
   transform: translateX(3px);
 }
 
-/* ---------- Cocktail Tasting Card with Reviews (.ck-card) ---------- */
+/* ---------- Cocktail Search, Flavor Filter Drawer & Portrait Card ---------- */
+.ck-toolbar {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ck-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.ck-search-icon {
+  position: absolute;
+  left: 13px;
+  width: 17px;
+  height: 17px;
+  color: var(--ink-muted);
+  pointer-events: none;
+}
+.ck-search-input {
+  padding-left: 36px;
+  padding-right: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  border-color: var(--line-soft);
+  box-shadow: var(--shadow-sm);
+  min-height: 44px;
+}
+.ck-search-wrap:has(.ck-search-clear:not([hidden])) .ck-search-input {
+  padding-right: 36px;
+}
+.ck-search-input:focus {
+  outline: none;
+  border-color: var(--cenote-600);
+  box-shadow: 0 0 0 3px hsla(184, 65%, 24%, 0.12);
+}
+.ck-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.ck-search-clear {
+  position: absolute;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-subtle);
+  color: var(--ink-secondary);
+  font-size: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ck-search-clear[hidden] {
+  display: none;
+}
+.ck-filter-toggle-btn {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 15px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  border: 1px solid var(--line-soft);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink-primary);
+  font-weight: 700;
+  gap: 7px;
+}
+.ck-filter-toggle-btn svg {
+  width: 16px;
+  height: 16px;
+  color: var(--cenote-700);
+}
+.ck-filter-toggle-btn.is-open,
+.ck-filter-toggle-btn.has-active-filters {
+  background: var(--cenote-700);
+  border-color: var(--cenote-700);
+  color: var(--ink-on-dark);
+}
+.ck-filter-toggle-btn.is-open svg,
+.ck-filter-toggle-btn.has-active-filters svg {
+  color: var(--ink-on-dark);
+}
+.ck-filter-count-badge {
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--ink-on-dark);
+  color: var(--cenote-700);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ck-filter-count-badge[hidden] {
+  display: none;
+}
+
+.ck-active-filters-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.ck-active-filters-strip[hidden] {
+  display: none;
+}
+.ck-active-chip {
+  appearance: none;
+  border: 1px solid var(--cenote-200);
+  background: var(--cenote-100);
+  color: var(--cenote-700);
+  border-radius: var(--radius-pill);
+  padding: 5px 11px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ck-active-chip.is-reset {
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--ink-secondary);
+}
+
+.ck-filter-drawer {
+  margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 20px;
+  animation: fadeSlide 180ms var(--ease-out);
+}
+.ck-filter-drawer[hidden] {
+  display: none;
+}
+.ck-filter-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.ck-filter-drawer-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.ck-filter-drawer-sub {
+  font-size: 0.78rem;
+  color: var(--ink-secondary);
+  margin-top: 2px;
+}
+.ck-filter-axes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 11px;
+}
+@media (min-width: 720px) {
+  .ck-filter-axes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+  }
+}
+.ck-filter-axis {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ck-filter-axis-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.ck-filter-seg {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+}
+.ck-filter-seg-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  border-radius: 9px;
+  padding: 7px 6px;
+  min-height: 36px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  line-height: 1.15;
+  text-align: center;
+  transition: all 140ms var(--ease-out);
+}
+.ck-filter-seg-btn:hover {
+  color: var(--ink-primary);
+}
+.ck-filter-seg-btn.is-active {
+  background: var(--cenote-700);
+  color: var(--ink-on-dark);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Cocktail Card with Vertical Portrait Frame */
 .ck-card {
   background: var(--bg-surface);
   border: 1px solid var(--line-soft);
@@ -1750,125 +1965,413 @@ html.is-public .toast { bottom: 110px; font-size: 1rem; }
   box-shadow: var(--shadow-md);
   border-color: var(--line-strong);
 }
-
-.ck-card-photo-stage {
-  position: relative;
-  height: 204px;
-  overflow: hidden;
-  background: var(--bg-cenote-deep);
+.ck-card.is-gold-card {
+  border-color: hsla(37, 78%, 42%, 0.28);
 }
-.ck-card-photo-stage img {
+
+.ck-card-showcase {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  padding: 15px 16px 12px;
+  background: linear-gradient(155deg, hsla(38, 52%, 95%, 0.72) 0%, transparent 72%);
+}
+.ck-card.is-gold-card .ck-card-showcase {
+  background: linear-gradient(155deg, hsla(40, 82%, 92%, 0.8) 0%, transparent 75%);
+}
+
+/* Vertical Portrait Photo (3:4 ratio — built for vertical smartphone photos!) */
+.ck-portrait-frame {
+  position: relative;
+  width: 112px;
+  aspect-ratio: 3 / 4;
+  border-radius: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg-cenote-deep);
+  box-shadow: 0 6px 16px -6px hsla(192, 34%, 13%, 0.22);
+  border: 1px solid var(--line-soft);
+}
+@media (min-width: 520px) {
+  .ck-portrait-frame {
+    width: 124px;
+  }
+}
+.ck-portrait-frame img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   display: block;
   cursor: zoom-in;
-  transition: transform 360ms var(--ease-out);
+  transition: transform 320ms var(--ease-out);
 }
-.ck-card:hover .ck-card-photo-stage img {
+.ck-card:hover .ck-portrait-frame img {
   transform: scale(1.03);
 }
-.ck-card-photo-stage::after {
-  content: '';
+.ck-portrait-cam-btn {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(10, 24, 28, 0.42) 0%, transparent 45%, rgba(10, 24, 28, 0.35) 100%);
-  pointer-events: none;
-}
-
-.ck-card-banner {
-  position: relative;
-  padding: 13px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  overflow: hidden;
-  background: linear-gradient(125deg, hsl(38, 52%, 93%) 0%, hsl(180, 34%, 91%) 100%);
-  border-bottom: 1px solid var(--line-soft);
-}
-.ck-card.is-gold-card .ck-card-banner {
-  background: linear-gradient(125deg, hsl(40, 74%, 92%) 0%, hsl(26, 62%, 92%) 100%);
-}
-.ck-banner-watermark {
-  position: absolute;
-  right: 68px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 56px;
-  height: 56px;
-  color: var(--cenote-700);
-  opacity: 0.1;
-  pointer-events: none;
-}
-.ck-photo-overlay-bar {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  right: 12px;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.ck-photo-upload-pill {
-  position: relative;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 11px;
-  border-radius: var(--radius-pill);
-  font-size: 0.73rem;
-  font-weight: 700;
-  background: hsla(39, 46%, 99%, 0.9);
-  color: var(--ink-primary);
-  border: 1px solid var(--line-soft);
-  cursor: pointer;
+  right: 6px;
+  bottom: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: hsla(192, 34%, 12%, 0.68);
+  color: #fff;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  transition: background 150ms var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 150ms var(--ease-out), transform 150ms var(--ease-out);
 }
-.ck-photo-upload-pill:hover {
-  background: var(--bg-elevated);
+.ck-portrait-cam-btn:hover {
+  background: var(--cenote-700);
+  transform: scale(1.06);
+}
+.ck-portrait-cam-btn svg {
+  width: 13px;
+  height: 13px;
 }
 
-.ck-card-body {
-  padding: 18px 18px 16px;
+/* Compact Vertical Glass Placeholder when no photo yet */
+.ck-portrait-placeholder {
+  position: relative;
+  width: 78px;
+  min-height: 104px;
+  border-radius: 15px;
+  background: linear-gradient(145deg, hsl(38, 52%, 93%) 0%, hsl(180, 34%, 90%) 100%);
+  border: 1px dashed hsla(184, 65%, 24%, 0.25);
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 6px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 150ms var(--ease-out), transform 150ms var(--ease-out);
 }
-.ck-identity-row {
+.ck-card.is-gold-card .ck-portrait-placeholder {
+  background: linear-gradient(145deg, hsl(40, 78%, 92%) 0%, hsl(28, 64%, 90%) 100%);
+  border-color: hsla(34, 76%, 33%, 0.28);
+}
+.ck-portrait-placeholder:hover {
+  border-color: var(--cenote-700);
+  transform: translateY(-1px);
+}
+.ck-portrait-watermark {
+  position: absolute;
+  top: 12px;
+  width: 40px;
+  height: 40px;
+  color: var(--cenote-700);
+  opacity: 0.24;
+  pointer-events: none;
+}
+.ck-card.is-gold-card .ck-portrait-watermark {
+  color: var(--amber-700);
+}
+.ck-portrait-add-pill {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px;
+  border-radius: var(--radius-pill);
+  background: hsla(39, 46%, 99%, 0.92);
+  color: var(--ink-primary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+.ck-portrait-add-pill svg {
+  width: 11px;
+  height: 11px;
+}
+
+.ck-showcase-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ck-showcase-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+}
+.ck-showcase-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 .ck-card-title {
   font-family: var(--font-serif);
-  font-size: 1.32rem;
+  font-size: 1.28rem;
   font-weight: 600;
   line-height: 1.15;
   color: var(--ink-primary);
+  overflow-wrap: anywhere;
 }
 .ck-bars-row {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  margin-top: 6px;
 }
 .ck-bar-pin {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   font-weight: 600;
   color: var(--cenote-700);
   background: var(--cenote-100);
   padding: 2px 9px;
   border-radius: var(--radius-pill);
+  max-width: 100%;
+}
+
+/* Cocktail Flavor Profile Grid (Descriptive words + spectrum bar) */
+.ck-flavor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 12px;
+  padding: 11px 13px;
+  border-radius: 14px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--line-soft);
+}
+.ck-flavor-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.ck-flavor-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+}
+.ck-flavor-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
+.ck-flavor-word {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--cenote-700);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ck-flavor-grid.is-gold .ck-flavor-word {
+  color: var(--amber-700);
+}
+.ck-flavor-track {
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: hsla(192, 24%, 18%, 0.09);
+  overflow: hidden;
+}
+.ck-flavor-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--cenote-600);
+  transition: width 260ms var(--ease-out);
+}
+.ck-flavor-grid.is-gold .ck-flavor-fill {
+  background: hsl(37, 78%, 41%);
+}
+
+.ck-card-body {
+  padding: 4px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Cocktail Review Modal — Rating Box, Spectrum Sliders & Suggestions */
+.ck-modal-rating-box {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--cenote-100);
+  border: 1px solid var(--cenote-200);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ck-modal-rating-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ck-modal-rating-kicker {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cenote-700);
+}
+.ck-modal-rating-word {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+.ck-modal-rating-score {
+  font-family: var(--font-serif);
+  font-size: 1.55rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--cenote-700);
+}
+.ck-modal-rating-score small {
+  font-size: 0.88rem;
+  margin-left: 2px;
+  font-family: var(--font-sans);
+  font-weight: 700;
+}
+.ck-modal-stars {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  background: var(--bg-surface);
+  padding: 5px 8px;
+  border-radius: 12px;
+}
+.ck-big-star {
+  flex: 1;
+  min-height: 40px;
+  font-size: 1.6rem;
+}
+
+.ck-modal-profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ck-modal-profile-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ck-modal-profile-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+.ck-modal-profile-hint {
+  font-size: 0.73rem;
+  color: var(--ink-muted);
+}
+.ck-modal-sliders {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+@media (min-width: 540px) {
+  .ck-modal-sliders {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.ck-slider-card {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ck-slider-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.ck-slider-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+.ck-slider-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--cenote-700);
+  background: var(--bg-surface);
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-soft);
+}
+.ck-range-input {
+  width: 100%;
+  accent-color: var(--cenote-700);
+  height: 22px;
+  margin: 0;
+  cursor: pointer;
+}
+.ck-slider-poles {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.69rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.ck-suggest-box {
+  margin-top: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+}
+.ck-suggest-box[hidden] {
+  display: none;
+}
+.ck-suggest-kicker {
+  padding: 6px 11px;
+  font-size: 0.69rem;
+  color: var(--ink-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--bg-canvas);
+}
+.ck-suggest-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  padding: 9px 11px;
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+  background: transparent;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+.ck-suggest-item:hover {
+  background: var(--cenote-100);
+}
+.ck-suggest-meta {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--cenote-700);
 }
 
 /* Tasting Notes Feed inside Cocktail & Restaurant Detail */
@@ -1975,7 +2478,7 @@ html.is-public .toast { bottom: 110px; font-size: 1rem; }
 }
 
 .ck-card-footer {
-  padding: 11px 18px;
+  padding: 11px 16px;
   border-top: 1px solid var(--line-soft);
   background: hsla(37, 36%, 96%, 0.45);
   display: flex;
@@ -2017,11 +2520,8 @@ html.is-public .toast { bottom: 110px; font-size: 1rem; }
   .ck-desktop-authors {
     display: none;
   }
-  .ck-card-photo-stage {
-    height: 150px;
-  }
   .ck-card-body {
-    padding: 14px 15px 12px;
+    padding: 4px 14px 12px;
     gap: 10px;
   }
   .ck-card-title {
@@ -2606,16 +3106,31 @@ html.is-public .toast { bottom: 110px; font-size: 1rem; }
   .rest-card-body {
     padding: 15px 15px 14px;
   }
+  .ck-card-showcase {
+    padding: 13px 13px 10px;
+    gap: 12px;
+  }
+  .ck-portrait-frame {
+    width: 108px;
+  }
+  .ck-portrait-placeholder {
+    width: 72px;
+    min-height: 96px;
+  }
   .ck-card-body {
-    padding: 13px 15px 11px;
+    padding: 2px 13px 11px;
     gap: 9px;
   }
   .rest-card-footer,
   .ck-card-footer {
-    padding: 9px 14px;
+    padding: 9px 13px;
   }
-  .ck-card-photo-stage {
-    height: 144px;
+  .ck-filter-drawer {
+    padding: 14px;
+  }
+  .ck-filter-seg-btn {
+    font-size: 0.72rem;
+    padding: 7px 4px;
   }
   .tasting-note {
     padding: 11px 12px;

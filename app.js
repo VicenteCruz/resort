@@ -4307,12 +4307,41 @@
   });
 
   const CK_PROFILE = [
-    { key: 'fresh', label: 'Frescura', lo: 'Pouco fresco', hi: 'Muito fresco', icon: '🧊' },
-    { key: 'alcohol', label: 'Álcool', lo: 'Suave', hi: 'Forte', icon: '🥃' },
-    { key: 'fruity', label: 'Frutado', lo: 'Pouco frutado', hi: 'Muito frutado', icon: '🍓' },
-    { key: 'sweet', label: 'Açucarado', lo: 'Seco', hi: 'Doce', icon: '🍬' }
+    { key: 'fresh', label: 'Frescura', lo: 'Pouco fresco', mid: 'Equilibrado', hi: 'Muito fresco', icon: '🧊' },
+    { key: 'alcohol', label: 'Álcool', lo: 'Suave', mid: 'Médio', hi: 'Forte', icon: '🥃' },
+    { key: 'fruity', label: 'Frutado', lo: 'Pouco frutado', mid: 'Médio', hi: 'Muito frutado', icon: '🍓' },
+    { key: 'sweet', label: 'Açucarado', lo: 'Seco', mid: 'Médio', hi: 'Doce', icon: '🍬' }
   ];
   const ckFilters = {};
+
+  function describeFlavorAxis(axis, val) {
+    const v = Number(val || 0);
+    if (v <= 1.8) return axis.lo;
+    if (v >= 3.3) return axis.hi;
+    return axis.mid;
+  }
+
+  function renderCocktailFlavorMeters(items, isGold = false) {
+    return `
+      <div class="ck-flavor-grid ${isGold ? 'is-gold' : ''}">
+        ${items
+          .map((it) => {
+            const val = Math.max(0, Math.min(5, Number(it.value || 0)));
+            const pct = Math.round((val / 5) * 100);
+            return `
+              <div class="ck-flavor-item">
+                <div class="ck-flavor-top">
+                  <span class="ck-flavor-label">${it.icon} ${escapeHtml(it.label)}</span>
+                  <span class="ck-flavor-word">${escapeHtml(it.word)}</span>
+                </div>
+                <div class="ck-flavor-track">
+                  <div class="ck-flavor-fill" style="width: ${pct}%;"></div>
+                </div>
+              </div>`;
+          })
+          .join('')}
+      </div>`;
+  }
 
   function getReviewAvg(r) {
     if (r?.profile) return Number(r.rating || 0);
@@ -4329,33 +4358,174 @@
   }
 
   function getCocktailAspectAverages(c) {
-    const revs = (Array.isArray(c.reviews) ? c.reviews : []).filter((r) => r.profile);
-    if (!revs.length) return null;
-    return CK_PROFILE.map((p) => ({
-      key: p.key,
-      label: p.label,
-      value: revs.reduce((t, r) => t + Number(r.profile[p.key] || 0), 0) / revs.length
-    }));
+    const revs = Array.isArray(c.reviews) ? c.reviews : [];
+    const profileRevs = revs.filter((r) => r.profile);
+    if (profileRevs.length) {
+      return CK_PROFILE.map((p) => {
+        const value = profileRevs.reduce((t, r) => t + Number(r.profile[p.key] ?? 0), 0) / profileRevs.length;
+        return {
+          key: p.key,
+          label: p.label,
+          icon: p.icon,
+          value,
+          word: describeFlavorAxis(p, value)
+        };
+      });
+    }
+    const legacyRevs = revs.filter((r) => r.aspects);
+    if (legacyRevs.length) {
+      return [
+        { key: 'flavor', label: 'Sabor', value: legacyRevs.reduce((t, r) => t + Number(r.aspects.flavor || 4), 0) / legacyRevs.length },
+        { key: 'fresh', label: 'Frescura', value: legacyRevs.reduce((t, r) => t + Number(r.aspects.fresh || 4), 0) / legacyRevs.length },
+        { key: 'strength', label: 'Álcool', value: legacyRevs.reduce((t, r) => t + Number(r.aspects.strength || 4), 0) / legacyRevs.length },
+        { key: 'look', label: 'Visual', value: legacyRevs.reduce((t, r) => t + Number(r.aspects.look || 4), 0) / legacyRevs.length }
+      ];
+    }
+    return null;
   }
 
   function ckNorm(s) {
     return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   }
-  document.getElementById('ck-search')?.addEventListener('input', () => renderCocktails());
+
   const expandedCocktailIds = new Set();
+
+  function syncCkFilterUi() {
+    const activeEntries = CK_PROFILE.filter((p) => Boolean(ckFilters[p.key]));
+    const countBadge = document.getElementById('ck-filter-count');
+    const toggleBtn = document.getElementById('ck-filter-toggle');
+    const strip = document.getElementById('ck-active-filters-strip');
+    const searchInp = document.getElementById('ck-search');
+    const searchClear = document.getElementById('ck-search-clear');
+
+    if (searchClear && searchInp) {
+      searchClear.hidden = !searchInp.value.trim();
+    }
+
+    if (countBadge) {
+      countBadge.textContent = String(activeEntries.length);
+      countBadge.hidden = activeEntries.length === 0;
+    }
+    if (toggleBtn) {
+      toggleBtn.classList.toggle('has-active-filters', activeEntries.length > 0);
+    }
+
+    document.querySelectorAll('[data-ck-fbtn]').forEach((btn) => {
+      const [key, tier] = btn.getAttribute('data-ck-fbtn').split(':');
+      const isSelected = ckFilters[key] === tier;
+      btn.classList.toggle('is-active', isSelected);
+      btn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+    });
+
+    if (strip) {
+      const qVal = (searchInp?.value || '').trim();
+      if (!activeEntries.length && !qVal) {
+        strip.hidden = true;
+        strip.innerHTML = '';
+      } else {
+        const chips = [];
+        if (qVal) {
+          chips.push(`<button type="button" class="ck-active-chip" data-clear-ck-q="1">“${escapeHtml(qVal)}” <span aria-hidden="true">✕</span></button>`);
+        }
+        activeEntries.forEach((p) => {
+          const tier = ckFilters[p.key];
+          const tierLabel = tier === 'low' ? p.lo : tier === 'mid' ? p.mid : p.hi;
+          chips.push(`<button type="button" class="ck-active-chip" data-clear-ck-axis="${escapeHtml(p.key)}">${p.icon} ${escapeHtml(tierLabel)} <span aria-hidden="true">✕</span></button>`);
+        });
+        if (chips.length > 1) {
+          chips.push(`<button type="button" class="ck-active-chip is-reset" data-clear-ck-all="1">Limpar tudo</button>`);
+        }
+        strip.innerHTML = chips.join('');
+        strip.hidden = false;
+      }
+    }
+  }
+
+  function resetAllCkFilters() {
+    Object.keys(ckFilters).forEach((k) => delete ckFilters[k]);
+    const searchInp = document.getElementById('ck-search');
+    if (searchInp) searchInp.value = '';
+    syncCkFilterUi();
+    renderCocktails();
+  }
+
   (function initCkFilters() {
+    const searchInp = document.getElementById('ck-search');
+    const searchClear = document.getElementById('ck-search-clear');
+    const toggleBtn = document.getElementById('ck-filter-toggle');
     const panel = document.getElementById('ck-filter-panel');
-    if (!panel) return;
-    panel.querySelectorAll('select[data-ck-filter]').forEach((sel) => {
-      sel.addEventListener('change', () => {
-        ckFilters[sel.getAttribute('data-ck-filter')] = sel.value;
+    const axesWrap = document.getElementById('ck-filter-axes');
+    const strip = document.getElementById('ck-active-filters-strip');
+
+    if (axesWrap) {
+      axesWrap.innerHTML = CK_PROFILE.map((p) => `
+        <div class="ck-filter-axis">
+          <div class="ck-filter-axis-label">${p.icon} <span>${escapeHtml(p.label)}</span></div>
+          <div class="ck-filter-seg" role="group" aria-label="${escapeHtml(p.label)}">
+            <button type="button" class="ck-filter-seg-btn" data-ck-fbtn="${p.key}:low" aria-pressed="false">${escapeHtml(p.lo)}</button>
+            <button type="button" class="ck-filter-seg-btn" data-ck-fbtn="${p.key}:mid" aria-pressed="false">${escapeHtml(p.mid)}</button>
+            <button type="button" class="ck-filter-seg-btn" data-ck-fbtn="${p.key}:high" aria-pressed="false">${escapeHtml(p.hi)}</button>
+          </div>
+        </div>
+      `).join('');
+
+      axesWrap.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-ck-fbtn]');
+        if (!btn) return;
+        const [key, tier] = btn.getAttribute('data-ck-fbtn').split(':');
+        if (ckFilters[key] === tier) delete ckFilters[key];
+        else ckFilters[key] = tier;
+        syncCkFilterUi();
         renderCocktails();
       });
-    });
-    document.getElementById('ck-filter-clear')?.addEventListener('click', () => {
-      panel.querySelectorAll('select[data-ck-filter]').forEach((sel) => { sel.value = ''; });
-      Object.keys(ckFilters).forEach((k) => delete ckFilters[k]);
+    }
+
+    searchInp?.addEventListener('input', () => {
+      syncCkFilterUi();
       renderCocktails();
+    });
+
+    searchClear?.addEventListener('click', () => {
+      if (searchInp) {
+        searchInp.value = '';
+        searchInp.focus();
+      }
+      syncCkFilterUi();
+      renderCocktails();
+    });
+
+    toggleBtn?.addEventListener('click', () => {
+      if (!panel) return;
+      const nowOpen = panel.hidden;
+      panel.hidden = !nowOpen;
+      toggleBtn.classList.toggle('is-open', nowOpen);
+      toggleBtn.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
+    });
+
+    document.getElementById('ck-filter-clear')?.addEventListener('click', () => {
+      Object.keys(ckFilters).forEach((k) => delete ckFilters[k]);
+      syncCkFilterUi();
+      renderCocktails();
+    });
+
+    strip?.addEventListener('click', (e) => {
+      const qBtn = e.target.closest('[data-clear-ck-q]');
+      if (qBtn && searchInp) {
+        searchInp.value = '';
+        syncCkFilterUi();
+        renderCocktails();
+        return;
+      }
+      const axisBtn = e.target.closest('[data-clear-ck-axis]');
+      if (axisBtn) {
+        delete ckFilters[axisBtn.getAttribute('data-clear-ck-axis')];
+        syncCkFilterUi();
+        renderCocktails();
+        return;
+      }
+      if (e.target.closest('[data-clear-ck-all]')) {
+        resetAllCkFilters();
+      }
     });
   })();
 
@@ -4374,45 +4544,73 @@
       tabSub.textContent = list.length > 0 ? `${list.length} no ranking · ${totalReviews} ${totalReviews === 1 ? 'nota' : 'notas'}` : 'Notas de Prova';
     }
 
+    // Compute true global rank across all rated cocktails so rank # stays accurate even when filtered
+    const allRanked = [...list].sort((a, b) => getCocktailAvg(b) - getCocktailAvg(a));
+    const rankMap = new Map(allRanked.map((c, i) => [c.id, i]));
+
     const q = ckNorm(document.getElementById('ck-search')?.value || '');
-    const sorted = [...list]
-      .filter((c) => !q || ckNorm(c.name).includes(q))
+    const activeFilterAxes = CK_PROFILE.filter((p) => Boolean(ckFilters[p.key]));
+    const hasSearchOrFilter = Boolean(q || activeFilterAxes.length);
+
+    const sorted = allRanked
       .filter((c) => {
-        const act = CK_PROFILE.filter((p) => ckFilters[p.key]);
-        if (!act.length) return true;
-        const av = getCocktailAspectAverages(c);
-        if (!av) return false;
-        return act.every((p) => {
-          const v = av.find((x) => x.key === p.key).value;
-          const f = ckFilters[p.key];
-          return f === 'low' ? v < 1.8 : f === 'mid' ? v >= 1.8 && v <= 3.2 : v > 3.2;
-        });
+        if (!q) return true;
+        const barHay = [c.bar, ...(c.reviews || []).map((r) => r.bar), ...(c.reviews || []).map((r) => r.note)]
+          .filter(Boolean)
+          .map(ckNorm)
+          .join(' ');
+        return ckNorm(c.name).includes(q) || barHay.includes(q);
       })
-      .sort((a, b) => getCocktailAvg(b) - getCocktailAvg(a));
+      .filter((c) => {
+        if (!activeFilterAxes.length) return true;
+        const av = getCocktailAspectAverages(c);
+        if (!av || !av[0]?.word) return false;
+        return activeFilterAxes.every((p) => {
+          const found = av.find((x) => x.key === p.key);
+          if (!found) return false;
+          const v = found.value;
+          const f = ckFilters[p.key];
+          return f === 'low' ? v <= 1.8 : f === 'mid' ? v > 1.8 && v < 3.3 : v >= 3.3;
+        });
+      });
 
     if (!sorted.length) {
-      grid.innerHTML = `
-        <div class="reviews-empty-state">
-          <div class="reviews-empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 22h8"/><path d="M12 15v7"/><path d="m19 3-7 8-7-8Z"/><path d="M5 3h14"/></svg>
-          </div>
-          <h3 style="font-size:1.15rem;">Ainda nenhum cocktail avaliado</h3>
-          <p style="font-size:0.9rem;color:var(--ink-secondary);max-width:44ch;">Registem o primeiro cocktail no botão <strong>+ Adicionar Cocktail</strong> para começarem o vosso guia de favoritos nos bares!</p>
-        </div>`;
+      if (list.length > 0 && hasSearchOrFilter) {
+        grid.innerHTML = `
+          <div class="reviews-empty-state">
+            <div class="reviews-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+            <h3 style="font-size:1.15rem;">Nenhum cocktail com esse perfil</h3>
+            <p style="font-size:0.9rem;color:var(--ink-secondary);max-width:42ch;">Não encontrámos bebidas que correspondam à pesquisa ou sabores escolhidos.</p>
+            <button type="button" class="btn btn-primary btn-sm" id="ck-empty-reset-btn" style="margin-top:4px;">Limpar pesquisa e filtros</button>
+          </div>`;
+        document.getElementById('ck-empty-reset-btn')?.addEventListener('click', resetAllCkFilters);
+      } else {
+        grid.innerHTML = `
+          <div class="reviews-empty-state">
+            <div class="reviews-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 22h8"/><path d="M12 15v7"/><path d="m19 3-7 8-7-8Z"/><path d="M5 3h14"/></svg>
+            </div>
+            <h3 style="font-size:1.15rem;">Ainda nenhum cocktail avaliado</h3>
+            <p style="font-size:0.9rem;color:var(--ink-secondary);max-width:44ch;">Registem o primeiro cocktail no botão <strong>+</strong> para começarem o vosso guia de favoritos e sabores nos bares!</p>
+          </div>`;
+      }
       return;
     }
 
     const medalClasses = ['is-gold', 'is-silver', 'is-bronze'];
-    const coupeWatermarkSvg = `<svg class="ck-banner-watermark" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14h36L32 34 14 14Z"/><path d="M32 34v18M22 52h20M40 10l6-4"/></svg>`;
+    const coupeWatermarkSvg = `<svg class="ck-portrait-watermark" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14h36L32 34 14 14Z"/><path d="M32 34v18M22 52h20M40 10l6-4"/></svg>`;
 
     grid.innerHTML = sorted
-      .map((c, idx) => {
+      .map((c) => {
+        const globalIdx = rankMap.get(c.id) ?? 0;
         const avgNum = getCocktailAvg(c);
         const avg = avgNum.toFixed(1);
-        const isGold = idx === 0;
+        const isGold = globalIdx === 0;
         const isExpanded = expandedCocktailIds.has(c.id);
-        const rankCls = medalClasses[idx] || '';
-        const rankBadgeHtml = `<span class="rank-medallion ${rankCls}">${idx < 3 ? UI_ICONS.trophy : ''}#${idx + 1}</span>`;
+        const rankCls = medalClasses[globalIdx] || '';
+        const rankBadgeHtml = `<span class="rank-medallion ${rankCls}">${globalIdx < 3 ? UI_ICONS.trophy : ''}#${globalIdx + 1}</span>`;
         const uniqueBars = [...new Set(c.reviews.map((r) => r.bar || c.bar).filter(Boolean))];
         const uniqueAuthors = [...new Set(c.reviews.map((r) => r.by).filter(Boolean))];
         const sensoryAvgs = getCocktailAspectAverages(c);
@@ -4442,7 +4640,10 @@
                 ${r.note ? `<p class="tasting-quote">“${escapeHtml(r.note)}”</p>` : ''}
                 ${r.profile ? `
                   <div class="tasting-subscores">
-                    ${CK_PROFILE.map((p) => `<span class="tasting-subpill">${p.label} <strong>${Number(r.profile[p.key] || 0)}/5</strong></span>`).join('')}
+                    ${CK_PROFILE.map((p) => {
+                      const pv = Number(r.profile[p.key] ?? 0);
+                      return `<span class="tasting-subpill">${p.icon} ${escapeHtml(describeFlavorAxis(p, pv))} <strong>${pv}/5</strong></span>`;
+                    }).join('')}
                   </div>` : a ? `
                   <div class="tasting-subscores">
                     <span class="tasting-subpill">Sabor <strong>${a.flavor}★</strong></span>
@@ -4454,49 +4655,55 @@
           })
           .join('');
 
+        const metersHtml = sensoryAvgs
+          ? (sensoryAvgs[0]?.word
+              ? renderCocktailFlavorMeters(sensoryAvgs, isGold)
+              : renderSensoryMeters(sensoryAvgs, isGold))
+          : '';
+
         return `
-          <article class="ck-card ${isGold ? 'is-gold-card' : ''} ${isExpanded ? 'is-reviews-open' : ''}" data-ck-card="${escapeHtml(c.id)}">
-            ${c.photoUrl ? `
-              <div class="ck-card-photo-stage">
-                <img src="${escapeHtml(c.photoUrl)}" alt="${escapeHtml(c.name)}" loading="lazy" data-zoom-ck="${escapeHtml(c.id)}" />
-                <div class="ck-photo-overlay-bar">
-                  ${rankBadgeHtml}
-                  <label class="ck-photo-upload-pill">
-                    ${UI_ICONS.camera} Alterar foto
+          <article class="ck-card ${isGold ? 'is-gold-card' : ''} ${c.photoUrl ? 'has-photo' : 'no-photo'} ${isExpanded ? 'is-reviews-open' : ''}" data-ck-card="${escapeHtml(c.id)}">
+            <div class="ck-card-showcase">
+              ${c.photoUrl ? `
+                <div class="ck-portrait-frame">
+                  <img src="${escapeHtml(c.photoUrl)}" alt="${escapeHtml(c.name)}" loading="lazy" data-zoom-ck="${escapeHtml(c.id)}" />
+                  <label class="ck-portrait-cam-btn" title="Substituir fotografia">
+                    ${UI_ICONS.camera}
                     <input type="file" accept="image/*" style="display:none;" data-upload-ck-photo="${escapeHtml(c.id)}" />
                   </label>
                 </div>
-              </div>
-            ` : `
-              <div class="ck-card-banner">
-                ${coupeWatermarkSvg}
-                ${rankBadgeHtml}
-                <label class="ck-photo-upload-pill">
-                  ${UI_ICONS.camera} + Foto
+              ` : `
+                <label class="ck-portrait-placeholder" title="Adicionar fotografia vertical">
+                  ${coupeWatermarkSvg}
+                  <span class="ck-portrait-add-pill">${UI_ICONS.camera} Foto</span>
                   <input type="file" accept="image/*" style="display:none;" data-upload-ck-photo="${escapeHtml(c.id)}" />
                 </label>
-              </div>
-            `}
+              `}
 
-            <div class="ck-card-body">
-              <div class="ck-identity-row">
-                <div style="min-width:0;">
+              <div class="ck-showcase-info">
+                <div class="ck-showcase-top">
+                  ${rankBadgeHtml}
+                  <div class="score-seal ${isGold ? 'is-top' : ''}">
+                    <div class="score-seal-main">
+                      <span class="score-seal-num">${avg}</span>
+                      <span class="score-seal-star">★</span>
+                    </div>
+                    <span class="score-seal-sub">${c.reviews.length} ${c.reviews.length === 1 ? 'review' : 'reviews'}</span>
+                  </div>
+                </div>
+
+                <div class="ck-showcase-titles">
                   <h3 class="ck-card-title">${escapeHtml(c.name)}</h3>
                   ${uniqueBars.length ? `
                     <div class="ck-bars-row">
                       ${uniqueBars.map((b) => `<span class="ck-bar-pin">${UI_ICONS.pin} ${escapeHtml(b)}</span>`).join('')}
                     </div>` : ''}
                 </div>
-                <div class="score-seal ${isGold ? 'is-top' : ''}">
-                  <div class="score-seal-main">
-                    <span class="score-seal-num">${avg}</span>
-                    <span class="score-seal-star">★</span>
-                  </div>
-                  <span class="score-seal-sub">${c.reviews.length} ${c.reviews.length === 1 ? 'review' : 'reviews'}</span>
-                </div>
               </div>
+            </div>
 
-              ${sensoryAvgs ? renderSensoryMeters(sensoryAvgs, isGold) : ''}
+            <div class="ck-card-body">
+              ${metersHtml}
 
               ${latestWithQuote?.note ? `
                 <div class="ck-mobile-teaser" data-toggle-ck-revs="${escapeHtml(c.id)}">
@@ -4520,7 +4727,7 @@
                   ${uniqueAuthors.slice(0, 3).map((a) => renderAvatarHtml(a)).join('')}
                 </span>
                 <span class="ck-toggle-label-closed">Ver ${c.reviews.length} ${c.reviews.length === 1 ? 'review' : 'reviews'}</span>
-                <span class="ck-toggle-label-open">Ocultar reviews</span>
+                <span class="ck-toggle-label-open">Ocultar</span>
                 <span class="ck-toggle-chevron" aria-hidden="true">▾</span>
               </button>
               <div class="avatar-stack ck-desktop-authors">
@@ -4595,7 +4802,7 @@
         if (!ck || !rev) return;
         const isLast = ck.reviews.length === 1;
         const previewHtml = `
-          ${ck.photoUrl ? `<img src="${escapeHtml(ck.photoUrl)}" alt="" style="width:54px;height:54px;object-fit:cover;border-radius:8px;flex-shrink:0;" />` : `<span style="font-size:1.8rem;">🍹</span>`}
+          ${ck.photoUrl ? `<img src="${escapeHtml(ck.photoUrl)}" alt="" style="width:46px;height:62px;object-fit:cover;border-radius:10px;flex-shrink:0;" />` : `<span style="font-size:1.8rem;">🍹</span>`}
           <div>
             <div style="font-weight:700;font-size:0.95rem;">${escapeHtml(ck.name)}</div>
             <div style="font-size:0.8rem;color:var(--ink-secondary);">Review de <strong>${escapeHtml(rev.by)}</strong>${rev.bar ? ` · ${escapeHtml(rev.bar)}` : ''} (★ ${getReviewAvg(rev).toFixed(1)})</div>
@@ -4639,24 +4846,18 @@
       .map((name) => `<option value="${escapeHtml(name)}" ${name === selectedBar ? 'selected' : ''}>${escapeHtml(name)}</option>`)
       .join('');
 
-    const prevRating = editingRev ? Number(getReviewAvg(editingRev).toFixed(1)) : 4;
-    const prevProfile = { fresh: 2, alcohol: 2, fruity: 2, sweet: 2, ...(editingRev?.profile || {}) };
-    const criteria = [
-      { key: 'flavor', inputId: 'ck-flavor', label: '🍋 Sabor & Equilíbrio' },
-      { key: 'fresh', inputId: 'ck-fresh', label: '🧊 Frescura & Temperatura' },
-      { key: 'strength', inputId: 'ck-strength', label: '🥃 Força / Álcool' },
-      { key: 'look', inputId: 'ck-look', label: '🍹 Apresentação' }
-    ];
+    const prevRating = editingRev ? Math.max(1, Math.min(5, Math.round(getReviewAvg(editingRev)))) : 4;
+    const prevProfile = { fresh: 3, alcohol: 3, fruity: 3, sweet: 3, ...(editingRev?.profile || {}) };
 
     const modalTitle = editingRev
       ? `Editar Review — ${existing.name}`
-      : (existing ? `Avaliar ${existing.name}` : 'Adicionar Cocktail ao Ranking');
+      : (existing ? `Avaliar ${existing.name}` : 'Adicionar Cocktail');
 
     openModal(modalTitle, `
       <form id="form-add-cocktail" class="form-grid">
         ${!existing ? `
           <div class="form-grid form-grid-2">
-            <div>
+            <div style="position:relative;">
               <label class="field-label" for="ck-name">Nome do Cocktail</label>
               <input type="text" id="ck-name" class="input" placeholder="Ex: Mango Margarita, Mojito..." required />
             </div>
@@ -4668,8 +4869,8 @@
         ` : `
           <div class="form-grid form-grid-2" style="align-items:end;">
             <div>
-              <div style="font-size:0.74rem;color:var(--ink-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Cocktail</div>
-              <div style="font-family:var(--font-serif);font-size:1.18rem;font-weight:600;">${escapeHtml(existing.name)}</div>
+              <div style="font-size:0.72rem;color:var(--ink-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Cocktail</div>
+              <div style="font-family:var(--font-serif);font-size:1.22rem;font-weight:600;line-height:1.2;">${escapeHtml(existing.name)}</div>
             </div>
             <div>
               <label class="field-label" for="ck-bar">Local / Bar onde bebeu</label>
@@ -4678,18 +4879,45 @@
           </div>
         `}
 
-        <div>
-          <label class="field-label" for="ck-rating">⭐ Nota geral: <strong id="ck-rating-out">${prevRating}</strong>/5</label>
+        <div class="ck-modal-rating-box">
+          <div class="ck-modal-rating-head">
+            <div>
+              <span class="ck-modal-rating-kicker">Nota Geral</span>
+              <span class="ck-modal-rating-word" id="ck-rating-word">${escapeHtml(RATING_WORD_LABELS[prevRating] || `${prevRating}★`)}</span>
+            </div>
+            <div class="ck-modal-rating-score"><span id="ck-rating-out">${prevRating}</span><small>/5 ★</small></div>
+          </div>
           <input type="hidden" id="ck-rating" value="${prevRating}" />
-          <div id="ck-rating-stars" style="display:flex;gap:6px;font-size:2rem;line-height:1;">${[1,2,3,4,5].map((n) => `<button type="button" data-ck-star="${n}" aria-label="${n} estrelas" style="background:none;border:0;padding:0;cursor:pointer;font-size:inherit;color:${n <= Math.round(prevRating) ? '#f5b301' : '#ccc'};">★</button>`).join('')}</div>
+          <div class="ck-modal-stars" id="ck-rating-stars" role="radiogroup" aria-label="Nota geral">
+            ${[1, 2, 3, 4, 5].map((n) => `
+              <button type="button" class="star-tap-btn ck-big-star ${n <= prevRating ? 'is-lit' : ''}" data-ck-star="${n}" aria-label="${n} estrelas">★</button>
+            `).join('')}
+          </div>
         </div>
-        <div class="field-label" style="margin-top:6px;">Perfil de sabor <span style="font-weight:400;color:var(--ink-muted);">(não é bom/mau — só como é)</span></div>
-        ${CK_PROFILE.map((p) => `
-          <div>
-            <label class="field-label" for="ck-p-${p.key}">${p.icon} ${p.label}: <strong id="ck-p-${p.key}-out">${prevProfile[p.key]}</strong>/5</label>
-            <input type="range" id="ck-p-${p.key}" min="0" max="5" step="1" value="${prevProfile[p.key]}" style="width:100%;" />
-            <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--ink-muted);"><span>${p.lo}</span><span>${p.hi}</span></div>
-          </div>`).join('')}
+
+        <div class="ck-modal-profile-section">
+          <div class="ck-modal-profile-header">
+            <span class="ck-modal-profile-title">Perfil de Sabor</span>
+            <span class="ck-modal-profile-hint">Como é a bebida (não afeta a nota)</span>
+          </div>
+          <div class="ck-modal-sliders">
+            ${CK_PROFILE.map((p) => {
+              const initVal = Number(prevProfile[p.key] ?? 3);
+              return `
+                <div class="ck-slider-card">
+                  <div class="ck-slider-top">
+                    <label class="ck-slider-title" for="ck-p-${p.key}">${p.icon} ${escapeHtml(p.label)}</label>
+                    <span class="ck-slider-badge"><span id="ck-p-${p.key}-word">${escapeHtml(describeFlavorAxis(p, initVal))}</span> · <strong id="ck-p-${p.key}-out">${initVal}</strong>/5</span>
+                  </div>
+                  <input type="range" class="ck-range-input" id="ck-p-${p.key}" min="0" max="5" step="1" value="${initVal}" />
+                  <div class="ck-slider-poles">
+                    <span>${escapeHtml(p.lo)}</span>
+                    <span>${escapeHtml(p.hi)}</span>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>
 
         <div>
           <label class="field-label" for="ck-note">Notas de Prova / Dica (opcional)</label>
@@ -4697,7 +4925,7 @@
         </div>
 
         <div>
-          <label class="field-label" for="ck-photo">${existing?.photoUrl ? 'Substituir Foto do Cocktail (opcional)' : 'Foto do Cocktail (opcional)'}</label>
+          <label class="field-label" for="ck-photo">${existing?.photoUrl ? 'Substituir Foto Vertical (opcional)' : 'Fotografia do Cocktail (opcional)'}</label>
           <input type="file" id="ck-photo" accept="image/*" class="input" />
         </div>
 
@@ -4713,94 +4941,111 @@
       const v = Number(btn.getAttribute('data-ck-star'));
       document.getElementById('ck-rating').value = String(v);
       document.getElementById('ck-rating-out').textContent = String(v);
+      const wordEl = document.getElementById('ck-rating-word');
+      if (wordEl) wordEl.textContent = RATING_WORD_LABELS[v] || `${v}★`;
       document.querySelectorAll('#ck-rating-stars [data-ck-star]').forEach((x) => {
-        x.style.color = Number(x.getAttribute('data-ck-star')) <= v ? '#f5b301' : '#ccc';
+        x.classList.toggle('is-lit', Number(x.getAttribute('data-ck-star')) <= v);
       });
     });
-    ['ck-rating', ...CK_PROFILE.map((p) => `ck-p-${p.key}`)].forEach((id) => {
-      const el = document.getElementById(id);
-      el?.addEventListener('input', () => { document.getElementById(`${id}-out`).textContent = el.value; });
+
+    CK_PROFILE.forEach((p) => {
+      const el = document.getElementById(`ck-p-${p.key}`);
+      el?.addEventListener('input', () => {
+        const v = Number(el.value);
+        const outEl = document.getElementById(`ck-p-${p.key}-out`);
+        const wordEl = document.getElementById(`ck-p-${p.key}-word`);
+        if (outEl) outEl.textContent = String(v);
+        if (wordEl) wordEl.textContent = describeFlavorAxis(p, v);
+      });
     });
 
     const nameInput = document.getElementById('ck-name');
     if (nameInput) {
       const box = document.createElement('div');
-      box.style.cssText = 'display:none;margin-top:6px;border:1px solid var(--border,#ddd);border-radius:10px;overflow:hidden;background:var(--surface,#fff);';
+      box.className = 'ck-suggest-box';
+      box.hidden = true;
       nameInput.insertAdjacentElement('afterend', box);
       nameInput.setAttribute('autocomplete', 'off');
       nameInput.addEventListener('input', () => {
         const q = ckNorm(nameInput.value);
         const matches = q ? (state.cocktails || []).filter((c) => ckNorm(c.name).includes(q)).slice(0, 6) : [];
-        if (!matches.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+        if (!matches.length) { box.hidden = true; box.innerHTML = ''; return; }
         box.innerHTML =
-          `<div style="padding:6px 10px;font-size:0.72rem;color:var(--ink-muted);font-weight:700;text-transform:uppercase;">Já existe na lista — toque para usar</div>` +
-          matches.map((c) => `<button type="button" data-ck-suggest="${escapeHtml(c.name)}" style="display:block;width:100%;text-align:left;padding:8px 10px;border:0;border-top:1px solid var(--border,#eee);background:transparent;cursor:pointer;font:inherit;">${escapeHtml(c.name)}</button>`).join('');
-        box.style.display = 'block';
+          `<div class="ck-suggest-kicker">Já existe no ranking — toca para juntar a tua review</div>` +
+          matches.map((c) => `<button type="button" class="ck-suggest-item" data-ck-suggest="${escapeHtml(c.name)}"><span>${escapeHtml(c.name)}</span><span class="ck-suggest-meta">★ ${getCocktailAvg(c).toFixed(1)}</span></button>`).join('');
+        box.hidden = false;
       });
       box.addEventListener('click', (e) => {
         const b = e.target.closest('[data-ck-suggest]');
         if (!b) return;
         nameInput.value = b.getAttribute('data-ck-suggest');
-        box.style.display = 'none';
+        box.hidden = true;
       });
     }
 
     document.getElementById('form-add-cocktail').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const bar = document.getElementById('ck-bar').value;
-      const avg = Number(document.getElementById('ck-rating').value) || 0;
-      const profile = {};
-      CK_PROFILE.forEach((p) => { profile[p.key] = Number(document.getElementById(`ck-p-${p.key}`).value) || 0; });
-      const note = document.getElementById('ck-note').value.trim();
-      const photoInput = document.getElementById('ck-photo');
-      const photoFile = photoInput?.files?.[0];
+      const submitBtn = document.getElementById('btn-submit-cocktail');
+      if (submitBtn) submitBtn.disabled = true;
 
-      let target = existing;
-      if (!target) {
-        const name = document.getElementById('ck-name').value.trim();
-        if (!name) return;
-        const normName = name.toLowerCase();
-        target = (state.cocktails || []).find((c) => String(c.name || '').trim().toLowerCase() === normName);
+      try {
+        const bar = document.getElementById('ck-bar').value;
+        const avg = Number(document.getElementById('ck-rating').value) || 0;
+        const profile = {};
+        CK_PROFILE.forEach((p) => { profile[p.key] = Number(document.getElementById(`ck-p-${p.key}`).value) || 0; });
+        const note = document.getElementById('ck-note').value.trim();
+        const photoInput = document.getElementById('ck-photo');
+        const photoFile = photoInput?.files?.[0];
+
+        let target = existing;
         if (!target) {
-          target = { id: `ck-${Date.now()}`, name, bar, photoUrl: '', reviews: [] };
-          if (!Array.isArray(state.cocktails)) state.cocktails = [];
-          state.cocktails.push(target);
+          const name = document.getElementById('ck-name').value.trim();
+          if (!name) return;
+          const normName = ckNorm(name);
+          target = (state.cocktails || []).find((c) => ckNorm(c.name) === normName);
+          if (!target) {
+            target = { id: `ck-${Date.now()}`, name, bar, photoUrl: '', reviews: [] };
+            if (!Array.isArray(state.cocktails)) state.cocktails = [];
+            state.cocktails.push(target);
+          }
         }
+
+        if (photoFile) {
+          const uploadedUrl = await uploadVenueImage(photoFile, 'cocktails');
+          if (uploadedUrl) target.photoUrl = uploadedUrl;
+        }
+
+        const existingRevIdx = editingRev
+          ? target.reviews.findIndex((r) => r.id === editingRev.id)
+          : target.reviews.findIndex(
+              (r) => (r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase()) &&
+                     String(r.bar || target.bar || '').toLowerCase() === String(bar || '').toLowerCase()
+            );
+
+        const revPayload = {
+          id: existingRevIdx >= 0 ? target.reviews[existingRevIdx].id : `rev-${Date.now()}`,
+          userId: editingRev?.userId || me.userId,
+          by: editingRev?.by || me.by,
+          bar,
+          rating: avg,
+          profile,
+          note,
+          createdAt: editingRev?.createdAt || new Date().toISOString()
+        };
+
+        if (existingRevIdx >= 0) {
+          target.reviews[existingRevIdx] = revPayload;
+        } else {
+          target.reviews.push(revPayload);
+        }
+
+        saveState();
+        renderCocktails();
+        closeModal();
+        showToast(`${target.name} (${bar}) atualizado — ${avg.toFixed(1)}★!`);
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
       }
-
-      if (photoFile) {
-        const uploadedUrl = await uploadVenueImage(photoFile, 'cocktails');
-        if (uploadedUrl) target.photoUrl = uploadedUrl;
-      }
-
-      const existingRevIdx = editingRev
-        ? target.reviews.findIndex((r) => r.id === editingRev.id)
-        : target.reviews.findIndex(
-            (r) => (r.userId === me.userId || r.by.toLowerCase() === me.by.toLowerCase()) &&
-                   String(r.bar || target.bar || '').toLowerCase() === String(bar || '').toLowerCase()
-          );
-
-      const revPayload = {
-        id: existingRevIdx >= 0 ? target.reviews[existingRevIdx].id : `rev-${Date.now()}`,
-        userId: editingRev?.userId || me.userId,
-        by: editingRev?.by || me.by,
-        bar,
-        rating: avg,
-        profile,
-        note,
-        createdAt: editingRev?.createdAt || new Date().toISOString()
-      };
-
-      if (existingRevIdx >= 0) {
-        target.reviews[existingRevIdx] = revPayload;
-      } else {
-        target.reviews.push(revPayload);
-      }
-
-      saveState();
-      renderCocktails();
-      closeModal();
-      showToast(`${target.name} (${bar}) atualizado — ${avg.toFixed(1)}★!`);
     });
   }
 
