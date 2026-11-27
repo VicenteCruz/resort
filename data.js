@@ -413,14 +413,47 @@ window.DEFAULT_TRIP_DATA = {
   ],
 
   packing: [
+    // Documentos & Viagem
     { id: 'p1', category: 'Documentos', item: 'Passaportes válidos + Cartões de embarque Air Canada', checked: false },
     { id: 'p2', category: 'Documentos', item: 'eTA do Canadá aprovado (obrigatório para a escala em Toronto!)', checked: false },
     { id: 'p3', category: 'Documentos', item: 'Comprovativo QR da taxa Visitax Quintana Roo', checked: false },
     { id: 'p4', category: 'Documentos', item: 'Reserva do hotel + Voucher do transfer aeroporto–hotel', checked: false },
+    { id: 'p9', category: 'Documentos', item: 'Apólice do seguro de viagem (com contacto de emergência 24h) + Cartão Europeu / Saúde', checked: false },
+    { id: 'p10', category: 'Documentos', item: 'Cartões sem taxas (Revolut/Wise) + notas pequenas (USD/MXN) para gorjetas', checked: false },
+
+    // Saúde & Farmácia (Refluxo & Pós-Gastroenterite)
+    { id: 'p11', category: 'Saúde (Refluxo & Estômago)', item: 'Medicação habitual para o refluxo (ex: omeprazol/esomeprazol — levar na mala de mão + receita)', checked: false },
+    { id: 'p12', category: 'Saúde (Refluxo & Estômago)', item: 'Antiácido / alginato de ação rápida (ex: Gaviscon / Rennie) para após refeições ou noite', checked: false },
+    { id: 'p13', category: 'Saúde (Refluxo & Estômago)', item: 'Probióticos para proteger a flora intestinal (ex: UL-250 / BioGaia durante a viagem)', checked: false },
+    { id: 'p14', category: 'Saúde (Refluxo & Estômago)', item: 'Saquetas de sais de reidratação oral (soro oral, ex: Dioralyte)', checked: false },
+    { id: 'p15', category: 'Saúde (Refluxo & Estômago)', item: 'Antidiarreico SOS (ex: loperamida) e antiemético/cólicas (confirmar com médico/farmacêutico)', checked: false },
+    { id: 'p16', category: 'Saúde (Refluxo & Estômago)', item: 'Paracetamol (mais suave para o estômago do que ibuprofeno), pensos rápidos e gel desinfetante', checked: false },
+    { id: 'p17', category: 'Saúde (Refluxo & Estômago)', item: 'Snacks leves e neutros para os voos (bolachas de água e sal / tostas) para evitar jejum prolongado', checked: false },
+
+    // Dress Code Jantar
     { id: 'p5', category: 'Dress Code Jantar', item: 'Calças compridas e sapatos fechados para homem (exigido nos à la carte)', checked: false },
-    { id: 'p6', category: 'Dress Code Jantar', item: 'Camisas / polos / t-shirts com mangas e roupa casual elegante', checked: false },
+    { id: 'p6', category: 'Dress Code Jantar', item: 'Camisas / polos / t-shirts com mangas e roupa casual elegante para as 10 noites', checked: false },
+
+    // Roupa — Dia & Voo (10 Dias)
+    { id: 'p18', category: 'Roupa (10 Dias)', item: '3 a 4 fatos de banho / calções de banho (a humidade demora a secar)', checked: false },
+    { id: 'p19', category: 'Roupa (10 Dias)', item: '8 a 10 t-shirts / tops leves + 4 a 5 calções frescos para o dia', checked: false },
+    { id: 'p20', category: 'Roupa (10 Dias)', item: 'Roupa interior e meias para 10–12 dias + pijama leve', checked: false },
+    { id: 'p21', category: 'Roupa (10 Dias)', item: 'Chinelos de praia/piscina + ténis confortáveis (para viagem e passeios)', checked: false },
+    { id: 'p22', category: 'Roupa (10 Dias)', item: '1 casaco leve / sweatshirt (para o avião, escala em Toronto e ar condicionado forte)', checked: false },
+
+    // Praia & Resort
+    { id: 'p8', category: 'Praia & Resort', item: 'Protetor solar biodegradável (FPS 50), after-sun / aloé vera e protetor labial', checked: false },
+    { id: 'p23', category: 'Praia & Resort', item: 'Óculos de sol, chapéu/boné e saco de praia', checked: false },
+    { id: 'p24', category: 'Praia & Resort', item: 'Repelente de mosquitos (DEET ou Icaridina, útil ao fim da tarde)', checked: false },
+    { id: 'p25', category: 'Praia & Resort', item: 'Copo térmico / garrafa reutilizável (água fresca na praia e piscina) + capa estanque para telemóvel', checked: false },
+
+    // Eletrónica
     { id: 'p7', category: 'Eletrónica', item: 'Adaptadores de tomada Europa → América Tipo A/B (110V)', checked: false },
-    { id: 'p8', category: 'Praia & Resort', item: 'Protetor solar biodegradável, fatos de banho, óculos de sol e repelente', checked: false }
+    { id: 'p26', category: 'Eletrónica', item: 'Carregadores, powerbank (na mala de mão) e auscultadores para os voos', checked: false },
+
+    // Higiene & Conforto no Voo
+    { id: 'p27', category: 'Higiene & Voo', item: 'Nécessaire de higiene (escova/pasta de dentes, desodorizante, perfume, lâmina, etc.)', checked: false },
+    { id: 'p28', category: 'Higiene & Voo', item: 'Almofada de pescoço, máscara de olhos e tampões de ouvidos para os voos longos', checked: false }
   ],
 
   rates: {

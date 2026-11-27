@@ -165,6 +165,15 @@
     });
 
     if (!Array.isArray(merged.packing)) merged.packing = [];
+    if (!merged.packingChecklistV2 && Array.isArray(base.packing)) {
+      const existingIds = new Set(merged.packing.map((p) => p.id));
+      base.packing.forEach((item) => {
+        if (!existingIds.has(item.id)) {
+          merged.packing.push(clone(item));
+        }
+      });
+      merged.packingChecklistV2 = true;
+    }
     if (!Array.isArray(merged.expenses)) merged.expenses = [];
     if (!Array.isArray(merged.cocktails)) merged.cocktails = [];
 
