@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yucatan-companion-pt-v47';
+const CACHE_NAME = 'yucatan-companion-pt-v50';
 const NETWORK_TIMEOUT_MS = 3500;
 
 const LOCAL_ASSETS = [
@@ -9,7 +9,10 @@ const LOCAL_ASSETS = [
   './data.js',
   './app.js',
   './manifest.webmanifest',
-  './assets/icon.svg'
+  './assets/logo-circle.png',
+  './assets/icon-192.png',
+  './assets/apple-touch-icon.png',
+  './assets/icon-maskable-512.png'
 ];
 
 const CDN_ASSETS = [

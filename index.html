@@ -6,8 +6,8 @@
   <title>Acompanhar a Viagem — Voos, Mapa &amp; Fotos</title>
   <meta name="description" content="Painel dinâmico de viagem: estado em tempo real, voos, mapa, fotos e planeamento da estadia." />
   <meta name="theme-color" content="#124e54" />
-  <link rel="icon" type="image/svg+xml" href="./assets/icon.svg" />
-  <link rel="apple-touch-icon" href="./assets/icon.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./assets/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,7 +23,7 @@
   <header class="topbar" role="banner">
     <div class="topbar-inner">
       <a href="#overview" class="brand" id="brand-home-link">
-        <img src="./assets/icon.svg" alt="" class="brand-mark" width="36" height="36" />
+        <img src="./assets/logo-circle.png" alt="" class="brand-mark" width="40" height="40" />
         <div>
           <span class="brand-title" id="brand-title">Viagem</span>
           <span class="brand-subtitle" id="brand-subtitle">A carregar…</span>
@@ -96,6 +96,31 @@
           </div>
           <div id="overview-open-venues" class="plan-timeline"></div>
         </div>
+      </div>
+
+      <!-- Mural & Últimas Fotografias (Exclusivo Mural Público — Amigos & Família) -->
+      <div class="section-block" id="overview-public-wall-section" data-public-only="true"></div>
+
+      <!-- Aberto Agora para Comer & Beber (Exclusivo Área Privada) -->
+      <div class="surface section-block open-now-card" id="overview-open-now-section" data-private-only="true" style="display: none;">
+        <div class="open-now-header">
+          <div>
+            <h2 class="section-title" id="overview-open-now-title">Onde Comer &amp; Beber Agora</h2>
+            <p class="section-subtitle" id="overview-open-now-subtitle">A verificar horários no destino…</p>
+          </div>
+          <div class="open-now-controls">
+            <select id="overview-open-now-time" class="select mono open-now-time-select" aria-label="Simular hora local">
+              <option value="live">● Hora atual</option>
+              <option value="08:30">Peq.-almoço · 08:30</option>
+              <option value="13:30">Almoço · 13:30</option>
+              <option value="17:00">Tarde · 17:00</option>
+              <option value="20:00">Jantar · 20:00</option>
+              <option value="23:30">Noite / Late · 23:30</option>
+            </select>
+            <button type="button" class="btn btn-sm" id="overview-open-now-guide-btn">Guia &amp; Menus →</button>
+          </div>
+        </div>
+        <div class="open-now-grid" id="overview-open-now-list"></div>
       </div>
 
       <div class="section-block" id="overview-tips-section" data-private-only="true" style="display: none;">

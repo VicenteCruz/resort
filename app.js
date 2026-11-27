@@ -503,25 +503,48 @@
     return parseHm(hm);
   }
 
+  function parseOpenIntervalsFromLabel(label) {
+    const str = String(label || '').trim();
+    if (!str) return [];
+    if (/\b24\s*h\b|\b24\/7\b/i.test(str) && !/\d{1,2}:\d{2}\s*[–—-]\s*\d{1,2}:\d{2}/.test(str)) {
+      return [{ start: '00:00', end: '24:00' }];
+    }
+    const intervals = [];
+    const re = /\b(\d{1,2}):(\d{2})\s*[–—-]\s*(\d{1,2}):(\d{2})\b/g;
+    let m;
+    while ((m = re.exec(str)) !== null) {
+      const sh = String(Math.min(23, Number(m[1]))).padStart(2, '0');
+      const sm = String(Math.min(59, Number(m[2]))).padStart(2, '0');
+      const ehRaw = Number(m[3]);
+      const em = String(Math.min(59, Number(m[4]))).padStart(2, '0');
+      const eh = ehRaw === 24 && em === '00' ? '24' : String(Math.min(23, ehRaw)).padStart(2, '0');
+      intervals.push({ start: `${sh}:${sm}`, end: `${eh}:${em}` });
+    }
+    if (!intervals.length && /\b24\s*h\b|\b24\/7\b/i.test(str)) {
+      intervals.push({ start: '00:00', end: '24:00' });
+    }
+    return intervals;
+  }
+
   function evaluateVenueStatus(venue, nowMins) {
-    if (!venue.openIntervals || !venue.openIntervals.length) return { state: 'closed', label: 'Fechado' };
+    if (!venue.openIntervals || !venue.openIntervals.length) return { state: 'closed', subState: 'closed', label: 'Fechado' };
     for (const iv of venue.openIntervals) {
-      if (iv.start === '00:00' && iv.end === '24:00') return { state: 'open', label: 'Aberto 24h' };
+      if (iv.start === '00:00' && iv.end === '24:00') return { state: 'open', subState: 'open24', label: 'Aberto 24h' };
       const s = parseHm(iv.start);
       const e = parseHm(iv.end);
       const open = e > s ? nowMins >= s && nowMins < e : nowMins >= s || nowMins < e;
       if (open) {
         const left = e > s ? e - nowMins : nowMins >= s ? 1440 - nowMins + e : e - nowMins;
-        if (left <= 45) return { state: 'soon', label: `Fecha em ${left}m` };
-        return { state: 'open', label: `Até às ${iv.end}` };
+        if (left <= 45) return { state: 'soon', subState: 'closing', minutesLeft: left, label: `Fecha em ${left}m` };
+        return { state: 'open', subState: 'open', minutesLeft: left, label: `Até às ${iv.end}` };
       }
     }
     for (const iv of venue.openIntervals) {
       const s = parseHm(iv.start);
       const diff = s >= nowMins ? s - nowMins : 1440 - nowMins + s;
-      if (diff > 0 && diff <= 60) return { state: 'soon', label: `Abre às ${iv.start}` };
+      if (diff > 0 && diff <= 60) return { state: 'soon', subState: 'opening', minutesUntil: diff, label: `Abre às ${iv.start}` };
     }
-    return { state: 'closed', label: 'Fechado' };
+    return { state: 'closed', subState: 'closed', label: 'Fechado' };
   }
 
   // ---------- Dynamic Global Chrome & Labels ----------
@@ -941,13 +964,18 @@
     try {
       const wxUrl =
         `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-        `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m` +
-        `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max` +
+        `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,uv_index` +
+        `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,sunrise,sunset` +
         `&timezone=${encodeURIComponent(tz)}&forecast_days=16`;
 
       const wxRes = await fetch(wxUrl);
       if (!wxRes.ok) throw new Error('Weather HTTP error');
       const wx = await wxRes.json();
+
+      const extractHm = (isoTime) => {
+        const m = String(isoTime || '').match(/T(\d{2}:\d{2})/);
+        return m ? m[1] : '';
+      };
 
       const dailyByDate = {};
       const dates = wx?.daily?.time || [];
@@ -957,7 +985,9 @@
           max: Math.round(Number(wx.daily.temperature_2m_max?.[i] ?? 28)),
           min: Math.round(Number(wx.daily.temperature_2m_min?.[i] ?? 22)),
           rainProb: Math.round(Number(wx.daily.precipitation_probability_max?.[i] ?? 0)),
-          uvMax: Number(wx.daily.uv_index_max?.[i] ?? 0).toFixed(0)
+          uvMax: Number(wx.daily.uv_index_max?.[i] ?? 0).toFixed(0),
+          sunrise: extractHm(wx.daily.sunrise?.[i]),
+          sunset: extractHm(wx.daily.sunset?.[i])
         };
       });
 
@@ -972,7 +1002,8 @@
               feels: Math.round(Number(wx.current.apparent_temperature ?? wx.current.temperature_2m ?? 30)),
               humidity: Math.round(Number(wx.current.relative_humidity_2m ?? 70)),
               wind: Math.round(Number(wx.current.wind_speed_10m ?? 12)),
-              code: wx.current.weather_code ?? 1
+              code: wx.current.weather_code ?? 1,
+              uvNow: wx.current.uv_index != null ? Number(wx.current.uv_index) : null
             }
           : null,
         dailyByDate,
@@ -1000,6 +1031,67 @@
       if (get('year')) return `${get('year')}-${get('month')}-${get('day')}`;
     } catch {}
     return new Date().toISOString().slice(0, 10);
+  }
+
+  const SUNRISE_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v6"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>`;
+  const SUNSET_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>`;
+
+  function buildPrivateSunAndUvHtml(cur, todayDaily, destClock) {
+    if (publicMode || !todayDaily) return '';
+    const sr = todayDaily.sunrise || '';
+    const ss = todayDaily.sunset || '';
+    if (!sr && !ss) return '';
+
+    const nowMins = parseHm(destClock);
+    const srMins = sr ? parseHm(sr) : 420;
+    const ssMins = ss ? parseHm(ss) : 1085;
+    const uvMaxNum = Number(todayDaily.uvMax || 0);
+    const uvNow = cur?.uvNow != null ? Number(cur.uvNow) : null;
+
+    let sunStatus = '';
+    if (nowMins < srMins) {
+      const diff = srMins - nowMins;
+      sunStatus = diff <= 90 ? `Amanhece em ${diff} min` : `Antes do amanhecer`;
+    } else if (nowMins < ssMins) {
+      const left = ssMins - nowMins;
+      const h = Math.floor(left / 60);
+      const m = left % 60;
+      const leftStr = h > 0 ? `${h}h${m > 0 ? ` ${String(m).padStart(2, '0')}m` : ''}` : `${m} min`;
+      sunStatus = left <= 75 ? `🌇 Pôr do sol em ${leftStr}!` : `☀️ Restam ${leftStr} de luz solar`;
+    } else {
+      sunStatus = `🌙 Já anoiteceu (nascer às ${sr || '--:--'})`;
+    }
+
+    let uvAdvice = '';
+    let uvHigh = false;
+    if (uvNow != null && nowMins >= srMins && nowMins < ssMins) {
+      const uvRounded = Math.round(uvNow);
+      if (uvRounded >= 8) {
+        uvHigh = true;
+        uvAdvice = `UV agora ${uvRounded} (Extremo) · Reaplicar FPS 50`;
+      } else if (uvRounded >= 6) {
+        uvHigh = true;
+        uvAdvice = `UV agora ${uvRounded} (Alto) · Usar protetor`;
+      } else if (uvRounded >= 3) {
+        uvAdvice = `UV agora ${uvRounded} (Moderado · ótimo p/ praia)`;
+      } else {
+        uvAdvice = `UV agora ${uvRounded} (Suave)`;
+      }
+    } else if (uvMaxNum >= 6) {
+      uvAdvice = `Pico UV hoje: ${uvMaxNum} (mais forte 11h–15h)`;
+    }
+
+    return `
+      <div class="weather-sun-strip">
+        <div class="weather-sun-times">
+          ${sr ? `<span class="weather-sun-item">${SUNRISE_SVG}<span class="weather-sun-lbl">Nascer</span><span class="weather-sun-val">${escapeHtml(sr)}</span></span>` : ''}
+          ${ss ? `<span class="weather-sun-item">${SUNSET_SVG}<span class="weather-sun-lbl">Pôr do sol</span><span class="weather-sun-val">${escapeHtml(ss)}</span></span>` : ''}
+        </div>
+        <div class="weather-sun-badge ${uvHigh ? 'is-uv-high' : ''}">
+          <span>${escapeHtml(sunStatus)}</span>
+          ${uvAdvice ? `<span>${escapeHtml(uvAdvice)}</span>` : ''}
+        </div>
+      </div>`;
   }
 
   function renderOverviewWeatherCard() {
@@ -1060,6 +1152,7 @@
           <span class="weather-metric-val">${cur.wind} km/h${todayDaily?.uvMax ? ` · UV ${todayDaily.uvMax}` : ''}</span>
         </div>
       </div>
+      ${buildPrivateSunAndUvHtml(cur, todayDaily, destClock)}
     `;
   }
 
@@ -1186,8 +1279,14 @@
       }
     }
 
-    // Private-only Useful Tips & Wallet Document Badges
+    if (publicMode) {
+      renderPublicOverviewWall();
+    }
+
+    // Private-only "Onde Comer & Beber Agora", Useful Tips & Wallet Document Badges
     if (!publicMode) {
+      renderPrivateOpenNowVenues();
+
       const docs = Array.isArray(state.wallet.documents) ? state.wallet.documents : [];
       const docBadgesEl = document.getElementById('overview-doc-badges');
       if (docBadgesEl) {
@@ -1216,6 +1315,225 @@
       }
     }
   }
+
+  let publicWallPhotos = [];
+
+  function renderPublicOverviewWall() {
+    const wallEl = document.getElementById('overview-public-wall-section');
+    if (!wallEl) return;
+    if (!publicMode) {
+      wallEl.innerHTML = '';
+      return;
+    }
+
+    const note = String(state.trip.publicNote || '').trim();
+    const recentPhotos = Array.isArray(publicWallPhotos) ? publicWallPhotos.slice(0, 3) : [];
+    const totalCount = Array.isArray(publicWallPhotos) ? publicWallPhotos.length : 0;
+
+    if (!note && !recentPhotos.length) {
+      wallEl.innerHTML = `
+        <div class="surface public-wall-card">
+          <div class="section-header" style="margin-bottom:0;">
+            <div>
+              <h2 class="section-title">Mural da Viagem</h2>
+              <p class="section-subtitle">Assim que forem publicadas fotografias ou notícias, aparecem aqui em destaque.</p>
+            </div>
+            <button type="button" class="btn btn-sm" id="btn-public-wall-open-photos">📷 Álbum</button>
+          </div>
+        </div>`;
+      document.getElementById('btn-public-wall-open-photos')?.addEventListener('click', () => switchView('photos'));
+      return;
+    }
+
+    const noteHtml = note
+      ? `<div class="public-wall-note">
+           <span class="public-wall-note-kicker">💬 Mensagem recente da viagem</span>
+           <p class="public-wall-note-text">${escapeHtml(note)}</p>
+         </div>`
+      : '';
+
+    const photosHtml = recentPhotos.length
+      ? `<div class="public-wall-photos-grid count-${recentPhotos.length}">
+           ${recentPhotos
+             .map(
+               (p, idx) => `
+                 <button type="button" class="public-wall-photo-btn" data-public-wall-photo="${idx}" aria-label="Ver fotografia em grande${p.caption ? `: ${escapeHtml(p.caption)}` : ''}">
+                   <img src="${escapeHtml(p.url)}" alt="${escapeHtml(p.caption || 'Fotografia recente da viagem')}" loading="lazy" />
+                   <span class="public-wall-photo-overlay">
+                     <span class="public-wall-photo-day">${escapeHtml(p.dayLabel || '')}</span>
+                     ${p.caption ? `<span class="public-wall-photo-cap">${escapeHtml(p.caption)}</span>` : ''}
+                   </span>
+                 </button>`
+             )
+             .join('')}
+         </div>`
+      : '';
+
+    const subText = totalCount > 0
+      ? `${totalCount} ${totalCount === 1 ? 'fotografia publicada' : 'fotografias publicadas'} · toque numa foto para ampliar`
+      : 'Notícias diretas da viagem';
+
+    wallEl.innerHTML = `
+      <div class="surface public-wall-card">
+        <div class="section-header" style="margin-bottom:0;">
+          <div>
+            <h2 class="section-title">Mural &amp; Últimas Fotos</h2>
+            <p class="section-subtitle">${escapeHtml(subText)}</p>
+          </div>
+          ${totalCount > 0 ? `<button type="button" class="btn btn-primary btn-sm" id="btn-public-wall-open-photos">Ver Álbum (${totalCount}) →</button>` : ''}
+        </div>
+        ${noteHtml}
+        ${photosHtml}
+      </div>`;
+
+    document.getElementById('btn-public-wall-open-photos')?.addEventListener('click', () => switchView('photos'));
+    wallEl.querySelectorAll('[data-public-wall-photo]').forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const idx = Number(btn.getAttribute('data-public-wall-photo')) || 0;
+        galleryPhotos = [...publicWallPhotos];
+        openLightbox(idx);
+      })
+    );
+  }
+
+  function renderPrivateOpenNowVenues() {
+    if (publicMode) return;
+    const listEl = document.getElementById('overview-open-now-list');
+    const subEl = document.getElementById('overview-open-now-subtitle');
+    const simSel = document.getElementById('overview-open-now-time');
+    if (!listEl) return;
+
+    const destCity = state.trip.destCity || state.trip.destination || 'Destino';
+    const liveClock = formatTzTime(state.trip.destTz || 'America/Cancun');
+    const simVal = simSel?.value || 'live';
+    const isLive = simVal === 'live';
+
+    const liveOpt = simSel?.querySelector('option[value="live"]');
+    if (liveOpt) liveOpt.textContent = `● Agora (${liveClock})`;
+
+    const nowMins = getDestMinutesNow(simVal);
+    const venues = Array.isArray(state.venues) ? state.venues : [];
+
+    if (!venues.length) {
+      if (subEl) subEl.textContent = `Hora em ${destCity}: ${liveClock}`;
+      listEl.innerHTML = `<div class="plan-empty-box" style="grid-column:1/-1;padding:18px;"><span>Ainda sem restaurantes ou bares configurados nesta viagem.</span></div>`;
+      return;
+    }
+
+    const evaluated = venues.map((venue) => ({
+      venue,
+      status: evaluateVenueStatus(venue, nowMins)
+    }));
+
+    const catRank = (cat) => (cat === 'pyp' ? 0 : cat === 'bars' ? 1 : cat === 'sister' ? 2 : 3);
+    const statusOrder = (st) => {
+      if (st.subState === 'closing') return 0; // Highlight closing soon first so they don't miss it
+      if (st.subState === 'open') return 1;
+      if (st.subState === 'open24') return 2;
+      if (st.subState === 'opening') return 3;
+      return 4;
+    };
+
+    const active = evaluated
+      .filter((e) => e.status.state === 'open' || e.status.state === 'soon')
+      .sort((a, b) => statusOrder(a.status) - statusOrder(b.status) || catRank(a.venue.category) - catRank(b.venue.category));
+
+    const openNowCount = active.filter((e) => e.status.subState !== 'opening').length;
+    const openingSoonCount = active.filter((e) => e.status.subState === 'opening').length;
+    const closedCount = evaluated.length - active.length;
+
+    if (subEl) {
+      const timeTag = isLive ? `${liveClock} em ${destCity}` : `A simular ${simVal} em ${destCity}`;
+      const countParts = [`${openNowCount} ${openNowCount === 1 ? 'aberto' : 'abertos'} agora`];
+      if (openingSoonCount > 0) countParts.push(`${openingSoonCount} a abrir em breve`);
+      subEl.textContent = `${timeTag} · ${countParts.join(' · ')}`;
+    }
+
+    if (!active.length) {
+      listEl.innerHTML = `
+        <div class="plan-empty-box" style="grid-column:1/-1;padding:18px;">
+          <span>Nenhum local com horário aberto às ${escapeHtml(isLive ? liveClock : simVal)} (Room Service 24h disponível).</span>
+        </div>`;
+      return;
+    }
+
+    const scopeInfo = (v) => {
+      if (v.category === 'pyp') return { label: 'Vosso hotel', cls: 'is-pyp' };
+      if (v.category === 'bars') return { label: 'Bar & Café', cls: 'is-pyp' };
+      if (v.category === 'sister') return { label: 'Hotel vizinho', cls: '' };
+      if (v.category === 'extra' || v.included === false) return { label: 'Pago à parte', cls: 'is-extra' };
+      return { label: 'Local', cls: '' };
+    };
+
+    const cleanShortCuisine = (v) =>
+      String(v.cuisine || '').replace(/\s*\([^)]*\)\s*/g, '').trim() || (v.category === 'bars' ? 'Bebidas & Snacks' : 'Restaurante');
+
+    listEl.innerHTML =
+      active
+        .map(({ venue: v, status: st }) => {
+          const isBar = v.category === 'bars';
+          const icon = isBar ? '🍹' : '🍽️';
+          const scope = scopeInfo(v);
+          const tagCls = st.state === 'open' ? 'tag-open' : 'tag-soon';
+          const tileCls = st.subState === 'closing' ? 'is-closing-soon' : st.subState === 'opening' ? 'is-opening-soon' : '';
+          const resHint =
+            v.included === false
+              ? 'Pago à parte'
+              : v.reservationRequired
+                ? 'Pede reserva'
+                : isBar
+                  ? 'Entrada livre'
+                  : 'Sem reserva';
+
+          return `
+            <button type="button" class="open-now-tile ${tileCls}" data-open-now-venue="${escapeHtml(v.id)}">
+              <div class="open-now-tile-main">
+                <div class="open-now-tile-top">
+                  <span class="open-now-tile-icon" aria-hidden="true">${icon}</span>
+                  <span class="open-now-tile-name">${escapeHtml(v.name)}</span>
+                </div>
+                <div class="open-now-tile-meta">
+                  <span class="open-now-scope ${scope.cls}">${escapeHtml(scope.label)}</span>
+                  <span>${escapeHtml(cleanShortCuisine(v))}</span>
+                </div>
+              </div>
+              <div class="open-now-tile-right">
+                <span class="tag ${tagCls}">${escapeHtml(st.label)}</span>
+                <span class="open-now-res-hint">${escapeHtml(resHint)}</span>
+              </div>
+            </button>`;
+        })
+        .join('') +
+      (closedCount > 0
+        ? `<div class="open-now-closed-more">+ ${closedCount} ${closedCount === 1 ? 'restaurante fechado' : 'restaurantes fechados'} a esta hora — muda a hora acima ou abre o Guia para ver todos.</div>`
+        : '');
+
+    listEl.querySelectorAll('[data-open-now-venue]').forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-open-now-venue');
+        const v = state.venues.find((x) => x.id === id);
+        if (!v) return;
+        if (v.category === 'bars') {
+          switchReviewsTab('cocktails');
+          switchView('resort');
+          renderCocktails();
+        } else {
+          activeRestaurantId = v.id;
+          switchReviewsTab('restaurants');
+          switchView('resort');
+          renderResortVenues();
+        }
+      })
+    );
+  }
+
+  document.getElementById('overview-open-now-time')?.addEventListener('change', renderPrivateOpenNowVenues);
+  document.getElementById('overview-open-now-guide-btn')?.addEventListener('click', () => {
+    activeRestaurantId = null;
+    switchReviewsTab('restaurants');
+    switchView('resort');
+    renderResortVenues();
+  });
 
   // ---------- ADS-B Radar ----------
   function getFlightIata(flightNumber) {
@@ -2240,6 +2558,8 @@
       v.category = document.getElementById('er-cat').value;
       v.cuisine = document.getElementById('er-cuisine').value.trim() || v.cuisine;
       v.hoursLabel = document.getElementById('er-hours').value.trim();
+      const parsedIv = parseOpenIntervalsFromLabel(v.hoursLabel);
+      if (parsedIv.length) v.openIntervals = parsedIv;
       v.dressCode = document.getElementById('er-dress').value.trim();
       v.reservationRequired = Boolean(document.getElementById('er-res')?.checked);
       v.description = document.getElementById('er-desc').value.trim();
@@ -2384,7 +2704,7 @@
         reservationRequired,
         dressCode: '',
         hoursLabel,
-        openIntervals: [{ start: '00:00', end: '24:00' }],
+        openIntervals: parseOpenIntervalsFromLabel(hoursLabel),
         description,
         photoUrl,
         menuPhotoUrl,
@@ -3176,7 +3496,7 @@
       reservationRequired: false,
       dressCode: category === 'bars' ? 'Casual' : 'Smart Casual / Casual',
       hoursLabel,
-      openIntervals: [{ start: '00:00', end: '24:00' }],
+      openIntervals: parseOpenIntervalsFromLabel(hoursLabel),
       description,
       visited: false,
       custom: true
@@ -5733,9 +6053,24 @@
     const { data: rows, error } = photosRes;
     if (error || !rows || !rows.length) {
       galleryPhotos = [];
+      publicWallPhotos = [];
+      renderPublicOverviewWall();
       grid.innerHTML = `<div class="photo-empty-card"><span aria-hidden="true">📷</span><p>Ainda não há fotografias.<br/>Assim que forem publicadas, aparecem aqui.</p></div>`;
       return;
     }
+
+    // Build newest-first list for the public Mural on Hoje
+    publicWallPhotos = [...rows]
+      .reverse()
+      .map((row) => {
+        const day = Number(row.day_number) || 1;
+        const dayLabel = tripDayLabel(day);
+        const { data: pub } = sbClient.storage.from('trip-photos').getPublicUrl(row.storage_path);
+        const url = pub?.publicUrl || '';
+        return url ? { url, caption: row.caption || '', dayLabel: `Dia ${day} · ${dayLabel}` } : null;
+      })
+      .filter(Boolean);
+    renderPublicOverviewWall();
 
     const commentsByPhoto = new Map();
     if (commentsRes && Array.isArray(commentsRes.data)) {
@@ -5758,15 +6093,15 @@
     });
     const days = [...byDay.keys()].sort((a, b) => b - a);
 
-    galleryPhotos = [];
+    const albumPhotos = [];
     const sections = days.map((day) => {
       const dayLabel = tripDayLabel(day);
       const items = byDay.get(day).map((row) => {
         const { data: pub } = sbClient.storage.from('trip-photos').getPublicUrl(row.storage_path);
         const imgUrl = pub?.publicUrl || '';
         if (!imgUrl) return '';
-        const idx = galleryPhotos.length;
-        galleryPhotos.push({ url: imgUrl, caption: row.caption || '', dayLabel: `Dia ${day} · ${dayLabel}` });
+        const idx = albumPhotos.length;
+        albumPhotos.push({ url: imgUrl, caption: row.caption || '', dayLabel: `Dia ${day} · ${dayLabel}` });
 
         const pid = String(row.id);
         const cmList = commentsByPhoto.get(pid) || [];
@@ -5817,9 +6152,13 @@
         </section>`;
     });
 
+    galleryPhotos = [...albumPhotos];
     grid.innerHTML = sections.join('');
     grid.querySelectorAll('[data-photo-index]').forEach((b) =>
-      b.addEventListener('click', () => openLightbox(Number(b.getAttribute('data-photo-index'))))
+      b.addEventListener('click', () => {
+        galleryPhotos = [...albumPhotos];
+        openLightbox(Number(b.getAttribute('data-photo-index')));
+      })
     );
 
     grid.querySelectorAll('[data-toggle-cm-form]').forEach((b) =>
@@ -6111,6 +6450,10 @@
   setInterval(updateClocksAndCountdown, 30000);
   setInterval(() => {
     if (activeView === 'flights') renderFlightStatus();
+    if (!publicMode && activeView === 'overview') {
+      renderPrivateOpenNowVenues();
+      renderOverviewWeatherCard();
+    }
   }, 60000);
   // Keep both public visitors and logged-in travelers synchronized when returning to the app or regaining connectivity
   setInterval(() => {
