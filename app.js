@@ -4456,6 +4456,9 @@
       if (okBtn) { okBtn.disabled = true; okBtn.textContent = 'A apagar...'; }
       try {
         await onConfirm();
+      } catch (err) {
+        console.error('Erro ao confirmar ação:', err);
+        showToast(`Erro ao concluir ação: ${err?.message || 'falha inesperada'}`);
       } finally {
         closeModal();
       }
@@ -6561,9 +6564,21 @@
           message: `Tem a certeza que quer apagar este comentário de ${author}?`,
           confirmLabel: 'Apagar Comentário',
           onConfirm: async () => {
-            await sbClient.from('trip_photo_comments').delete().eq('id', cmId);
+            const { data: delCm, error: delCmErr } = await sbClient
+              .from('trip_photo_comments')
+              .delete()
+              .eq('id', cmId)
+              .select('id');
+            if (delCmErr) {
+              showToast(`Erro ao apagar comentário: ${delCmErr.message}`);
+              return;
+            }
+            if (!delCm || !delCm.length) {
+              showToast('Sem permissão RLS para apagar comentário (execute supabase.sql).');
+              return;
+            }
             showToast('Comentário removido');
-            loadPhotosGallery();
+            await loadPhotosGallery();
           }
         });
       })
@@ -6589,14 +6604,22 @@
         document.getElementById('f-edit-photo-cap')?.addEventListener('submit', async (e) => {
           e.preventDefault();
           const newCap = document.getElementById('epc-text').value.trim();
-          const { error: upErr } = await sbClient.from('trip_photos').update({ caption: newCap }).eq('id', id);
+          const { data: upRows, error: upErr } = await sbClient
+            .from('trip_photos')
+            .update({ caption: newCap })
+            .eq('id', id)
+            .select('id');
           if (upErr) {
             showToast(`Erro ao atualizar descrição: ${upErr.message}`);
             return;
           }
+          if (!upRows || !upRows.length) {
+            showToast('Sem permissão RLS para editar fotografia (execute supabase.sql).');
+            return;
+          }
           closeModal();
           showToast('Descrição atualizada!');
-          loadPhotosGallery();
+          await loadPhotosGallery();
         });
       })
     );
@@ -6607,6 +6630,7 @@
         const path = b.getAttribute('data-del-path');
         const url = b.getAttribute('data-del-url') || '';
         const cap = b.getAttribute('data-del-caption') || 'Fotografia da viagem';
+        const cardEl = b.closest('.photo-card');
         const previewHtml = `
           ${url ? `<img src="${escapeHtml(url)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:10px;flex-shrink:0;" />` : ''}
           <div>
@@ -6619,11 +6643,42 @@
           previewHtml,
           confirmLabel: 'Apagar Fotografia',
           onConfirm: async () => {
-            await sbClient.storage.from('trip-photos').remove([path]);
-            await sbClient.from('trip_photo_comments').delete().eq('photo_id', String(id)).catch(() => {});
-            await sbClient.from('trip_photos').delete().eq('id', id);
+            // 1. Apagar primeiro o registo em trip_photos (confirmando via .select('id') que a RLS permitiu apagar)
+            const { data: delRows, error: delErr } = await sbClient
+              .from('trip_photos')
+              .delete()
+              .eq('id', id)
+              .select('id');
+            if (delErr) {
+              showToast(`Erro ao apagar fotografia: ${delErr.message}`);
+              return;
+            }
+            if (!delRows || !delRows.length) {
+              showToast('O Supabase bloqueou a remoção (falta política DELETE em trip_photos — execute supabase.sql).');
+              return;
+            }
+
+            // Remover imediatamente o cartão do DOM para feedback visual instantâneo
+            if (cardEl) cardEl.remove();
+
+            // 2. Apagar comentários associados (sem encadear .catch num PostgrestFilterBuilder!)
+            try {
+              await sbClient.from('trip_photo_comments').delete().eq('photo_id', String(id));
+            } catch {
+              // Ignorar se a tabela de comentários ainda não existir
+            }
+
+            // 3. Remover o ficheiro do bucket Storage (se ainda existir)
+            if (path) {
+              try {
+                await sbClient.storage.from('trip-photos').remove([path]);
+              } catch {
+                // Ignorar se o ficheiro já tiver sido removido anteriormente
+              }
+            }
+
             showToast('Foto removida');
-            loadPhotosGallery();
+            await loadPhotosGallery();
             refreshStorageUsage(true);
           }
         });

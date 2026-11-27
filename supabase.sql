@@ -31,14 +31,44 @@ create policy "Auth update public_trip"
 -- 2. Tornar o bucket trip-photos público para visualização (upload/apagar continua privado)
 update storage.buckets set public = true where id = 'trip-photos';
 
--- 3. Permitir que visitantes (anon) vejam a galeria de fotos
+-- 3. Galeria de fotos: leitura pública (anon + authenticated); upload, edição e remoção para utilizadores autenticados
+alter table public.trip_photos enable row level security;
+
 drop policy if exists "Public read trip_photos" on public.trip_photos;
 create policy "Public read trip_photos"
   on public.trip_photos for select to anon, authenticated using (true);
 
+drop policy if exists "Auth insert trip_photos" on public.trip_photos;
+create policy "Auth insert trip_photos"
+  on public.trip_photos for insert to authenticated with check (true);
+
+drop policy if exists "Auth update trip_photos" on public.trip_photos;
+create policy "Auth update trip_photos"
+  on public.trip_photos for update to authenticated using (true) with check (true);
+
+drop policy if exists "Auth delete trip_photos" on public.trip_photos;
+create policy "Auth delete trip_photos"
+  on public.trip_photos for delete to authenticated using (true);
+
 drop policy if exists "Public view trip photos" on storage.objects;
 create policy "Public view trip photos"
   on storage.objects for select to anon, authenticated
+  using (bucket_id = 'trip-photos');
+
+drop policy if exists "Auth upload trip photos" on storage.objects;
+create policy "Auth upload trip photos"
+  on storage.objects for insert to authenticated
+  with check (bucket_id = 'trip-photos');
+
+drop policy if exists "Auth update trip photos" on storage.objects;
+create policy "Auth update trip photos"
+  on storage.objects for update to authenticated
+  using (bucket_id = 'trip-photos')
+  with check (bucket_id = 'trip-photos');
+
+drop policy if exists "Auth delete trip photos" on storage.objects;
+create policy "Auth delete trip photos"
+  on storage.objects for delete to authenticated
   using (bucket_id = 'trip-photos');
 
 -- 4. Comentários públicos nas fotografias (qualquer pessoa pode ler e comentar com nome + mensagem; apagar é privado)
