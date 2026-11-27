@@ -533,6 +533,23 @@ button { cursor: pointer; }
   background: hsla(38, 92%, 62%, 0.2);
   border: 1px solid hsla(42, 94%, 72%, 0.3);
 }
+.weather-sun-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.weather-sun-status svg {
+  width: 15px;
+  height: 15px;
+  color: hsl(42, 92%, 74%);
+  flex-shrink: 0;
+}
+.weather-sun-status.is-dusk svg {
+  color: hsl(26, 94%, 74%);
+}
+.weather-sun-status.is-night svg {
+  color: hsl(204, 86%, 82%);
+}
 
 .today-schedule-card {
   display: flex;

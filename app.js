@@ -1138,6 +1138,7 @@
 
   const SUNRISE_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v6"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>`;
   const SUNSET_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>`;
+  const MOON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
 
   function buildPrivateSunAndUvHtml(cur, todayDaily, destClock) {
     if (publicMode || !todayDaily) return '';
@@ -1152,17 +1153,31 @@
     const uvNow = cur?.uvNow != null ? Number(cur.uvNow) : null;
 
     let sunStatus = '';
+    let sunStatusIcon = WX_ICONS.sun;
+    let sunStatusKind = 'day';
     if (nowMins < srMins) {
       const diff = srMins - nowMins;
+      sunStatusIcon = SUNRISE_SVG;
+      sunStatusKind = 'dawn';
       sunStatus = diff <= 90 ? `Amanhece em ${diff} min` : `Antes do amanhecer`;
     } else if (nowMins < ssMins) {
       const left = ssMins - nowMins;
       const h = Math.floor(left / 60);
       const m = left % 60;
       const leftStr = h > 0 ? `${h}h${m > 0 ? ` ${String(m).padStart(2, '0')}m` : ''}` : `${m} min`;
-      sunStatus = left <= 75 ? `🌇 Pôr do sol em ${leftStr}!` : `☀️ Restam ${leftStr} de luz solar`;
+      if (left <= 75) {
+        sunStatusIcon = SUNSET_SVG;
+        sunStatusKind = 'dusk';
+        sunStatus = `Pôr do sol em ${leftStr}!`;
+      } else {
+        sunStatusIcon = WX_ICONS.sun;
+        sunStatusKind = 'day';
+        sunStatus = `Restam ${leftStr} de luz solar`;
+      }
     } else {
-      sunStatus = `🌙 Já anoiteceu (nascer às ${sr || '--:--'})`;
+      sunStatusIcon = MOON_SVG;
+      sunStatusKind = 'night';
+      sunStatus = `Já anoiteceu (nascer às ${sr || '--:--'})`;
     }
 
     let uvAdvice = '';
@@ -1191,7 +1206,7 @@
           ${ss ? `<span class="weather-sun-item">${SUNSET_SVG}<span class="weather-sun-lbl">Pôr do sol</span><span class="weather-sun-val">${escapeHtml(ss)}</span></span>` : ''}
         </div>
         <div class="weather-sun-badge ${uvHigh ? 'is-uv-high' : ''}">
-          <span>${escapeHtml(sunStatus)}</span>
+          <span class="weather-sun-status is-${sunStatusKind}">${sunStatusIcon}<span>${escapeHtml(sunStatus)}</span></span>
           ${uvAdvice ? `<span>${escapeHtml(uvAdvice)}</span>` : ''}
         </div>
       </div>`;
