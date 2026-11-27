@@ -342,8 +342,13 @@
 
       <div class="grid-2">
         <div class="surface">
-          <h3 style="font-size: 1.15rem;" id="conv-title">Conversor de Moeda</h3>
-          <p class="section-subtitle" style="margin-bottom: 14px;">Escreva em qualquer campo para converter automaticamente</p>
+          <div class="section-header" style="margin-bottom: 12px;">
+            <div>
+              <h3 style="font-size: 1.15rem;" id="conv-title">Conversor de Moeda</h3>
+              <p class="section-subtitle" id="conv-rate-info">Escreva em qualquer campo para converter automaticamente</p>
+            </div>
+            <button type="button" class="btn btn-sm" id="btn-refresh-rates" title="Atualizar câmbio oficial em direto (BCE)">↻ Atualizar Câmbio</button>
+          </div>
           <div class="currency-grid">
             <div><label class="field-label" for="conv-mxn" id="conv-dest-label">Moeda Local</label><input type="number" step="any" class="input mono" id="conv-mxn" value="400" /></div>
             <div><label class="field-label" for="conv-eur">Euros (EUR)</label><input type="number" step="any" class="input mono" id="conv-eur" /></div>
@@ -566,7 +571,10 @@
               </div>
               <div>
                 <label class="field-label" for="st-curr-rate">Taxa de Câmbio (1 EUR = ? na moeda local)</label>
-                <input id="st-curr-rate" type="number" step="any" class="input mono" placeholder="21.6" />
+                <div style="display:grid;grid-template-columns:1fr auto;gap:6px;">
+                  <input id="st-curr-rate" type="number" step="any" class="input mono" placeholder="21.6" />
+                  <button type="button" class="btn btn-sm" id="btn-settings-refresh-rates" title="Obter taxa oficial atual">↻ Atual</button>
+                </div>
               </div>
             </div>
 
@@ -690,16 +698,17 @@
         </div>
       </details>
 
-      <!-- 7. PRÓXIMAS VIAGENS & BACKUP -->
+      <!-- 7. PRÓXIMAS VIAGENS, ARMAZENAMENTO & BACKUP -->
       <details class="surface settings-accordion">
         <summary class="settings-accordion-summary">
           <div>
-            <h3>7. Próximas Viagens &amp; Backup</h3>
-            <p class="section-subtitle">Exportar, importar ou começar uma viagem nova</p>
+            <h3>7. Armazenamento, Backup &amp; Próximas Viagens</h3>
+            <p class="section-subtitle">Espaço livre no Supabase, exportar/importar JSON ou começar viagem nova</p>
           </div>
           <span class="accordion-chevron" aria-hidden="true">›</span>
         </summary>
         <div class="settings-accordion-body">
+          <div id="settings-storage-meter" style="margin-bottom: 14px;"></div>
           <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
             <button type="button" class="btn btn-sm" id="btn-export-trip">⬇ Exportar Tudo (JSON)</button>
             <label class="btn btn-sm" style="cursor:pointer;">
@@ -762,7 +771,10 @@
   <div class="lightbox" id="photo-lightbox" role="dialog" aria-modal="true" aria-label="Fotografia em grande" hidden>
     <div class="lightbox-top">
       <span class="lightbox-counter" id="lightbox-counter"></span>
-      <button type="button" class="lightbox-close" id="lightbox-close" aria-label="Fechar">✕ Fechar</button>
+      <div class="lightbox-top-actions">
+        <button type="button" class="lightbox-zoom-btn" id="lightbox-zoom" aria-label="Ampliar fotografia" aria-pressed="false">🔍 2×</button>
+        <button type="button" class="lightbox-close" id="lightbox-close" aria-label="Fechar">✕ Fechar</button>
+      </div>
     </div>
     <div class="lightbox-stage" id="lightbox-stage">
       <img id="lightbox-img" alt="" />

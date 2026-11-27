@@ -1349,12 +1349,19 @@ button { cursor: pointer; }
 
 .lightbox { position: fixed; inset: 0; z-index: 100; background: #000; color: #fff; display: flex; flex-direction: column; }
 .lightbox[hidden] { display: none; }
-html.lightbox-open, html.lightbox-open body { overflow: hidden; }
-.lightbox-top { display: flex; justify-content: space-between; align-items: center; padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px; }
+html.lightbox-open, html.lightbox-open body,
+html.modal-open, html.modal-open body { overflow: hidden; }
+.lightbox-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px; z-index: 2; }
+.lightbox-top-actions { display: inline-flex; align-items: center; gap: 8px; }
 .lightbox-counter { font-size: 1.05rem; font-weight: 600; opacity: 0.85; }
-.lightbox-close { appearance: none; border: 2px solid #fff; background: transparent; color: #fff; font-size: 1.1rem; font-weight: 700; padding: 10px 18px; border-radius: 999px; min-height: 48px; }
-.lightbox-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
-.lightbox-stage img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.lightbox-zoom-btn { appearance: none; border: 1.5px solid rgba(255,255,255,0.45); background: rgba(255,255,255,0.14); color: #fff; font-size: 0.95rem; font-weight: 700; padding: 9px 14px; border-radius: 999px; min-height: 44px; }
+.lightbox-zoom-btn.is-zoomed { background: #fff; color: #124e54; border-color: #fff; }
+.lightbox-close { appearance: none; border: 2px solid #fff; background: transparent; color: #fff; font-size: 1.05rem; font-weight: 700; padding: 9px 16px; border-radius: 999px; min-height: 44px; }
+.lightbox-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: pan-x pan-y pinch-zoom; }
+.lightbox-stage.is-zoomed { touch-action: none; cursor: grab; }
+.lightbox-stage.is-zoomed:active { cursor: grabbing; }
+.lightbox-stage img { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 180ms var(--ease-out); user-select: none; -webkit-user-drag: none; }
+.lightbox-stage.is-dragging img { transition: none; }
 .lightbox-bottom { padding: 10px 14px calc(14px + env(safe-area-inset-bottom, 0px)); }
 .lightbox-caption { display: flex; flex-direction: column; gap: 2px; font-size: 1.05rem; margin-bottom: 10px; }
 .lightbox-caption span { opacity: 0.8; font-size: 0.95rem; }
@@ -3933,9 +3940,90 @@ html.is-public .toast { bottom: 110px; font-size: 1rem; }
   height: 14px;
 }
 
+/* ---------- Supabase Storage Quota Meter (Private) ---------- */
+.storage-meter-box {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#settings-storage-meter .storage-meter-box {
+  margin-top: 0;
+}
+.storage-meter-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.storage-meter-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+.storage-meter-nums {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--cenote-700);
+}
+.storage-meter-nums.is-warn {
+  color: var(--amber-700);
+}
+.storage-meter-nums.is-danger {
+  color: var(--terracotta-600);
+}
+.storage-meter-track {
+  width: 100%;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-subtle);
+  overflow: hidden;
+  display: flex;
+}
+.storage-meter-seg-gallery {
+  height: 100%;
+  background: var(--cenote-600);
+  transition: width 260ms var(--ease-out);
+}
+.storage-meter-seg-reviews {
+  height: 100%;
+  background: hsl(37, 78%, 45%);
+  transition: width 260ms var(--ease-out);
+}
+.storage-meter-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.74rem;
+  color: var(--ink-secondary);
+}
+.storage-meter-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.storage-legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .view-panel { animation: none; }
   .btn:hover { transform: none; }
   .topbar { transition: none; }
 }
+
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yucatan-companion-pt-v50';
+const CACHE_NAME = 'yucatan-companion-pt-v54';
 const NETWORK_TIMEOUT_MS = 3500;
 
 const LOCAL_ASSETS = [

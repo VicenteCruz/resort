@@ -688,6 +688,22 @@
         : `Conversor de Moeda (${destCode} ↔ EUR ↔ USD)`;
     }
 
+    const rateInfoEl = document.getElementById('conv-rate-info');
+    if (rateInfoEl) {
+      const rDest = Number(state.rates.eurToDest) || 1;
+      const rUsd = Number(state.rates.eurToUsd) || 1.06;
+      const rCad = Number(state.rates.eurToCad) || 1.48;
+      const extraCode = (t.extraCurrencyCode || '').toUpperCase();
+      const parts = [];
+      if (!isEur) parts.push(`1 EUR = ${rDest >= 10 ? rDest.toFixed(2) : rDest.toFixed(3)} ${destCode}`);
+      parts.push(`${rUsd.toFixed(2)} USD`);
+      if (extraCode && extraCode !== destCode && extraCode !== 'EUR' && extraCode !== 'USD') {
+        parts.push(`${rCad.toFixed(2)} ${extraCode}`);
+      }
+      const dateSuffix = state.rates.updatedDate ? ` · Câmbio de ${formatDateMediumPt(state.rates.updatedDate)}` : '';
+      rateInfoEl.textContent = `${parts.join(' · ')}${dateSuffix}`;
+    }
+
     const destLbl = document.getElementById('conv-dest-label');
     if (destLbl) destLbl.textContent = `${destName} (${destCode})`;
 
@@ -818,15 +834,43 @@
     return null;
   }
 
+  function openRestaurantDetailView(venueId) {
+    if (!venueId) return;
+    activeRestaurantId = venueId;
+    switchReviewsTab('restaurants');
+    if (activeView !== 'resort') {
+      switchView('resort', { pushHistory: false, keepRestaurant: true });
+    } else {
+      renderResortVenues();
+    }
+    try {
+      history.pushState({ view: 'resort', restaurantId: venueId }, '', '#resort');
+    } catch {}
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function closeRestaurantDetailView() {
+    if (!activeRestaurantId) return;
+    if (history.state && history.state.restaurantId) {
+      history.back();
+      return;
+    }
+    activeRestaurantId = null;
+    renderResortVenues();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   function switchView(viewName, opts = {}) {
-    const { pushHistory = true } = opts;
+    const { pushHistory = true, keepRestaurant = false } = opts;
     if (activeView && activeView !== viewName) {
       viewScrollPositions[activeView] = window.scrollY;
       if (activeView !== 'settings') lastNonSettingsView = activeView;
     }
     activeView = viewName;
-    if (viewName === 'resort' && activeRestaurantId) {
+    if (viewName === 'resort' && activeRestaurantId && !keepRestaurant) {
       activeRestaurantId = null;
+      renderResortVenues();
+    } else if (viewName === 'resort' && keepRestaurant) {
       renderResortVenues();
     }
     document.querySelectorAll('.view-panel').forEach((p) => p.classList.toggle('is-active', p.id === `view-${viewName}`));
@@ -854,9 +898,25 @@
   }
 
   window.addEventListener('popstate', (ev) => {
+    if (typeof modalOpen !== 'undefined' && modalOpen && !ev.state?.modal) {
+      hideModalDom();
+    }
     const fromState = ev.state?.view;
     const fromHash = window.location.hash ? window.location.hash.slice(1) : '';
     const candidate = fromState || fromHash;
+    const nextRestId = ev.state?.restaurantId || null;
+
+    if (candidate === 'resort' && (sbUser || PUBLIC_VIEWS.has('resort'))) {
+      activeRestaurantId = nextRestId;
+      switchView('resort', { pushHistory: false, keepRestaurant: Boolean(nextRestId) });
+      if (!nextRestId) renderResortVenues();
+      return;
+    }
+
+    if (activeRestaurantId) {
+      activeRestaurantId = null;
+    }
+
     if (candidate && document.getElementById(`view-${candidate}`)) {
       if (sbUser || PUBLIC_VIEWS.has(candidate)) {
         switchView(candidate, { pushHistory: false });
@@ -900,7 +960,44 @@
     return WMO_WEATHER_PT[Number(code)] || { icon: WX_ICONS.partly, label: 'Tempo ameno' };
   }
 
-  let weatherState = {
+  const WEATHER_CACHE_KEY = 'pyp_weather_cache_v1';
+
+  function loadCachedWeatherState() {
+    try {
+      const raw = localStorage.getItem(WEATHER_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.current && parsed.dailyByDate) {
+        return {
+          queryKey: String(parsed.queryKey || ''),
+          loading: false,
+          error: false,
+          locationLabel: String(parsed.locationLabel || ''),
+          current: parsed.current,
+          dailyByDate: parsed.dailyByDate || {},
+          lastFetchedAt: Number(parsed.lastFetchedAt || 0)
+        };
+      }
+    } catch {}
+    return null;
+  }
+
+  function saveCachedWeatherState(wxState) {
+    try {
+      localStorage.setItem(
+        WEATHER_CACHE_KEY,
+        JSON.stringify({
+          queryKey: wxState.queryKey,
+          locationLabel: wxState.locationLabel,
+          current: wxState.current,
+          dailyByDate: wxState.dailyByDate,
+          lastFetchedAt: wxState.lastFetchedAt
+        })
+      );
+    } catch {}
+  }
+
+  let weatherState = loadCachedWeatherState() || {
     queryKey: '',
     loading: false,
     error: false,
@@ -930,6 +1027,11 @@
     }
     if (weatherState.loading && weatherState.queryKey === queryKey) return;
 
+    // Clear stale cache only if destination actually changed
+    if (weatherState.queryKey && weatherState.queryKey !== queryKey) {
+      weatherState.current = null;
+      weatherState.dailyByDate = {};
+    }
     weatherState.queryKey = queryKey;
     weatherState.loading = true;
     weatherState.error = false;
@@ -1009,6 +1111,7 @@
         dailyByDate,
         lastFetchedAt: Date.now()
       };
+      saveCachedWeatherState(weatherState);
     } catch {
       weatherState.loading = false;
       weatherState.error = true;
@@ -1124,11 +1227,13 @@
     const wmo = describeWmo(cur.code);
     const todayIso = getTodayDestIso();
     const todayDaily = weatherState.dailyByDate[todayIso];
+    const isOfflineCached = weatherState.error || (typeof navigator !== 'undefined' && navigator.onLine === false);
+    const kickerLabel = isOfflineCached ? 'Previsão Guardada (Offline)' : 'Tempo Agora';
 
     card.innerHTML = `
       <div class="weather-today-top">
         <div>
-          <div class="weather-loc-kicker">Tempo Agora · <span class="mono">${escapeHtml(destClock)}</span></div>
+          <div class="weather-loc-kicker">${kickerLabel} · <span class="mono">${escapeHtml(destClock)}</span></div>
           <div class="weather-loc-name">${escapeHtml(locTitle)}</div>
           <div class="weather-cond-label">${escapeHtml(wmo.label)} · Sensação ${cur.feels}°C</div>
         </div>
@@ -1246,10 +1351,7 @@
         if (!publicMode) {
           openEl.querySelectorAll('[data-open-plan-venue]').forEach((b) =>
             b.addEventListener('click', () => {
-              activeRestaurantId = b.getAttribute('data-open-plan-venue');
-              switchReviewsTab('restaurants');
-              switchView('resort');
-              renderResortVenues();
+              openRestaurantDetailView(b.getAttribute('data-open-plan-venue'));
             })
           );
         }
@@ -1518,10 +1620,7 @@
           switchView('resort');
           renderCocktails();
         } else {
-          activeRestaurantId = v.id;
-          switchReviewsTab('restaurants');
-          switchView('resort');
-          renderResortVenues();
+          openRestaurantDetailView(v.id);
         }
       })
     );
@@ -2199,10 +2298,7 @@
 
       listEl.querySelectorAll('[data-open-plan-venue]').forEach((b) =>
         b.addEventListener('click', () => {
-          activeRestaurantId = b.getAttribute('data-open-plan-venue');
-          switchReviewsTab('restaurants');
-          switchView('resort');
-          renderResortVenues();
+          openRestaurantDetailView(b.getAttribute('data-open-plan-venue'));
         })
       );
 
@@ -2484,20 +2580,115 @@
     ];
   }
 
-  async function uploadVenueImage(file, folder) {
+  function extractTripPhotosStoragePath(publicUrl) {
+    if (!publicUrl) return '';
+    const marker = '/storage/v1/object/public/trip-photos/';
+    const idx = String(publicUrl).indexOf(marker);
+    if (idx < 0) return '';
+    return decodeURIComponent(String(publicUrl).slice(idx + marker.length).split('?')[0]);
+  }
+
+  async function removeVenueImageByUrl(publicUrl) {
+    if (!sbClient || !sbUser || !publicUrl) return;
+    const oldPath = extractTripPhotosStoragePath(publicUrl);
+    if (!oldPath || oldPath.startsWith('day-')) return; // Never touch public gallery photos
+    try {
+      await sbClient.storage.from('trip-photos').remove([oldPath]);
+      if (typeof refreshStorageUsage === 'function') refreshStorageUsage(true);
+    } catch {
+      // Ignore storage cleanup errors silently
+    }
+  }
+
+  async function compressVenueImage(file, folder) {
+    // Menus keep slightly higher resolution/quality so small text stays crisp when zooming
+    const isMenu = folder === 'menus';
+    const maxDim = isMenu ? 2000 : folder === 'cocktails' ? 1400 : 1500;
+    const quality = isMenu ? 0.86 : 0.80;
+
+    // Skip compression if already tiny (< 240 KB) and web-safe JPEG/WebP
+    if (file.size < 240 * 1024 && /^image\/(jpeg|webp)$/i.test(file.type)) {
+      return { blob: file, ext: file.type.includes('webp') ? 'webp' : 'jpg', contentType: file.type };
+    }
+
+    const loadBitmapOrImg = () =>
+      new Promise((resolve, reject) => {
+        if (typeof window.createImageBitmap === 'function') {
+          window
+            .createImageBitmap(file, { imageOrientation: 'from-image' })
+            .then((bmp) => resolve({ source: bmp, width: bmp.width, height: bmp.height, close: () => bmp.close() }))
+            .catch(() => {
+              // Fallback to HTMLImageElement
+              const url = URL.createObjectURL(file);
+              const img = new Image();
+              img.onload = () => resolve({ source: img, width: img.naturalWidth, height: img.naturalHeight, close: () => URL.revokeObjectURL(url) });
+              img.onerror = (err) => { URL.revokeObjectURL(url); reject(err); };
+              img.src = url;
+            });
+        } else {
+          const url = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = () => resolve({ source: img, width: img.naturalWidth, height: img.naturalHeight, close: () => URL.revokeObjectURL(url) });
+          img.onerror = (err) => { URL.revokeObjectURL(url); reject(err); };
+          img.src = url;
+        }
+      });
+
+    try {
+      const decoded = await loadBitmapOrImg();
+      let { width, height } = decoded;
+      if (width > maxDim || height > maxDim) {
+        const scale = maxDim / Math.max(width, height);
+        width = Math.max(1, Math.round(width * scale));
+        height = Math.max(1, Math.round(height * scale));
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        decoded.close();
+        throw new Error('No 2d context');
+      }
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(decoded.source, 0, 0, width, height);
+      decoded.close();
+
+      const outBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+      if (outBlob && outBlob.size < file.size) {
+        return { blob: outBlob, ext: 'jpg', contentType: 'image/jpeg' };
+      }
+    } catch {
+      // Fall back to uploading original file if browser cannot decode format
+    }
+
+    const fallbackExt = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    return { blob: file, ext: fallbackExt, contentType: file.type || 'image/jpeg' };
+  }
+
+  async function uploadVenueImage(file, folder, previousUrl = '') {
     if (!file) return '';
     if (!sbClient || !sbUser) {
       showToast('Inicie sessão para guardar fotografias na nuvem.');
       return '';
     }
-    showToast('A carregar fotografia...');
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `${folder}/${Date.now()}.${ext}`;
-    const { error: upErr } = await sbClient.storage.from('trip-photos').upload(path, file, { upsert: false });
+    showToast('A otimizar e carregar fotografia...');
+    const { blob, ext, contentType } = await compressVenueImage(file, folder);
+    const rand = Math.random().toString(36).slice(2, 6);
+    const path = `${folder}/${Date.now()}-${rand}.${ext}`;
+    const { error: upErr } = await sbClient.storage
+      .from('trip-photos')
+      .upload(path, blob, { upsert: false, contentType });
     if (upErr) {
       showToast(`Erro ao carregar: ${upErr.message}`);
       return '';
     }
+    if (previousUrl) {
+      await removeVenueImageByUrl(previousUrl);
+    }
+    if (typeof refreshStorageUsage === 'function') refreshStorageUsage(true);
     const { data: pub } = sbClient.storage.from('trip-photos').getPublicUrl(path);
     return pub?.publicUrl || '';
   }
@@ -2888,11 +3079,7 @@
       </div>
     `;
 
-    document.getElementById('btn-back-restaurants')?.addEventListener('click', () => {
-      activeRestaurantId = null;
-      renderResortVenues();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
+    document.getElementById('btn-back-restaurants')?.addEventListener('click', closeRestaurantDetailView);
     document.getElementById('btn-detail-edit-rest')?.addEventListener('click', () => openEditRestaurantModal(v.id));
     document.getElementById('btn-detail-sched')?.addEventListener('click', () => openSchedModal(v.id));
     document.getElementById('btn-detail-review')?.addEventListener('click', () => openRateVenueModal(v.id));
@@ -2912,7 +3099,11 @@
         message: `Tem a certeza que quer remover "${v.name}" e todas as suas reviews da lista?`,
         previewHtml,
         confirmLabel: 'Apagar Restaurante',
-        onConfirm: () => {
+        onConfirm: async () => {
+          await Promise.all([
+            removeVenueImageByUrl(v.photoUrl),
+            removeVenueImageByUrl(v.menuPhotoUrl)
+          ]);
           state.venues = state.venues.filter((x) => x.id !== v.id);
           activeRestaurantId = null;
           saveState();
@@ -2932,7 +3123,7 @@
     document.getElementById('inp-rest-photo')?.addEventListener('change', async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      const url = await uploadVenueImage(file, 'restaurants');
+      const url = await uploadVenueImage(file, 'restaurants', v.photoUrl);
       if (url) {
         v.photoUrl = url;
         saveState();
@@ -2944,7 +3135,7 @@
     document.getElementById('inp-rest-menu')?.addEventListener('change', async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      const url = await uploadVenueImage(file, 'menus');
+      const url = await uploadVenueImage(file, 'menus', v.menuPhotoUrl);
       if (url) {
         v.menuPhotoUrl = url;
         saveState();
@@ -3159,9 +3350,7 @@
 
     grid.querySelectorAll('[data-open-rest]').forEach((card) =>
       card.addEventListener('click', () => {
-        activeRestaurantId = card.getAttribute('data-open-rest');
-        renderResortVenues();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        openRestaurantDetailView(card.getAttribute('data-open-rest'));
       })
     );
   }
@@ -3363,7 +3552,11 @@
             message: `Tem a certeza que quer remover "${v.name}" da lista?`,
             previewHtml,
             confirmLabel: 'Remover',
-            onConfirm: () => {
+            onConfirm: async () => {
+              await Promise.all([
+                removeVenueImageByUrl(v.photoUrl),
+                removeVenueImageByUrl(v.menuPhotoUrl)
+              ]);
               state.venues = state.venues.filter((x) => x.id !== id);
               if (activeRestaurantId === id) activeRestaurantId = null;
               saveState();
@@ -3865,6 +4058,126 @@
     if (src !== 'CAD' && document.getElementById('conv-cad')) document.getElementById('conv-cad').value = (eur * eurToCad).toFixed(2);
   }
 
+  async function refreshExchangeRates(overrideDestCode = null) {
+    const rawCode = overrideDestCode || state.trip.currencyCode || 'EUR';
+    const destCode = String(rawCode).trim().toUpperCase();
+    const extraCode = String(state.trip.extraCurrencyCode || 'CAD').trim().toUpperCase();
+
+    const btn1 = document.getElementById('btn-refresh-rates');
+    const btn2 = document.getElementById('btn-settings-refresh-rates');
+    const setBusy = (busy) => {
+      if (btn1) {
+        btn1.disabled = busy;
+        btn1.textContent = busy ? '↻ A atualizar…' : '↻ Atualizar Câmbio';
+      }
+      if (btn2) {
+        btn2.disabled = busy;
+        btn2.textContent = busy ? '…' : '↻ Atual';
+      }
+    };
+
+    setBusy(true);
+    try {
+      const wanted = [...new Set([destCode, 'USD', extraCode].filter((c) => c && c !== 'EUR'))];
+      let fetchedRates = null;
+      let rateDateIso = new Date().toISOString().slice(0, 10);
+
+      // 1) Primary: European Central Bank via Frankfurter (fast, keyless, CORS-open)
+      if (wanted.length) {
+        try {
+          const ctrl = new AbortController();
+          const tId = setTimeout(() => ctrl.abort(), 5000);
+          const res = await fetch(`https://api.frankfurter.app/latest?from=EUR&to=${encodeURIComponent(wanted.join(','))}`, {
+            signal: ctrl.signal
+          });
+          clearTimeout(tId);
+          if (res.ok) {
+            const json = await res.json();
+            if (json?.rates) {
+              fetchedRates = json.rates;
+              if (json.date) rateDateIso = json.date;
+            }
+          }
+        } catch {
+          // Try secondary global FX source below
+        }
+      } else {
+        fetchedRates = {};
+      }
+
+      // 2) Fallback: Open Exchange Rates API (covers 160+ currencies such as COP, PEN, MAD, CRC, etc.)
+      if (!fetchedRates || (destCode !== 'EUR' && typeof fetchedRates[destCode] !== 'number')) {
+        const ctrl2 = new AbortController();
+        const tId2 = setTimeout(() => ctrl2.abort(), 5500);
+        const res2 = await fetch('https://open.er-api.com/v6/latest/EUR', { signal: ctrl2.signal });
+        clearTimeout(tId2);
+        if (res2.ok) {
+          const json2 = await res2.json();
+          if (json2?.rates) {
+            fetchedRates = { ...(fetchedRates || {}), ...json2.rates };
+            if (json2.time_last_update_utc) {
+              const parsedD = new Date(json2.time_last_update_utc);
+              if (!Number.isNaN(parsedD.getTime())) rateDateIso = parsedD.toISOString().slice(0, 10);
+            }
+          }
+        }
+      }
+
+      if (!fetchedRates) {
+        showToast('Sem ligação para obter a taxa de câmbio atual.');
+        return;
+      }
+
+      if (destCode === 'EUR') {
+        state.rates.eurToDest = 1;
+        state.rates.eurToMxn = 1;
+      } else if (typeof fetchedRates[destCode] === 'number' && fetchedRates[destCode] > 0) {
+        const roundedDest = Number(fetchedRates[destCode].toFixed(destCode === 'JPY' || fetchedRates[destCode] >= 100 ? 2 : 4));
+        state.rates.eurToDest = roundedDest;
+        state.rates.eurToMxn = roundedDest;
+      } else {
+        showToast(`Moeda "${destCode}" não encontrada nas tabelas de câmbio.`);
+        return;
+      }
+
+      if (typeof fetchedRates.USD === 'number' && fetchedRates.USD > 0) {
+        state.rates.eurToUsd = Number(fetchedRates.USD.toFixed(4));
+      }
+      if (extraCode && typeof fetchedRates[extraCode] === 'number' && fetchedRates[extraCode] > 0) {
+        state.rates.eurToCad = Number(fetchedRates[extraCode].toFixed(4));
+      }
+      state.rates.updatedDate = rateDateIso;
+
+      // Sync Settings input if user clicked inside Settings
+      const stCurrInput = document.getElementById('st-curr-rate');
+      if (stCurrInput) stCurrInput.value = state.rates.eurToDest;
+
+      saveState();
+      renderCurrencyChrome();
+      renderExpenses();
+      const curDestVal = document.getElementById('conv-mxn')?.value;
+      if (curDestVal) updateCurrency('DEST', curDestVal);
+      else updateCurrency('EUR', document.getElementById('conv-eur')?.value || '20');
+
+      showToast(
+        destCode === 'EUR'
+          ? `Câmbio atualizado: 1 EUR = ${state.rates.eurToUsd.toFixed(2)} USD`
+          : `Câmbio atualizado: 1 EUR = ${state.rates.eurToDest >= 10 ? state.rates.eurToDest.toFixed(2) : state.rates.eurToDest} ${destCode}`
+      );
+    } catch {
+      showToast('Erro ao atualizar câmbio (verifique a internet).');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  document.getElementById('btn-refresh-rates')?.addEventListener('click', () => refreshExchangeRates());
+  document.getElementById('btn-settings-refresh-rates')?.addEventListener('click', () => {
+    const typedCode = document.getElementById('st-curr-code')?.value.trim().toUpperCase();
+    if (typedCode) state.trip.currencyCode = typedCode;
+    refreshExchangeRates(typedCode || null);
+  });
+
   function getExpenseParticipants() {
     if (!Array.isArray(state.expenseParticipants) || !state.expenseParticipants.length) {
       const me = getCurrentReviewer().by;
@@ -4085,13 +4398,45 @@
     );
   }
 
-  // ---------- Modals ----------
+  // ---------- Modals (Native Back Gesture + Escape + Scroll Lock) ----------
+  let modalOpen = false;
+
+  function hideModalDom() {
+    document.getElementById('modal-backdrop')?.classList.remove('is-open');
+    document.documentElement.classList.remove('modal-open');
+    modalOpen = false;
+  }
+
   function openModal(title, html) {
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-body').innerHTML = html;
     document.getElementById('modal-backdrop').classList.add('is-open');
+    document.documentElement.classList.add('modal-open');
+    if (!modalOpen) {
+      modalOpen = true;
+      try {
+        const curState = history.state && typeof history.state === 'object' ? history.state : { view: activeView };
+        history.pushState({ ...curState, modal: true }, '');
+      } catch {}
+    }
   }
-  function closeModal() { document.getElementById('modal-backdrop').classList.remove('is-open'); }
+
+  function closeModal() {
+    if (!modalOpen) {
+      hideModalDom();
+      return;
+    }
+    hideModalDom();
+    if (history.state && history.state.modal) {
+      try { history.back(); } catch {}
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modalOpen && !lightboxOpen) {
+      closeModal();
+    }
+  });
 
   function openConfirmModal({ title, message, previewHtml = '', confirmLabel = 'Apagar definitivamente', onConfirm }) {
     openModal(title, `
@@ -5216,7 +5561,7 @@
         const file = e.target.files?.[0];
         const ck = (state.cocktails || []).find((x) => x.id === inp.getAttribute('data-upload-ck-photo'));
         if (!file || !ck) return;
-        const url = await uploadVenueImage(file, 'cocktails');
+        const url = await uploadVenueImage(file, 'cocktails', ck.photoUrl);
         if (url) {
           ck.photoUrl = url;
           saveState();
@@ -5257,9 +5602,10 @@
             : `Tem a certeza que quer apagar a review de ${rev.by} em "${ck.name}"?`,
           previewHtml,
           confirmLabel: 'Apagar Review',
-          onConfirm: () => {
+          onConfirm: async () => {
             ck.reviews = ck.reviews.filter((r) => r.id !== revId);
             if (!ck.reviews.length) {
+              await removeVenueImageByUrl(ck.photoUrl);
               state.cocktails = state.cocktails.filter((x) => x.id !== ckId);
             }
             saveState();
@@ -5460,7 +5806,7 @@
         }
 
         if (photoFile) {
-          const uploadedUrl = await uploadVenueImage(photoFile, 'cocktails');
+          const uploadedUrl = await uploadVenueImage(photoFile, 'cocktails', target.photoUrl);
           if (uploadedUrl) target.photoUrl = uploadedUrl;
         }
 
@@ -6278,6 +6624,7 @@
             await sbClient.from('trip_photos').delete().eq('id', id);
             showToast('Foto removida');
             loadPhotosGallery();
+            refreshStorageUsage(true);
           }
         });
       })
@@ -6286,16 +6633,66 @@
 
   let lightboxIndex = 0;
   let lightboxOpen = false;
+  let lbScale = 1;
+  let lbPanX = 0;
+  let lbPanY = 0;
+
+  function applyLightboxTransform() {
+    const img = document.getElementById('lightbox-img');
+    const stage = document.getElementById('lightbox-stage');
+    const zoomBtn = document.getElementById('lightbox-zoom');
+    const zoomed = lbScale > 1.05;
+    if (!zoomed) {
+      lbScale = 1;
+      lbPanX = 0;
+      lbPanY = 0;
+    } else {
+      const maxPanX = ((stage?.clientWidth || 360) * (lbScale - 1)) / 1.8;
+      const maxPanY = ((stage?.clientHeight || 560) * (lbScale - 1)) / 1.8;
+      lbPanX = Math.max(-maxPanX, Math.min(maxPanX, lbPanX));
+      lbPanY = Math.max(-maxPanY, Math.min(maxPanY, lbPanY));
+    }
+    if (img) {
+      img.style.transform = zoomed ? `translate3d(${lbPanX}px, ${lbPanY}px, 0) scale(${lbScale.toFixed(2)})` : '';
+    }
+    if (stage) stage.classList.toggle('is-zoomed', zoomed);
+    if (zoomBtn) {
+      zoomBtn.classList.toggle('is-zoomed', zoomed);
+      zoomBtn.setAttribute('aria-pressed', zoomed ? 'true' : 'false');
+      zoomBtn.textContent = zoomed ? '🔍 1×' : '🔍 2×';
+    }
+  }
+
+  function resetLightboxZoom() {
+    lbScale = 1;
+    lbPanX = 0;
+    lbPanY = 0;
+    applyLightboxTransform();
+  }
+
+  function toggleLightboxZoom() {
+    if (lbScale > 1.05) {
+      resetLightboxZoom();
+    } else {
+      lbScale = 2.25;
+      lbPanX = 0;
+      lbPanY = 0;
+      applyLightboxTransform();
+    }
+  }
 
   function renderLightbox() {
     const p = galleryPhotos[lightboxIndex];
     if (!p) return;
+    resetLightboxZoom();
     const img = document.getElementById('lightbox-img');
     img.src = p.url;
     img.alt = p.caption || 'Fotografia da viagem';
     document.getElementById('lightbox-caption').innerHTML =
       `${p.caption ? `<strong>${escapeHtml(p.caption)}</strong>` : ''}<span>${escapeHtml(p.dayLabel)}</span>`;
     document.getElementById('lightbox-counter').textContent = `${lightboxIndex + 1} de ${galleryPhotos.length}`;
+    const navWrap = document.querySelector('#photo-lightbox .lightbox-nav');
+    if (navWrap) navWrap.style.display = galleryPhotos.length <= 1 ? 'none' : '';
     document.getElementById('lightbox-prev').disabled = lightboxIndex === 0;
     document.getElementById('lightbox-next').disabled = lightboxIndex >= galleryPhotos.length - 1;
   }
@@ -6307,13 +6704,17 @@
     document.getElementById('photo-lightbox').hidden = false;
     document.documentElement.classList.add('lightbox-open');
     if (!lightboxOpen) {
-      try { history.pushState({ lightbox: true }, ''); } catch {}
+      try {
+        const curState = history.state && typeof history.state === 'object' ? history.state : { view: activeView };
+        history.pushState({ ...curState, lightbox: true }, '');
+      } catch {}
     }
     lightboxOpen = true;
     document.getElementById('lightbox-close').focus();
   }
 
   function hideLightbox() {
+    resetLightboxZoom();
     document.getElementById('photo-lightbox').hidden = true;
     document.documentElement.classList.remove('lightbox-open');
     lightboxOpen = false;
@@ -6332,44 +6733,264 @@
     renderLightbox();
   }
 
-  window.addEventListener('popstate', () => { if (lightboxOpen) hideLightbox(); });
+  window.addEventListener('popstate', (ev) => {
+    if (lightboxOpen && !ev.state?.lightbox) hideLightbox();
+  });
   document.getElementById('lightbox-close')?.addEventListener('click', closeLightbox);
+  document.getElementById('lightbox-zoom')?.addEventListener('click', toggleLightboxZoom);
   document.getElementById('lightbox-prev')?.addEventListener('click', () => stepLightbox(-1));
   document.getElementById('lightbox-next')?.addEventListener('click', () => stepLightbox(1));
   document.addEventListener('keydown', (e) => {
     if (!lightboxOpen) return;
     if (e.key === 'Escape') closeLightbox();
-    else if (e.key === 'ArrowLeft') stepLightbox(-1);
-    else if (e.key === 'ArrowRight') stepLightbox(1);
+    else if (e.key === 'ArrowLeft' && lbScale <= 1.05) stepLightbox(-1);
+    else if (e.key === 'ArrowRight' && lbScale <= 1.05) stepLightbox(1);
+    else if (e.key === '+' || e.key === '=') { lbScale = Math.min(4, lbScale + 0.5); applyLightboxTransform(); }
+    else if (e.key === '-') { lbScale = Math.max(1, lbScale - 0.5); applyLightboxTransform(); }
   });
-  (function setupLightboxSwipe() {
+
+  (function setupLightboxSwipeAndZoom() {
     const stage = document.getElementById('lightbox-stage');
     if (!stage) return;
+
     let startX = null;
     let startY = null;
+    let dragStartPanX = 0;
+    let dragStartPanY = 0;
+    let pinchStartDist = null;
+    let pinchStartScale = 1;
+    let lastTapMs = 0;
+    let pointerDown = false;
+
+    const touchDist = (t0, t1) => Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+
+    stage.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      toggleLightboxZoom();
+    });
+
     stage.addEventListener('touchstart', (e) => {
-      if (e.touches.length !== 1) { startX = null; return; }
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-    }, { passive: true });
+      if (e.touches.length === 2) {
+        startX = null;
+        pinchStartDist = touchDist(e.touches[0], e.touches[1]);
+        pinchStartScale = lbScale;
+        stage.classList.add('is-dragging');
+        return;
+      }
+      if (e.touches.length === 1) {
+        const now = Date.now();
+        if (now - lastTapMs < 280) {
+          e.preventDefault();
+          toggleLightboxZoom();
+          lastTapMs = 0;
+          startX = null;
+          return;
+        }
+        lastTapMs = now;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        dragStartPanX = lbPanX;
+        dragStartPanY = lbPanY;
+        if (lbScale > 1.05) stage.classList.add('is-dragging');
+      }
+    }, { passive: false });
+
+    stage.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2 && pinchStartDist) {
+        e.preventDefault();
+        const dist = touchDist(e.touches[0], e.touches[1]);
+        lbScale = Math.max(1, Math.min(4, pinchStartScale * (dist / pinchStartDist)));
+        applyLightboxTransform();
+        return;
+      }
+      if (e.touches.length === 1 && startX != null && lbScale > 1.05) {
+        e.preventDefault();
+        lbPanX = dragStartPanX + (e.touches[0].clientX - startX);
+        lbPanY = dragStartPanY + (e.touches[0].clientY - startY);
+        applyLightboxTransform();
+      }
+    }, { passive: false });
+
     stage.addEventListener('touchend', (e) => {
+      stage.classList.remove('is-dragging');
+      if (pinchStartDist && e.touches.length < 2) {
+        pinchStartDist = null;
+        if (lbScale < 1.08) resetLightboxZoom();
+        return;
+      }
       if (startX == null) return;
       const dx = e.changedTouches[0].clientX - startX;
       const dy = e.changedTouches[0].clientY - startY;
       startX = null;
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) stepLightbox(dx < 0 ? 1 : -1);
+      if (lbScale <= 1.05 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+        stepLightbox(dx < 0 ? 1 : -1);
+      }
+    });
+
+    // Desktop mouse drag when zoomed in
+    stage.addEventListener('mousedown', (e) => {
+      if (lbScale <= 1.05) return;
+      pointerDown = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      dragStartPanX = lbPanX;
+      dragStartPanY = lbPanY;
+      stage.classList.add('is-dragging');
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!pointerDown || lbScale <= 1.05) return;
+      lbPanX = dragStartPanX + (e.clientX - startX);
+      lbPanY = dragStartPanY + (e.clientY - startY);
+      applyLightboxTransform();
+    });
+    window.addEventListener('mouseup', () => {
+      if (!pointerDown) return;
+      pointerDown = false;
+      stage.classList.remove('is-dragging');
     });
   })();
+
+  // ---------- Private Supabase Storage Quota Meter (1 GB Free Tier) ----------
+  const SUPABASE_FREE_QUOTA_BYTES = 1024 * 1024 * 1024; // 1 GB
+  let storageUsageState = {
+    loading: false,
+    loaded: false,
+    galleryBytes: 0,
+    reviewsBytes: 0,
+    fileCount: 0,
+    lastCheckedAt: 0
+  };
+
+  function formatBytesHuman(bytes) {
+    const b = Math.max(0, Number(bytes) || 0);
+    if (b < 1024) return `${b} B`;
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
+    if (b < 1024 * 1024 * 1024) return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(b / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }
+
+  function renderStorageMeterMarkup() {
+    if (!sbUser) return '';
+    if (!storageUsageState.loaded && storageUsageState.loading) {
+      return `<div class="storage-meter-box"><span style="font-size:0.78rem;color:var(--ink-muted);">A calcular espaço disponível no Supabase…</span></div>`;
+    }
+    if (!storageUsageState.loaded) return '';
+
+    const totalBytes = storageUsageState.galleryBytes + storageUsageState.reviewsBytes;
+    const freeBytes = Math.max(0, SUPABASE_FREE_QUOTA_BYTES - totalBytes);
+    const totalPct = Math.min(100, (totalBytes / SUPABASE_FREE_QUOTA_BYTES) * 100);
+    const galPct = Math.min(100, (storageUsageState.galleryBytes / SUPABASE_FREE_QUOTA_BYTES) * 100);
+    const revPct = Math.min(100 - galPct, (storageUsageState.reviewsBytes / SUPABASE_FREE_QUOTA_BYTES) * 100);
+    const toneCls = totalPct >= 90 ? 'is-danger' : totalPct >= 75 ? 'is-warn' : '';
+    const estPhotosLeft = Math.max(0, Math.floor(freeBytes / (3.8 * 1024 * 1024)));
+
+    return `
+      <div class="storage-meter-box">
+        <div class="storage-meter-top">
+          <span class="storage-meter-title">Espaço Supabase Storage (${storageUsageState.fileCount} ${storageUsageState.fileCount === 1 ? 'ficheiro' : 'ficheiros'})</span>
+          <span class="storage-meter-nums ${toneCls}">${formatBytesHuman(totalBytes)} / 1 GB (${totalPct < 0.1 && totalBytes > 0 ? '<0.1' : totalPct.toFixed(1)}%)</span>
+        </div>
+        <div class="storage-meter-track" role="progressbar" aria-valuenow="${Math.round(totalPct)}" aria-valuemin="0" aria-valuemax="100">
+          <div class="storage-meter-seg-gallery" style="width:${galPct > 0 ? Math.max(0.6, galPct) : 0}%;"></div>
+          <div class="storage-meter-seg-reviews" style="width:${revPct > 0 ? Math.max(0.4, revPct) : 0}%;"></div>
+        </div>
+        <div class="storage-meter-meta">
+          <div class="storage-meter-legend">
+            <span><i class="storage-legend-dot" style="background:var(--cenote-600);"></i>Álbum: <strong>${formatBytesHuman(storageUsageState.galleryBytes)}</strong></span>
+            <span><i class="storage-legend-dot" style="background:hsl(37,78%,45%);"></i>Restaurantes &amp; Cocktails: <strong>${formatBytesHuman(storageUsageState.reviewsBytes)}</strong></span>
+          </div>
+          <span>Livre: <strong>${formatBytesHuman(freeBytes)}</strong> (~${estPhotosLeft} fotos originais)</span>
+        </div>
+      </div>`;
+  }
+
+  function updateStorageMeterElements() {
+    const html = renderStorageMeterMarkup();
+    const authMeter = document.getElementById('photos-storage-meter');
+    const settingsMeter = document.getElementById('settings-storage-meter');
+    if (authMeter) authMeter.innerHTML = html;
+    if (settingsMeter) settingsMeter.innerHTML = html;
+  }
+
+  async function refreshStorageUsage(force = false) {
+    if (!sbClient || !sbUser) return;
+    if (storageUsageState.loading) return;
+    if (!force && storageUsageState.loaded && Date.now() - storageUsageState.lastCheckedAt < 45000) {
+      updateStorageMeterElements();
+      return;
+    }
+
+    storageUsageState.loading = true;
+    updateStorageMeterElements();
+
+    try {
+      const bucket = sbClient.storage.from('trip-photos');
+      const { data: rootEntries, error: rootErr } = await bucket.list('', { limit: 200 });
+      if (rootErr) throw rootErr;
+
+      let galleryBytes = 0;
+      let reviewsBytes = 0;
+      let fileCount = 0;
+      const foldersToScan = [];
+
+      (rootEntries || []).forEach((item) => {
+        const size = Number(item?.metadata?.size || 0);
+        if (item.id && size > 0) {
+          galleryBytes += size;
+          fileCount++;
+        } else if (item.name) {
+          foldersToScan.push(item.name);
+        }
+      });
+
+      const folderLists = await Promise.all(
+        foldersToScan.map((folder) =>
+          bucket
+            .list(folder, { limit: 1000 })
+            .then((r) => ({ folder, items: r.data || [] }))
+            .catch(() => ({ folder, items: [] }))
+        )
+      );
+
+      folderLists.forEach(({ folder, items }) => {
+        const isReviewFolder = folder === 'restaurants' || folder === 'menus' || folder === 'cocktails';
+        items.forEach((f) => {
+          const sz = Number(f?.metadata?.size || 0);
+          if (sz > 0) {
+            fileCount++;
+            if (isReviewFolder) reviewsBytes += sz;
+            else galleryBytes += sz;
+          }
+        });
+      });
+
+      storageUsageState = {
+        loading: false,
+        loaded: true,
+        galleryBytes,
+        reviewsBytes,
+        fileCount,
+        lastCheckedAt: Date.now()
+      };
+    } catch (err) {
+      console.warn('Storage usage check failed:', err);
+      storageUsageState.loading = false;
+    }
+
+    updateStorageMeterElements();
+  }
 
   function renderPhotosAndSync() {
     const panel = document.getElementById('supabase-auth-panel');
     const uploadPanel = document.getElementById('photos-upload-panel');
     const badge = document.getElementById('sync-status-badge');
+    const settingsMeter = document.getElementById('settings-storage-meter');
     if (!panel) return;
 
     if (!sbUser) {
       if (badge) { badge.className = 'tag tag-cenote'; badge.textContent = 'Álbum Público'; }
       if (uploadPanel) uploadPanel.style.display = 'none';
+      if (settingsMeter) settingsMeter.innerHTML = '';
       panel.style.display = 'none';
       return;
     }
@@ -6385,8 +7006,16 @@
         </div>
         <button type="button" class="btn btn-sm" id="btn-sb-pull">↻ Sincronizar Agora</button>
       </div>
+      <div id="photos-storage-meter">${renderStorageMeterMarkup()}</div>
     `;
-    document.getElementById('btn-sb-pull').addEventListener('click', () => { pullStateFromSupabase(); loadPhotosGallery(); showToast('Sincronizado!'); });
+    updateStorageMeterElements();
+    refreshStorageUsage(false);
+    document.getElementById('btn-sb-pull').addEventListener('click', () => {
+      pullStateFromSupabase();
+      loadPhotosGallery();
+      refreshStorageUsage(true);
+      showToast('Sincronizado!');
+    });
   }
 
   bindPhotoPickerFeedback(document.getElementById('photos-upload-panel') || document);
@@ -6420,6 +7049,7 @@
     document.getElementById('photo-caption-input').value = '';
     showToast('Fotografia publicada!');
     loadPhotosGallery();
+    refreshStorageUsage(true);
   });
 
   function renderAll() {
