@@ -174,6 +174,31 @@
       });
       merged.packingChecklistV2 = true;
     }
+
+    // Merge legacy dinnerChoice into day.items as a unified dining event
+    if (Array.isArray(merged.days)) {
+      merged.days.forEach((d) => {
+        if (!Array.isArray(d.items)) d.items = [];
+        const dc = String(d.dinnerChoice || '').trim();
+        if (dc && dc !== 'Sem restaurante marcado' && dc !== 'Em viagem') {
+          const alreadyIn = d.items.some((it) => String(it.title || '').toLowerCase() === dc.toLowerCase());
+          if (!alreadyIn) {
+            const matchedVenue = (merged.venues || []).find((v) => String(v.name || '').toLowerCase() === dc.toLowerCase());
+            d.items.push({
+              id: `din-mig-${d.dayNumber}-${Date.now()}`,
+              time: '20:00',
+              kind: 'dining',
+              venueId: matchedVenue?.id || '',
+              title: dc,
+              note: matchedVenue?.cuisine || 'Jantar'
+            });
+            d.items.sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
+          }
+          d.dinnerChoice = 'Sem restaurante marcado';
+        }
+      });
+    }
+
     if (!Array.isArray(merged.expenses)) merged.expenses = [];
     if (!Array.isArray(merged.cocktails)) merged.cocktails = [];
 
@@ -753,6 +778,11 @@
         val.textContent = 'Concluída';
       }
     }
+
+    const heroClockLbl = document.getElementById('hero-dest-clock-label');
+    const heroClockVal = document.getElementById('hero-dest-clock-value');
+    if (heroClockLbl) heroClockLbl.textContent = `Hora · ${state.trip.destCity || state.trip.destination || 'Destino'}`;
+    if (heroClockVal) heroClockVal.textContent = formatTzTime(state.trip.destTz || 'America/Cancun');
   }
 
   const viewScrollPositions = {};
@@ -780,7 +810,7 @@
     document.querySelectorAll('[data-view-target]').forEach((b) => {
       const target = b.getAttribute('data-view-target');
       const group = b.getAttribute('data-view-group');
-      const isActive = target === viewName || (group && group === activeGroup && !b.classList.contains('subnav-btn'));
+      const isActive = target === viewName || (!publicMode && group && group === activeGroup && !b.classList.contains('subnav-btn'));
       b.classList.toggle('is-active', Boolean(isActive));
     });
     const headerBtn = document.getElementById('btn-header-auth');
@@ -810,186 +840,368 @@
     }
   });
 
-  // ---------- Overview (Private) ----------
-  function renderOverview() {
-    const t = state.trip;
-    const { nights } = getTripDurationInfo();
-    const donePack = state.packing.filter((p) => p.checked).length;
+  // ---------- Free Keyless Weather Engine (Open-Meteo Geocoding + Forecast) ----------
+  const WMO_WEATHER_PT = {
+    0: { icon: '☀️', label: 'Céu limpo' },
+    1: { icon: '🌤️', label: 'Maiormente limpo' },
+    2: { icon: '⛅', label: 'Parcialmente nublado' },
+    3: { icon: '☁️', label: 'Nublado' },
+    45: { icon: '🌫️', label: 'Nevoeiro' },
+    48: { icon: '🌫️', label: 'Nevoeiro' },
+    51: { icon: '🌦️', label: 'Chuvisco leve' },
+    53: { icon: '🌦️', label: 'Chuvisco' },
+    55: { icon: '🌧️', label: 'Chuvisco intenso' },
+    61: { icon: '🌦️', label: 'Aguaceiros leves' },
+    63: { icon: '🌧️', label: 'Chuva moderada' },
+    65: { icon: '🌧️', label: 'Chuva forte' },
+    80: { icon: '🌦️', label: 'Aguaceiros passageiros' },
+    81: { icon: '🌧️', label: 'Aguaceiros' },
+    82: { icon: '⛈️', label: 'Aguaceiros fortes' },
+    95: { icon: '⛈️', label: 'Trovoada tropical' },
+    96: { icon: '⛈️', label: 'Trovoada' },
+    99: { icon: '⛈️', label: 'Trovoada forte' }
+  };
 
-    const kickerEl = document.getElementById('hero-kicker');
-    if (kickerEl) {
-      kickerEl.textContent = t.subtitle || [t.destination, t.country].filter(Boolean).join(' · ') || 'Resumo da Viagem';
-    }
-    const headlineEl = document.getElementById('hero-main-heading');
-    if (headlineEl) {
-      headlineEl.textContent = t.headline || (nights > 0 ? `${nights} noites em ${t.destination || t.title}.` : `${t.title || t.destination}.`);
-    }
+  function describeWmo(code) {
+    return WMO_WEATHER_PT[Number(code)] || { icon: '🌤️', label: 'Tempo ameno' };
+  }
 
+  let weatherState = {
+    queryKey: '',
+    loading: false,
+    error: false,
+    locationLabel: '',
+    current: null,
+    dailyByDate: {},
+    lastFetchedAt: 0
+  };
+
+  function getDestFallbackCoords() {
     const outLegs = state.flights.outbound.legs || [];
-    const inLegs = state.flights.inbound.legs || [];
+    const lastLeg = outLegs[outLegs.length - 1];
+    if (Array.isArray(lastLeg?.toCoords) && lastLeg.toCoords.length === 2) return lastLeg.toCoords;
+    const code = String(lastLeg?.toCode || state.trip.destCode || 'CUN').toUpperCase();
+    return KNOWN_AIRPORTS[code] || [20.6296, -87.0739]; // Playa del Carmen / Riviera Maya fallback
+  }
 
-    const outLbl = document.getElementById('hero-out-label');
-    const outVal = document.getElementById('hero-out-value');
-    const inLbl = document.getElementById('hero-in-label');
-    const inVal = document.getElementById('hero-in-value');
-    if (outLbl) outLbl.textContent = `Ida · ${formatDateMediumPt(outLegs[0]?.dateIso || t.startDate)}`;
-    if (outVal) outVal.textContent = outLegs.map((l) => l.flightNumber).join(' → ') || '--';
-    if (inLbl) inLbl.textContent = `Regresso · ${formatDateMediumPt(inLegs[0]?.dateIso || t.endDate)}`;
-    if (inVal) inVal.textContent = inLegs.map((l) => l.flightNumber).join(' → ') || '--';
+  async function ensureDestinationWeather(force = false) {
+    const t = state.trip;
+    const rawDest = (t.destCity || t.destination || 'Playa del Carmen').trim();
+    const rawCountry = (t.country || '').trim();
+    const tz = t.destTz || 'America/Cancun';
+    const queryKey = `${rawDest}|${rawCountry}|${tz}`.toLowerCase();
 
-    document.getElementById('hero-pack-progress').textContent = `${donePack} / ${state.packing.length}`;
-    document.getElementById('wallet-summary-line').textContent = state.wallet.airCanadaPnr
-      ? `PNR / Reserva: ${state.wallet.airCanadaPnr}`
-      : 'Guarde o vosso código PNR e documentos na Carteira';
+    if (!force && weatherState.queryKey === queryKey && weatherState.current && Date.now() - weatherState.lastFetchedAt < 20 * 60000) {
+      return;
+    }
+    if (weatherState.loading && weatherState.queryKey === queryKey) return;
 
-    const fmtRouteCodes = (legs) => {
-      if (!legs.length) return '---';
-      const codes = [legs[0].fromCode, ...legs.map((l) => l.toCode)];
-      return codes.map((c) => `<span class="iata-code">${escapeHtml(c)}</span>`).join(' → ');
-    };
-    const fmtNums = (legs) => legs.map((l) => escapeHtml(l.flightNumber)).join(' · ');
-    const fmtTimes = (legs) => (legs.length ? `${escapeHtml(legs[0].depTime)} ${escapeHtml(legs[0].fromCode)} → ${escapeHtml(legs[legs.length - 1].arrTime)} ${escapeHtml(legs[legs.length - 1].toCode)}` : '');
+    weatherState.queryKey = queryKey;
+    weatherState.loading = true;
+    weatherState.error = false;
 
-    const outDateLabel = formatDateLongPt(outLegs[0]?.dateIso || t.startDate);
-    const inDateLabel = formatDateLongPt(inLegs[0]?.dateIso || t.endDate);
+    let [lat, lon] = getDestFallbackCoords();
+    let resolvedLabel = [t.destination || t.destCity, t.country].filter(Boolean).join(', ');
 
-    document.getElementById('overview-flight-summary').innerHTML = `
-      <div class="flight-mini-route">
-        <div>
-          <div style="font-size: 0.74rem; color: var(--ink-muted); font-weight: 600;">IDA · ${escapeHtml(outDateLabel)}</div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:2px;flex-wrap:wrap;">
-            ${fmtRouteCodes(outLegs)}
+    try {
+      // Map broad regional names like "Riviera Maya" to an exact town if destCity isn't specific
+      const geoSearchTerm = /riviera maya/i.test(rawDest) ? 'Playa del Carmen' : rawDest;
+      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(geoSearchTerm)}&count=5&language=pt&format=json`;
+      const geoRes = await fetch(geoUrl);
+      if (geoRes.ok) {
+        const geoJson = await geoRes.json();
+        const results = Array.isArray(geoJson?.results) ? geoJson.results : [];
+        if (results.length) {
+          const countryNorm = rawCountry.toLowerCase();
+          const best =
+            (countryNorm && results.find((r) => String(r.country || '').toLowerCase().includes(countryNorm))) ||
+            results[0];
+          if (best && typeof best.latitude === 'number' && typeof best.longitude === 'number') {
+            lat = best.latitude;
+            lon = best.longitude;
+            resolvedLabel = [t.destination || best.name, best.country || t.country].filter(Boolean).join(', ');
+          }
+        }
+      }
+    } catch {
+      // Fallback to airport coordinates silently if geocoding fails
+    }
+
+    try {
+      const wxUrl =
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+        `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m` +
+        `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max` +
+        `&timezone=${encodeURIComponent(tz)}&forecast_days=16`;
+
+      const wxRes = await fetch(wxUrl);
+      if (!wxRes.ok) throw new Error('Weather HTTP error');
+      const wx = await wxRes.json();
+
+      const dailyByDate = {};
+      const dates = wx?.daily?.time || [];
+      dates.forEach((iso, i) => {
+        dailyByDate[iso] = {
+          code: wx.daily.weather_code?.[i] ?? 1,
+          max: Math.round(Number(wx.daily.temperature_2m_max?.[i] ?? 28)),
+          min: Math.round(Number(wx.daily.temperature_2m_min?.[i] ?? 22)),
+          rainProb: Math.round(Number(wx.daily.precipitation_probability_max?.[i] ?? 0)),
+          uvMax: Number(wx.daily.uv_index_max?.[i] ?? 0).toFixed(0)
+        };
+      });
+
+      weatherState = {
+        queryKey,
+        loading: false,
+        error: false,
+        locationLabel: resolvedLabel || t.destination || t.destCity || 'Destino',
+        current: wx?.current
+          ? {
+              temp: Math.round(Number(wx.current.temperature_2m ?? 28)),
+              feels: Math.round(Number(wx.current.apparent_temperature ?? wx.current.temperature_2m ?? 30)),
+              humidity: Math.round(Number(wx.current.relative_humidity_2m ?? 70)),
+              wind: Math.round(Number(wx.current.wind_speed_10m ?? 12)),
+              code: wx.current.weather_code ?? 1
+            }
+          : null,
+        dailyByDate,
+        lastFetchedAt: Date.now()
+      };
+    } catch {
+      weatherState.loading = false;
+      weatherState.error = true;
+    }
+
+    renderOverviewWeatherCard();
+    renderPlanner();
+  }
+
+  function getTodayDestIso() {
+    const tz = state.trip.destTz || 'America/Cancun';
+    try {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: tz,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).formatToParts(new Date());
+      const get = (k) => parts.find((p) => p.type === k)?.value || '';
+      if (get('year')) return `${get('year')}-${get('month')}-${get('day')}`;
+    } catch {}
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function renderOverviewWeatherCard() {
+    const card = document.getElementById('overview-weather-card');
+    if (!card) return;
+    const t = state.trip;
+    const locTitle = weatherState.locationLabel || [t.destination || t.destCity, t.country].filter(Boolean).join(', ') || 'Destino';
+    const destClock = formatTzTime(t.destTz || 'America/Cancun');
+
+    if (weatherState.loading && !weatherState.current) {
+      card.innerHTML = `<div class="weather-card-loading">A atualizar meteorologia em ${escapeHtml(locTitle)}…</div>`;
+      return;
+    }
+
+    if (!weatherState.current) {
+      card.innerHTML = `
+        <div class="weather-today-top">
+          <div>
+            <div class="weather-loc-kicker">Meteorologia Local · <span class="mono">${escapeHtml(destClock)}</span></div>
+            <div class="weather-loc-name">${escapeHtml(locTitle)}</div>
+            <div class="weather-cond-label">Sem ligação à meteorologia neste momento</div>
           </div>
+          <button type="button" class="btn btn-ghost-light btn-sm" id="btn-retry-weather">↻ Tentar</button>
+        </div>`;
+      document.getElementById('btn-retry-weather')?.addEventListener('click', () => ensureDestinationWeather(true));
+      return;
+    }
+
+    const cur = weatherState.current;
+    const wmo = describeWmo(cur.code);
+    const todayIso = getTodayDestIso();
+    const todayDaily = weatherState.dailyByDate[todayIso];
+
+    card.innerHTML = `
+      <div class="weather-today-top">
+        <div>
+          <div class="weather-loc-kicker">Tempo Agora · <span class="mono">${escapeHtml(destClock)}</span></div>
+          <div class="weather-loc-name">${escapeHtml(locTitle)}</div>
+          <div class="weather-cond-label">${escapeHtml(wmo.label)} · Sensação ${cur.feels}°C</div>
         </div>
-        <div style="text-align: right;">
-          <div class="mono" style="font-weight: 700; font-size: 0.86rem;">${fmtNums(outLegs)}</div>
-          <div class="mono" style="font-size: 0.78rem; color: var(--ink-secondary);">${fmtTimes(outLegs)}</div>
+        <div class="weather-temp-hero">
+          <span class="weather-icon-big" aria-hidden="true">${wmo.icon}</span>
+          <span class="weather-temp-num">${cur.temp}°</span>
         </div>
       </div>
-      <div class="flight-mini-route">
-        <div>
-          <div style="font-size: 0.74rem; color: var(--ink-muted); font-weight: 600;">REGRESSO · ${escapeHtml(inDateLabel)}</div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:2px;flex-wrap:wrap;">
-            ${fmtRouteCodes(inLegs)}
-          </div>
+
+      <div class="weather-metrics-strip">
+        <div class="weather-metric-box">
+          <span class="weather-metric-lbl">Máx / Mín Hoje</span>
+          <span class="weather-metric-val">${todayDaily ? `${todayDaily.max}° / ${todayDaily.min}°` : `${cur.temp}°C`}</span>
         </div>
-        <div style="text-align: right;">
-          <div class="mono" style="font-weight: 700; font-size: 0.86rem;">${fmtNums(inLegs)}</div>
-          <div class="mono" style="font-size: 0.78rem; color: var(--ink-secondary);">${fmtTimes(inLegs)}</div>
+        <div class="weather-metric-box">
+          <span class="weather-metric-lbl">Chuva / Hum.</span>
+          <span class="weather-metric-val">${todayDaily ? `${todayDaily.rainProb}%` : '--'} · ${cur.humidity}%</span>
+        </div>
+        <div class="weather-metric-box">
+          <span class="weather-metric-lbl">Vento / UV</span>
+          <span class="weather-metric-val">${cur.wind} km/h${todayDaily?.uvMax ? ` · UV ${todayDaily.uvMax}` : ''}</span>
         </div>
       </div>
     `;
+  }
 
-    const docs = Array.isArray(state.wallet.documents) ? state.wallet.documents : [];
-    document.getElementById('overview-doc-badges').innerHTML = [
-      ...docs.map((d) => `<span class="tag ${d.status === 'Pronto' ? 'tag-open' : 'tag-soon'}">${escapeHtml(d.label)}: ${escapeHtml(d.status)}</span>`),
-      state.wallet.suiteBuilding ? `<span class="tag tag-cenote">${escapeHtml(state.wallet.suiteBuilding)}</span>` : ''
-    ].join('');
+  function inferEventKind(it) {
+    if (it.kind) return it.kind;
+    if (it.venueId) return 'dining';
+    const title = String(it.title || '').toLowerCase();
+    if (/voo\s|aeroporto|check-out|transfer/.test(title)) return 'flight';
+    if (state.venues.some((v) => v.name.toLowerCase() === title)) return 'dining';
+    if (/jantar|almoço|restaurante|buffet|rodízio|teppanyaki/.test(title)) return 'dining';
+    return 'activity';
+  }
+
+  function renderPlanEventCardHtml(it, { showActions = true, allowVenueOpen = true } = {}) {
+    const kind = inferEventKind(it);
+    const cls = kind === 'dining' ? 'is-dining' : kind === 'flight' ? 'is-flight' : '';
+    const badgeLabel = kind === 'dining' ? '🍽️ Restaurante' : kind === 'flight' ? '✈️ Viagem' : '✨ Atividade';
+
+    return `
+      <div class="plan-event-card ${cls}">
+        <div class="plan-event-time">${escapeHtml(it.time || '--:--')}</div>
+        <div class="plan-event-main">
+          <div class="plan-event-head">
+            <span class="plan-event-badge">${badgeLabel}</span>
+            ${allowVenueOpen && !publicMode && it.venueId ? `<button type="button" class="icon-btn" style="padding:1px 6px;font-size:0.73rem;color:var(--cenote-700);font-weight:700;" data-open-plan-venue="${escapeHtml(it.venueId)}">Ver menu →</button>` : ''}
+          </div>
+          <div class="plan-event-title">${escapeHtml(it.title)}</div>
+          ${it.note ? `<div class="plan-event-note">${escapeHtml(it.note)}</div>` : ''}
+        </div>
+        ${showActions ? `
+          <div class="plan-event-actions">
+            <button type="button" class="icon-btn" data-edit-ag="${escapeHtml(it.id)}" title="Editar">✎</button>
+            <button type="button" class="icon-btn" data-del-ag="${escapeHtml(it.id)}" title="Remover">✕</button>
+          </div>
+        ` : ''}
+      </div>`;
+  }
+
+  // ---------- Overview / Hoje (Public & Private) ----------
+  function renderOverview() {
+    const t = state.trip;
+
+    renderOverviewWeatherCard();
+    ensureDestinationWeather(false);
 
     const openTitle = document.getElementById('overview-open-title');
     const openSub = document.getElementById('overview-dest-tz-label');
     const openBtn = document.getElementById('overview-all-dining-btn');
+    const addTodayBtn = document.getElementById('overview-add-today-btn');
     const openEl = document.getElementById('overview-open-venues');
 
-    // Compute today's ISO date in destination timezone
-    let todayIso = new Date().toISOString().slice(0, 10);
-    try {
-      const parts = new Intl.DateTimeFormat('en-CA', { timeZone: t.destTz || 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
-      const get = (k) => parts.find((p) => p.type === k)?.value || '';
-      if (get('year')) todayIso = `${get('year')}-${get('month')}-${get('day')}`;
-    } catch {}
+    const todayIso = getTodayDestIso();
+    const todayIdx = (state.days || []).findIndex((d) => d.date === todayIso);
+    const targetIdx = todayIdx >= 0 ? todayIdx : 0;
+    const dayObj = (state.days || [])[targetIdx];
+    const items = dayObj && Array.isArray(dayObj.items) ? [...dayObj.items].sort((a, b) => String(a.time || '').localeCompare(String(b.time || ''))) : [];
 
-    const todayObj = (state.days || []).find((d) => d.date === todayIso);
-    const hasTodayDinner = todayObj && todayObj.dinnerChoice && todayObj.dinnerChoice !== 'Sem restaurante marcado' && todayObj.dinnerChoice !== 'Em viagem';
-    const todayItems = todayObj && Array.isArray(todayObj.items) ? todayObj.items : [];
-    const hasTodayPlans = Boolean(todayObj && (todayItems.length > 0 || hasTodayDinner));
+    if (openTitle) {
+      openTitle.textContent = todayIdx >= 0 ? 'Plano para Hoje' : `Plano do 1.º Dia (${dayObj?.shortDate || ''})`;
+    }
+    if (openSub) {
+      openSub.textContent = dayObj
+        ? `${dayObj.shortDate}${dayObj.theme ? ` · ${dayObj.theme}` : ''}`
+        : 'Atividades e restaurantes do dia';
+    }
 
-    if (openEl) {
-      if (hasTodayPlans) {
-        if (openTitle) openTitle.textContent = `Plano de Hoje`;
-        if (openSub) openSub.textContent = `${todayObj.shortDate} · ${todayObj.theme || 'Agenda do dia'}`;
-        if (openBtn) {
-          openBtn.textContent = 'Ver Plano';
-          openBtn.onclick = () => {
-            const idx = state.days.findIndex((d) => d.date === todayIso);
-            if (idx >= 0) activeDayIndex = idx;
-            renderPlanner();
-            switchView('planner');
-          };
-        }
-        const rows = [];
-        todayItems.slice(0, 4).forEach((it) => {
-          rows.push(`
-            <div class="open-venue-row">
-              <div>
-                <div style="font-weight: 600; font-size: 0.88rem;">${escapeHtml(it.title)}</div>
-                ${it.note ? `<div style="font-size: 0.76rem; color: var(--ink-secondary);">${escapeHtml(it.note)}</div>` : ''}
-              </div>
-              <span class="tag tag-cenote mono">${escapeHtml(it.time || '')}</span>
-            </div>`);
-        });
-        if (hasTodayDinner) {
-          rows.push(`
-            <div class="open-venue-row">
-              <div>
-                <div style="font-weight: 600; font-size: 0.88rem;">🍽️ ${escapeHtml(todayObj.dinnerChoice)}</div>
-                <div style="font-size: 0.76rem; color: var(--ink-secondary);">Jantar marcado</div>
-              </div>
-              <span class="tag tag-open">Jantar</span>
-            </div>`);
-        }
-        openEl.innerHTML = rows.join('');
-      } else {
-        if (openTitle) openTitle.textContent = 'Top Restaurantes';
-        if (openSub) openSub.textContent = 'Sem planos para hoje — ranking dos vossos favoritos';
-        if (openBtn) {
-          openBtn.textContent = 'Ver Reviews';
-          openBtn.onclick = () => switchView('resort');
-        }
-        const topRest = state.venues
-          .filter((v) => v.category !== 'bars' && getVenueAvg(v) > 0)
-          .sort((a, b) => getVenueAvg(b) - getVenueAvg(a))
-          .slice(0, 4);
-        const medals = ['🥇', '🥈', '🥉', '4º'];
-        openEl.innerHTML = topRest.length
-          ? topRest
-              .map((v, i) => `
-                <div class="open-venue-row" style="cursor:pointer;" data-ov-open-rest="${escapeHtml(v.id)}">
-                  <div>
-                    <div style="font-weight: 600; font-size: 0.88rem;">${medals[i]} ${escapeHtml(v.name)}</div>
-                    <div style="font-size: 0.76rem; color: var(--ink-secondary);">${escapeHtml(v.cuisine)}</div>
-                  </div>
-                  <span class="tag tag-cenote mono">★ ${getVenueAvg(v).toFixed(1)}</span>
-                </div>`)
-              .join('')
-          : `<p style="font-size:0.84rem;color:var(--ink-muted);">Ainda sem planos para hoje nem restaurantes avaliados. Adicione reviews na aba Reviews!</p>`;
-
-        openEl.querySelectorAll('[data-ov-open-rest]').forEach((row) =>
-          row.addEventListener('click', () => {
-            activeRestaurantId = row.getAttribute('data-ov-open-rest');
-            switchReviewsTab('restaurants');
-            switchView('resort');
-            renderResortVenues();
-          })
-        );
+    if (!publicMode) {
+      if (openBtn) {
+        openBtn.textContent = 'Ver Plano';
+        openBtn.onclick = () => {
+          activeDayIndex = targetIdx;
+          renderPlanner();
+          switchView('planner');
+        };
+      }
+      if (addTodayBtn) {
+        addTodayBtn.onclick = () => {
+          activeDayIndex = targetIdx;
+          renderPlanner();
+          openPlanEntryModal('activity', null);
+        };
       }
     }
 
-    // Dynamic Tips section
-    const tipsSec = document.getElementById('overview-tips-section');
-    const tipsList = document.getElementById('overview-tips-list');
-    const tips = Array.isArray(t.tips) ? t.tips : [];
-    if (tipsSec && tipsList) {
-      if (!tips.length) {
-        tipsList.innerHTML = `<div class="perk-item"><span class="perk-title">Sem dicas configuradas</span><p class="perk-desc">Pode adicionar lembretes úteis (tomadas, dress code, transfers, regras locais) no ecrã de Configuração.</p></div>`;
+    if (openEl) {
+      if (items.length) {
+        openEl.innerHTML =
+          items.map((it) => renderPlanEventCardHtml(it, { showActions: false, allowVenueOpen: !publicMode })).join('') +
+          (!publicMode && dayObj?.notes ? `<div style="font-size:0.82rem;color:var(--ink-secondary);padding:8px 12px;border-radius:10px;background:var(--bg-canvas);">📝 <strong>Nota do dia:</strong> ${escapeHtml(dayObj.notes)}</div>` : '');
+
+        if (!publicMode) {
+          openEl.querySelectorAll('[data-open-plan-venue]').forEach((b) =>
+            b.addEventListener('click', () => {
+              activeRestaurantId = b.getAttribute('data-open-plan-venue');
+              switchReviewsTab('restaurants');
+              switchView('resort');
+              renderResortVenues();
+            })
+          );
+        }
       } else {
-        tipsList.innerHTML = tips
-          .map((tip) => `
-            <div class="perk-item">
-              <span class="perk-title">${escapeHtml(tip.title)}</span>
-              <p class="perk-desc">${escapeHtml(tip.desc)}</p>
-            </div>`)
-          .join('');
+        openEl.innerHTML = publicMode
+          ? `<div class="plan-empty-box">
+               <span>Dia livre no resort — ainda sem atividades ou jantares marcados para este dia.</span>
+             </div>`
+          : `<div class="plan-empty-box">
+               <span>${todayIdx >= 0 ? 'Ainda não tens nada marcado para hoje.' : 'Ainda sem atividades ou restaurantes marcados neste dia.'}</span>
+               <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+                 <button type="button" class="btn btn-sm" id="ov-empty-add-rest">🍽️ Marcar Restaurante</button>
+                 <button type="button" class="btn btn-primary btn-sm" id="ov-empty-add-act">✨ Marcar Atividade</button>
+               </div>
+             </div>`;
+
+        if (!publicMode) {
+          document.getElementById('ov-empty-add-rest')?.addEventListener('click', () => {
+            activeDayIndex = targetIdx;
+            openPlanEntryModal('dining', null);
+          });
+          document.getElementById('ov-empty-add-act')?.addEventListener('click', () => {
+            activeDayIndex = targetIdx;
+            openPlanEntryModal('activity', null);
+          });
+        }
+      }
+    }
+
+    // Private-only Useful Tips & Wallet Document Badges
+    if (!publicMode) {
+      const docs = Array.isArray(state.wallet.documents) ? state.wallet.documents : [];
+      const docBadgesEl = document.getElementById('overview-doc-badges');
+      if (docBadgesEl) {
+        docBadgesEl.innerHTML = [
+          state.wallet.airCanadaPnr ? `<span class="tag tag-cenote mono">PNR: ${escapeHtml(state.wallet.airCanadaPnr)}</span>` : '',
+          ...docs.map((d) => `<span class="tag ${d.status === 'Pronto' ? 'tag-open' : 'tag-soon'}">${escapeHtml(d.label)}: ${escapeHtml(d.status)}</span>`),
+          state.wallet.suiteBuilding ? `<span class="tag tag-cenote">${escapeHtml(state.wallet.suiteBuilding)}</span>` : ''
+        ].join('');
+      }
+
+      const tipsSec = document.getElementById('overview-tips-section');
+      const tipsList = document.getElementById('overview-tips-list');
+      const tips = Array.isArray(t.tips) ? t.tips : [];
+      if (tipsSec && tipsList) {
+        if (!tips.length) {
+          tipsList.innerHTML = `<div class="perk-item"><span class="perk-title">Sem dicas configuradas</span><p class="perk-desc">Pode adicionar lembretes úteis (tomadas, dress code, transfers, regras locais) no ecrã de Configuração.</p></div>`;
+        } else {
+          tipsList.innerHTML = tips
+            .map((tip) => `
+              <div class="perk-item">
+                <span class="perk-title">${escapeHtml(tip.title)}</span>
+                <p class="perk-desc">${escapeHtml(tip.desc)}</p>
+              </div>`)
+            .join('');
+        }
       }
     }
   }
@@ -1557,7 +1769,7 @@
     </div>`;
   }
 
-  // ---------- Planner ----------
+  // ---------- Unified Planner (Weather Forecast + Activities & Restaurants Timeline) ----------
   function renderPlanner() {
     if (!state.days.length) return;
     if (activeDayIndex >= state.days.length) activeDayIndex = 0;
@@ -1565,14 +1777,27 @@
 
     const strip = document.getElementById('day-selector-strip');
     strip.innerHTML = state.days
-      .map(
-        (d, idx) => `
-        <button type="button" class="day-pill ${idx === activeDayIndex ? 'is-active' : ''}" data-day-idx="${idx}">
-          <span class="day-pill-num">${idx < totalNights ? `Noite ${d.dayNumber}` : 'Regresso'}</span>
-          <span class="day-pill-date">${escapeHtml(d.shortDate)}</span>
-          <span class="day-pill-tag">${escapeHtml(d.dinnerChoice !== 'Sem restaurante marcado' ? d.dinnerChoice : d.theme)}</span>
-        </button>`
-      )
+      .map((d, idx) => {
+        const dayWx = weatherState.dailyByDate?.[d.date];
+        const wxMini = dayWx ? `${describeWmo(dayWx.code).icon} ${dayWx.max}°` : '';
+        const items = Array.isArray(d.items) ? d.items : [];
+        const diningItem = items.find((it) => inferEventKind(it) === 'dining');
+        const pillSub = diningItem
+          ? `🍽️ ${diningItem.title}`
+          : items.length
+            ? `${items.length} ${items.length === 1 ? 'marcado' : 'marcados'}`
+            : d.theme;
+
+        return `
+          <button type="button" class="day-pill ${idx === activeDayIndex ? 'is-active' : ''}" data-day-idx="${idx}">
+            <span class="day-pill-top">
+              <span class="day-pill-num">${idx < totalNights ? `Dia ${d.dayNumber}` : 'Regresso'}</span>
+              ${wxMini ? `<span class="day-pill-wx">${wxMini}</span>` : ''}
+            </span>
+            <span class="day-pill-date">${escapeHtml(d.shortDate)}</span>
+            <span class="day-pill-tag">${escapeHtml(pillSub)}</span>
+          </button>`;
+      })
       .join('');
 
     strip.querySelectorAll('[data-day-idx]').forEach((b) =>
@@ -1587,53 +1812,90 @@
     }
 
     const day = state.days[activeDayIndex];
-    document.getElementById('planner-day-badge').textContent =
-      activeDayIndex < totalNights ? `Noite ${day.dayNumber} de ${totalNights}` : 'Dia de Regresso';
-    document.getElementById('planner-day-title').textContent = `${day.shortDate} — ${day.theme}`;
-
-    const sel = document.getElementById('planner-dinner-select');
-    if (sel) {
-      if (!Array.from(sel.options).some((o) => o.value === day.dinnerChoice)) {
-        const opt = document.createElement('option');
-        opt.value = day.dinnerChoice;
-        opt.textContent = day.dinnerChoice;
-        sel.appendChild(opt);
-      }
-      sel.value = day.dinnerChoice;
+    const badgeEl = document.getElementById('planner-day-badge');
+    if (badgeEl) {
+      badgeEl.textContent = activeDayIndex < totalNights ? `Dia ${day.dayNumber} · Noite ${day.dayNumber} de ${totalNights}` : 'Dia de Regresso';
     }
-    document.getElementById('planner-day-notes').value = day.notes || '';
+    const titleEl = document.getElementById('planner-day-title');
+    if (titleEl) titleEl.textContent = `${day.shortDate} — ${day.theme}`;
+
+    // Top-of-day Weather Forecast Banner
+    const wxEl = document.getElementById('planner-day-weather');
+    if (wxEl) {
+      const dayWx = weatherState.dailyByDate?.[day.date];
+      const locName = state.trip.destination || state.trip.destCity || 'Destino';
+      if (dayWx) {
+        const wmo = describeWmo(dayWx.code);
+        wxEl.innerHTML = `
+          <div class="planner-wx-left">
+            <span class="planner-wx-icon" aria-hidden="true">${wmo.icon}</span>
+            <div>
+              <div class="planner-wx-title">${escapeHtml(wmo.label)} em ${escapeHtml(locName)}</div>
+              <div class="planner-wx-sub">Prob. chuva ${dayWx.rainProb}%${dayWx.uvMax ? ` · Índice UV máx. ${dayWx.uvMax}` : ''}</div>
+            </div>
+          </div>
+          <div class="planner-wx-right">
+            <div class="planner-wx-temps">${dayWx.max}°C <span>/ ${dayWx.min}°C</span></div>
+          </div>`;
+      } else if (weatherState.current) {
+        // Date is >16 days in the future (outside Open-Meteo 16-day forecast window)
+        const cur = weatherState.current;
+        const wmo = describeWmo(cur.code);
+        wxEl.innerHTML = `
+          <div class="planner-wx-left">
+            <span class="planner-wx-icon" aria-hidden="true">${wmo.icon}</span>
+            <div>
+              <div class="planner-wx-title">Tempo atual em ${escapeHtml(locName)}: ${cur.temp}°C (${escapeHtml(wmo.label)})</div>
+              <div class="planner-wx-sub">A previsão exata para ${escapeHtml(day.shortDate)} fica disponível a 16 dias da data</div>
+            </div>
+          </div>`;
+      } else {
+        wxEl.innerHTML = '';
+      }
+    }
+
+    const notesEl = document.getElementById('planner-day-notes');
+    if (notesEl) notesEl.value = day.notes || '';
 
     const listEl = document.getElementById('planner-agenda-list');
-    if (!day.items.length) {
-      listEl.innerHTML = `<p style="color:var(--ink-muted);font-size:0.88rem;padding:8px 0;">Dia livre — clique em "+ Adicionar Plano" ou agende um restaurante a partir do guia.</p>`;
-    } else {
-      listEl.innerHTML = day.items
-        .map(
-          (it) => `
-          <div class="agenda-item ${it.done ? 'is-done' : ''}">
-            <label class="agenda-left" style="cursor:pointer;flex:1;">
-              <input type="checkbox" class="check-circle" data-toggle-ag="${escapeHtml(it.id)}" ${it.done ? 'checked' : ''} />
-              <div>
-                <span class="agenda-time">${escapeHtml(it.time)}</span>
-                <div class="agenda-title">${escapeHtml(it.title)}</div>
-                ${it.note ? `<div class="agenda-note">${escapeHtml(it.note)}</div>` : ''}
-              </div>
-            </label>
-            <button type="button" class="icon-btn" data-del-ag="${escapeHtml(it.id)}">✕</button>
-          </div>`
-        )
-        .join('');
+    const sortedItems = [...(day.items || [])].sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
 
-      listEl.querySelectorAll('[data-toggle-ag]').forEach((c) =>
-        c.addEventListener('change', () => {
-          const t = day.items.find((x) => x.id === c.getAttribute('data-toggle-ag'));
-          if (t) { t.done = c.checked; saveState(); renderPlanner(); }
+    if (!sortedItems.length) {
+      listEl.innerHTML = `
+        <div class="plan-empty-box">
+          <span>Dia livre — adiciona atividades, passeios ou escolhe onde vão almoçar/jantar neste dia.</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+            <button type="button" class="btn btn-sm" id="plan-empty-add-rest">🍽️ + Restaurante</button>
+            <button type="button" class="btn btn-primary btn-sm" id="plan-empty-add-act">✨ + Atividade</button>
+          </div>
+        </div>`;
+      document.getElementById('plan-empty-add-rest')?.addEventListener('click', () => openPlanEntryModal('dining', null));
+      document.getElementById('plan-empty-add-act')?.addEventListener('click', () => openPlanEntryModal('activity', null));
+    } else {
+      listEl.innerHTML = sortedItems.map((it) => renderPlanEventCardHtml(it, { showActions: true })).join('');
+
+      listEl.querySelectorAll('[data-open-plan-venue]').forEach((b) =>
+        b.addEventListener('click', () => {
+          activeRestaurantId = b.getAttribute('data-open-plan-venue');
+          switchReviewsTab('restaurants');
+          switchView('resort');
+          renderResortVenues();
         })
       );
+
+      listEl.querySelectorAll('[data-edit-ag]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const item = day.items.find((x) => x.id === b.getAttribute('data-edit-ag'));
+          if (item) openPlanEntryModal(inferEventKind(item), item.id);
+        })
+      );
+
       listEl.querySelectorAll('[data-del-ag]').forEach((b) =>
         b.addEventListener('click', () => {
           day.items = day.items.filter((x) => x.id !== b.getAttribute('data-del-ag'));
-          saveState(); renderPlanner();
+          saveState();
+          renderPlanner();
+          renderOverview();
         })
       );
     }
@@ -3732,24 +3994,143 @@
     });
   }
 
-  function openAddAgendaModal() {
+  function openPlanEntryModal(defaultKind = 'activity', editItemId = null) {
     const day = state.days[activeDayIndex];
     if (!day) return;
-    openModal(`Adicionar a ${day.shortDate}`, `
-      <form id="f-ag" class="form-grid">
-        <div class="form-grid form-grid-2">
-          <div><label class="field-label">Hora</label><input type="time" id="a-time" class="input mono" value="19:30" required /></div>
-          <div><label class="field-label">Plano / Reserva</label><input id="a-title" class="input" placeholder="Ex: Jantar, Excursão..." required /></div>
+    if (!Array.isArray(day.items)) day.items = [];
+    const editing = editItemId ? day.items.find((x) => x.id === editItemId) : null;
+    const initialKind = editing ? (inferEventKind(editing) === 'dining' ? 'dining' : 'activity') : defaultKind;
+
+    const restaurants = state.venues.filter((v) => v.category !== 'bars');
+    const matchedVenueId = editing?.venueId || restaurants.find((v) => v.name.toLowerCase() === String(editing?.title || '').toLowerCase())?.id || '';
+    const isCustomRest = editing && initialKind === 'dining' && !matchedVenueId;
+
+    const venueOptionsHtml = [
+      ...restaurants.map(
+        (v) =>
+          `<option value="${escapeHtml(v.id)}" ${v.id === matchedVenueId ? 'selected' : ''}>${escapeHtml(v.name)} (${escapeHtml(v.cuisine || 'Restaurante')})</option>`
+      ),
+      `<option value="__custom__" ${isCustomRest ? 'selected' : ''}>Outro restaurante / fora do hotel...</option>`
+    ].join('');
+
+    openModal(editing ? `Editar em ${day.shortDate}` : `Marcar em ${day.shortDate}`, `
+      <form id="f-plan-entry" class="form-grid">
+        <div class="subnav-segment" style="margin-bottom:4px;max-width:100%;">
+          <button type="button" class="subnav-btn ${initialKind !== 'dining' ? 'is-active' : ''}" data-entry-kind="activity">✨ Atividade / Passeio</button>
+          <button type="button" class="subnav-btn ${initialKind === 'dining' ? 'is-active' : ''}" data-entry-kind="dining">🍽️ Restaurante</button>
         </div>
-        <div><label class="field-label">Nota opcional</label><input id="a-note" class="input" /></div>
-        <div style="display:flex;justify-content:flex-end;margin-top:6px;"><button type="submit" class="btn btn-primary">Adicionar</button></div>
+        <input type="hidden" id="pe-kind" value="${escapeHtml(initialKind)}" />
+
+        <div class="form-grid form-grid-2">
+          <div>
+            <label class="field-label" for="pe-time">Hora</label>
+            <input type="time" id="pe-time" class="input mono" value="${escapeHtml(editing?.time || (initialKind === 'dining' ? '20:00' : '10:00'))}" required />
+          </div>
+          <div id="pe-act-title-wrap" style="${initialKind === 'dining' ? 'display:none;' : ''}">
+            <label class="field-label" for="pe-title">Atividade / Plano</label>
+            <input id="pe-title" class="input" value="${escapeHtml(initialKind !== 'dining' ? (editing?.title || '') : '')}" placeholder="Ex: Excursão Chichén Itzá, Praia, Spa..." />
+          </div>
+          <div id="pe-rest-sel-wrap" style="${initialKind === 'dining' ? '' : 'display:none;'}">
+            <label class="field-label" for="pe-venue">Escolher Restaurante</label>
+            <select id="pe-venue" class="select">${venueOptionsHtml}</select>
+          </div>
+        </div>
+
+        <div id="pe-custom-rest-wrap" style="${initialKind === 'dining' && isCustomRest ? '' : 'display:none;'}">
+          <label class="field-label" for="pe-custom-rest">Nome do Restaurante</label>
+          <input id="pe-custom-rest" class="input" value="${escapeHtml(isCustomRest ? (editing?.title || '') : '')}" placeholder="Ex: Alux Caverna, La Cueva del Chango..." />
+        </div>
+
+        <div>
+          <label class="field-label" for="pe-note">Notas / Detalhes (opcional)</label>
+          <input id="pe-note" class="input" value="${escapeHtml(editing?.note || '')}" placeholder="Ex: Mesa Teppanyaki reservada, levar snorkel..." />
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
+          <button type="submit" class="btn btn-primary">${editing ? 'Guardar Alterações' : '+ Guardar no Plano'}</button>
+        </div>
       </form>
     `);
-    document.getElementById('f-ag').addEventListener('submit', (e) => {
+
+    const kindInput = document.getElementById('pe-kind');
+    const timeInput = document.getElementById('pe-time');
+    const actWrap = document.getElementById('pe-act-title-wrap');
+    const restWrap = document.getElementById('pe-rest-sel-wrap');
+    const customWrap = document.getElementById('pe-custom-rest-wrap');
+    const venueSel = document.getElementById('pe-venue');
+
+    const syncKindUi = (k) => {
+      kindInput.value = k;
+      document.querySelectorAll('[data-entry-kind]').forEach((b) =>
+        b.classList.toggle('is-active', b.getAttribute('data-entry-kind') === k)
+      );
+      actWrap.style.display = k === 'dining' ? 'none' : '';
+      restWrap.style.display = k === 'dining' ? '' : 'none';
+      customWrap.style.display = k === 'dining' && venueSel.value === '__custom__' ? '' : 'none';
+      if (!editing) {
+        if (k === 'dining' && timeInput.value === '10:00') timeInput.value = '20:00';
+        if (k === 'activity' && timeInput.value === '20:00') timeInput.value = '10:00';
+      }
+    };
+
+    document.querySelectorAll('[data-entry-kind]').forEach((b) =>
+      b.addEventListener('click', () => syncKindUi(b.getAttribute('data-entry-kind')))
+    );
+    venueSel?.addEventListener('change', () => {
+      customWrap.style.display = kindInput.value === 'dining' && venueSel.value === '__custom__' ? '' : 'none';
+    });
+
+    document.getElementById('f-plan-entry').addEventListener('submit', (e) => {
       e.preventDefault();
-      day.items.push({ id: `ag-${Date.now()}`, time: document.getElementById('a-time').value, title: document.getElementById('a-title').value.trim(), note: document.getElementById('a-note').value.trim(), done: false });
-      day.items.sort((a, b) => a.time.localeCompare(b.time));
-      saveState(); renderPlanner(); closeModal(); showToast('Adicionado!');
+      const kind = kindInput.value === 'dining' ? 'dining' : 'activity';
+      const time = timeInput.value || '12:00';
+      let note = document.getElementById('pe-note').value.trim();
+      let title = '';
+      let venueId = '';
+
+      if (kind === 'dining') {
+        if (venueSel.value === '__custom__') {
+          title = document.getElementById('pe-custom-rest').value.trim();
+          if (!title) {
+            showToast('Escreva o nome do restaurante.');
+            return;
+          }
+        } else {
+          const v = state.venues.find((x) => x.id === venueSel.value);
+          title = v ? v.name : 'Restaurante';
+          venueId = v ? v.id : '';
+          if (!note && v?.cuisine) note = v.cuisine;
+        }
+      } else {
+        title = document.getElementById('pe-title').value.trim();
+        if (!title) {
+          showToast('Escreva o nome da atividade.');
+          return;
+        }
+      }
+
+      const payload = {
+        id: editing?.id || `ag-${Date.now()}`,
+        time,
+        kind,
+        venueId,
+        title,
+        note
+      };
+
+      if (editing) {
+        const idx = day.items.findIndex((x) => x.id === editing.id);
+        if (idx >= 0) day.items[idx] = payload;
+      } else {
+        day.items.push(payload);
+      }
+
+      day.items.sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
+      saveState();
+      renderPlanner();
+      renderOverview();
+      closeModal();
+      showToast(`${title} marcado em ${day.shortDate}!`);
     });
   }
 
@@ -3758,19 +4139,34 @@
     if (!v || !state.days.length) return;
     openModal(`Agendar ${v.name}`, `
       <form id="f-sv" class="form-grid">
-        <div><label class="field-label">Escolher Dia</label><select id="sv-d" class="select">${state.days.map((d, i) => `<option value="${i}" ${i === activeDayIndex ? 'selected' : ''}>${escapeHtml(d.shortDate)}</option>`).join('')}</select></div>
-        <div><label class="field-label">Hora</label><input type="time" id="sv-t" class="input mono" value="19:30" required /></div>
-        <div style="display:flex;justify-content:flex-end;margin-top:6px;"><button type="submit" class="btn btn-primary">Agendar</button></div>
+        <div class="form-grid form-grid-2">
+          <div><label class="field-label" for="sv-d">Escolher Dia</label><select id="sv-d" class="select">${state.days.map((d, i) => `<option value="${i}" ${i === activeDayIndex ? 'selected' : ''}>Dia ${d.dayNumber} · ${escapeHtml(d.shortDate)}</option>`).join('')}</select></div>
+          <div><label class="field-label" for="sv-t">Hora</label><input type="time" id="sv-t" class="input mono" value="20:00" required /></div>
+        </div>
+        <div><label class="field-label" for="sv-n">Nota opcional</label><input id="sv-n" class="input" placeholder="Ex: Reserva mesa Teppanyaki, pedir esplanada..." /></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:6px;"><button type="submit" class="btn btn-primary">+ Agendar no Plano</button></div>
       </form>
     `);
     document.getElementById('f-sv').addEventListener('submit', (e) => {
       e.preventDefault();
       const idx = Number(document.getElementById('sv-d').value);
       const d = state.days[idx];
-      d.items.push({ id: `v-${Date.now()}`, time: document.getElementById('sv-t').value, title: v.name, note: v.cuisine, done: false });
-      d.dinnerChoice = v.name;
+      const extraNote = document.getElementById('sv-n').value.trim();
+      d.items.push({
+        id: `v-${Date.now()}`,
+        time: document.getElementById('sv-t').value,
+        kind: 'dining',
+        venueId: v.id,
+        title: v.name,
+        note: extraNote || v.cuisine || ''
+      });
+      d.items.sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
       activeDayIndex = idx;
-      saveState(); renderPlanner(); closeModal(); showToast(`Agendado em ${d.shortDate}`);
+      saveState();
+      renderPlanner();
+      renderOverview();
+      closeModal();
+      showToast(`${v.name} agendado para ${d.shortDate}!`);
     });
   }
 
@@ -3781,9 +4177,9 @@
     switchView(publicMode ? 'flights' : 'overview');
   });
   document.getElementById('hero-btn-flights')?.addEventListener('click', () => switchView('flights'));
+  document.getElementById('hero-btn-planner')?.addEventListener('click', () => switchView('planner'));
   document.getElementById('btn-refresh-map-radar')?.addEventListener('click', () => fetchAdsbLive());
   document.getElementById('hero-btn-resort')?.addEventListener('click', () => switchView('resort'));
-  document.getElementById('overview-all-dining-btn')?.addEventListener('click', () => switchView('resort'));
   document.getElementById('btn-open-wallet')?.addEventListener('click', openWalletModal);
   document.getElementById('overview-edit-wallet-btn')?.addEventListener('click', openWalletModal);
   document.getElementById('btn-close-modal')?.addEventListener('click', closeModal);
@@ -3797,17 +4193,13 @@
     })
   );
 
-  document.getElementById('btn-add-agenda-item')?.addEventListener('click', openAddAgendaModal);
-  document.getElementById('planner-dinner-select')?.addEventListener('change', (e) => {
-    if (state.days[activeDayIndex]) {
-      state.days[activeDayIndex].dinnerChoice = e.target.value;
-      saveState(); renderPlanner();
-    }
-  });
+  document.getElementById('btn-add-agenda-item')?.addEventListener('click', () => openPlanEntryModal('activity', null));
+  document.getElementById('btn-add-agenda-rest')?.addEventListener('click', () => openPlanEntryModal('dining', null));
   document.getElementById('planner-day-notes')?.addEventListener('input', (e) => {
     if (state.days[activeDayIndex]) {
       state.days[activeDayIndex].notes = e.target.value;
       saveState();
+      renderOverview();
     }
   });
 
@@ -4417,7 +4809,7 @@
   /* ========================================================================
      Supabase Cloud Sync (Private trip_state + Public public_trip) & Photos
      ======================================================================== */
-  const PUBLIC_VIEWS = new Set(['flights', 'photos']);
+  const PUBLIC_VIEWS = new Set(['overview', 'flights', 'photos']);
   let sbClient = null;
   let sbUser = null;
   let syncTimer = null;
@@ -4478,7 +4870,15 @@
       days: (state.days || []).map((d) => ({
         dayNumber: d.dayNumber,
         date: d.date,
-        shortDate: d.shortDate
+        shortDate: d.shortDate,
+        theme: d.theme || '',
+        items: (d.items || []).map((it) => ({
+          id: it.id,
+          time: it.time || '',
+          kind: it.kind || '',
+          title: it.title || '',
+          note: it.note || ''
+        }))
       }))
     };
   }
@@ -4530,12 +4930,13 @@
           theme: d.theme || '',
           dinnerChoice: 'Sem restaurante marcado',
           notes: '',
-          items: []
+          items: Array.isArray(d.items) ? d.items : []
         }));
       }
       renderTripChrome();
       updateClocksAndCountdown();
       chooseDefaultFlightDir();
+      renderOverview();
       renderFlights();
     } catch (err) {
       console.warn('Public trip pull failed:', err);
@@ -4546,7 +4947,7 @@
     openModal('Área Privada', `
       <form id="form-modal-login" class="form-grid">
         <p style="font-size:0.84rem;color:var(--ink-secondary);">
-          O painel da <strong>Viagem</strong> e as <strong>Fotos</strong> são públicos para amigos e família acompanharem. Inicie sessão para editar Configurações, Plano, Locais, Cocktails e Mala.
+          As abas <strong>Hoje</strong>, <strong>Voos</strong> e <strong>Fotos</strong> são públicas para amigos e família acompanharem. Inicie sessão para gerir Configurações, Plano completo, Reviews e Mala.
         </p>
         <div><label class="field-label">Email</label><input id="ml-email" type="email" class="input" required /></div>
         <div><label class="field-label">Password</label><input id="ml-pass" type="password" class="input" required /></div>
@@ -4596,14 +4997,17 @@
     if (actionLabel) actionLabel.textContent = isLoggedIn ? 'Configuração' : 'Entrar';
 
     if (!isLoggedIn && !PUBLIC_VIEWS.has(activeView)) {
-      switchView('flights', { pushHistory: false });
+      switchView('overview', { pushHistory: false });
     } else if (isLoggedIn && modeChanged) {
       const fromHash = window.location.hash ? window.location.hash.slice(1) : '';
       const initialPrivate = (fromHash && document.getElementById(`view-${fromHash}`)) ? fromHash : 'overview';
       switchView(initialPrivate, { pushHistory: false });
     }
     renderTripChrome();
-    if (modeChanged) renderFlights();
+    if (modeChanged) {
+      renderOverview();
+      renderFlights();
+    }
     renderPhotosAndSync();
   }
 
@@ -5135,7 +5539,7 @@
     }
 
     // 2. Swipe left/right on Planner to switch days
-    const plannerLayout = document.querySelector('#view-planner .planner-layout');
+    const plannerLayout = document.getElementById('planner-swipe-zone');
     if (plannerLayout) {
       let sx = null;
       let sy = null;
